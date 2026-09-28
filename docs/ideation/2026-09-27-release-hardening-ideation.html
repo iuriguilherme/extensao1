@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ideation: Rootkit Academy release hardening</title>
+<style>
+  :root {
+    --bg: #fbfaf7; --surface: #ffffff; --text: #1d2126; --muted: #5a6470;
+    --border: #e2ded6; --accent: #1f7a4d; --accent-soft: #e4f3ea; --accent-text: #145c39;
+    --info-soft: #e6eff9; --info-text: #1d4f86; --warn-soft: #fbf1dc; --warn-text: #7a5410;
+    --code-bg: #f1eee8;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14171b; --surface: #1b1f24; --text: #e4e6e9; --muted: #a2abb5;
+      --border: #2e343b; --accent: #5ccf93; --accent-soft: #1d3327; --accent-text: #8fe0b5;
+      --info-soft: #1c2a3b; --info-text: #a6c8ee; --warn-soft: #362b17; --warn-text: #ecc57c;
+      --code-bg: #242a31;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.6 -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+  main { max-width: 920px; margin-inline: auto; padding: 2.5rem 1.25rem 4rem; }
+  p, li, dd { max-width: 72ch; }
+  h1 { font-size: 1.9rem; line-height: 1.25; margin: 0.2rem 0 0.8rem; }
+  h2 { font-size: 1.4rem; margin: 2.6rem 0 0.8rem; padding-bottom: 0.3rem; border-bottom: 1px solid var(--border); }
+  h3 { font-size: 1.15rem; margin: 0 0 0.6rem; }
+  strong { color: inherit; }
+  code { font: 0.88em ui-monospace, "Cascadia Code", Consolas, monospace; background: var(--code-bg); padding: 0.08em 0.35em; border-radius: 4px; }
+  .eyebrow { font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  .meta { display: grid; grid-template-columns: max-content 1fr; gap: 0.25rem 1rem; margin: 0.5rem 0 1.5rem; font-size: 0.93rem; }
+  .meta dt { color: var(--muted); font-weight: 600; }
+  .meta dd { margin: 0; }
+  .stats { display: flex; flex-wrap: wrap; gap: 0.6rem; margin: 1rem 0 0.5rem; }
+  .stat { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 0.55rem 0.9rem; min-width: 7.5rem; }
+  .stat b { display: block; font-size: 1.35rem; }
+  .stat span { font-size: 0.8rem; color: var(--muted); }
+  .axes { padding-left: 1.2rem; }
+  .jump { columns: 2; padding-left: 1.2rem; font-size: 0.95rem; }
+  @media (max-width: 640px) { .jump { columns: 1; } }
+  a { color: var(--info-text); }
+  article.idea { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.3rem 1.4rem; margin: 1.2rem 0; }
+  .chips { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0 0 0.8rem; }
+  .chip { font-size: 0.78rem; font-weight: 600; padding: 0.15rem 0.6rem; border-radius: 999px; border: 1px solid transparent; }
+  .chip.id { background: var(--accent-soft); color: var(--accent-text); }
+  .chip.axis { background: var(--info-soft); color: var(--info-text); }
+  .chip.conf { background: var(--warn-soft); color: var(--warn-text); }
+  .chip.cx { background: var(--code-bg); color: var(--text); }
+  article.idea dl { margin: 0; }
+  article.idea dt { font-size: 0.75rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 700; margin-top: 0.8rem; }
+  article.idea dd { margin: 0.2rem 0 0; }
+  figure { margin: 1rem 0 0.4rem; }
+  figure svg { width: 100%; height: auto; display: block; }
+  figcaption { font-size: 0.85rem; color: var(--muted); margin-top: 0.3rem; }
+  svg text { font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif; fill: var(--text); }
+  svg .box { fill: var(--surface); stroke: var(--border); stroke-width: 1.5; }
+  svg .hl { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.5; }
+  svg .inf { fill: var(--info-soft); stroke: var(--info-text); stroke-width: 1.2; }
+  svg .wrn { fill: var(--warn-soft); stroke: var(--warn-text); stroke-width: 1.2; }
+  svg .ln { stroke: var(--muted); stroke-width: 1.5; fill: none; }
+  svg .sm { font-size: 12px; }
+  svg .md { font-size: 14px; font-weight: 600; }
+  svg .mut { fill: var(--muted); }
+  table { width: 100%; border-collapse: collapse; font-size: 0.93rem; }
+  th, td { text-align: left; padding: 0.5rem 0.6rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }
+  .callout { background: var(--warn-soft); color: var(--warn-text); border-radius: 10px; padding: 0.9rem 1.1rem; margin: 1rem 0; }
+  .callout p { margin: 0.3rem 0; color: inherit; }
+  footer.composition-signal { margin-top: 3rem; font-size: 0.82rem; color: var(--muted); border-top: 1px solid var(--border); padding-top: 0.8rem; }
+</style>
+</head>
+<body>
+<main>
+
+<header>
+  <div class="eyebrow">Ideation</div>
+  <h1>Ideation: Rootkit Academy release hardening</h1>
+  <dl class="meta">
+    <dt>Date</dt><dd><time datetime="2026-09-27">2026-09-27</time></dd>
+    <dt>Topic</dt><dd>release-hardening</dd>
+    <dt>Focus</dt><dd>Brazilian Portuguese only; keep the finite ending and add optional endless play (tiered side jobs, procedural cities, more optional lectures); breached nodes join a swarm that contributes CPU/RAM/storage, capped by NOC network hardware; crypto mining replaces one-time node cash.</dd>
+    <dt>Mode</dt><dd>repo-grounded</dd>
+  </dl>
+  <div class="stats">
+    <div class="stat"><b>47</b><span>raw ideas</span></div>
+    <div class="stat"><b>24</b><span>after merge</span></div>
+    <div class="stat"><b>7</b><span>survivors</span></div>
+    <div class="stat"><b>5</b><span>axes covered</span></div>
+  </div>
+</header>
+
+<section id="grounding-context">
+<h2>Grounding Context</h2>
+<p class="eyebrow">Codebase Context</p>
+<ul>
+  <li><strong>Stack.</strong> Phaser 4 + TypeScript + Vite, Vitest (30 tests). Content in <code>src/data</code> (11 lessons in 3 tracks, 21 parts in 7 slots, 10 handcrafted nodes with literal x/y), rules in <code>src/core</code>, nine scenes.</li>
+  <li><strong>One machine.</strong> <code>computeSpecs(installed)</code> derives <code>cpuPower = cores × GHz</code>, RAM, storage and <code>linkMbps = min(nic, router)</code> from a single build. One <code>nic</code> slot and one <code>router</code> slot. <code>roundSeconds</code> caps at 30 s (CPU power 88) and <code>mistakesAllowed</code> caps at 64 GB.</li>
+  <li><strong>Breached nodes are bare ids.</strong> <code>GameState.breached: string[]</code> holds no per-node resources; <code>breach()</code> pays <code>node.reward</code> once and 20% on replays.</li>
+  <li><strong>No clock.</strong> Nothing ticks outside the mini-game timer; the save is a synchronous snapshot with no timestamp.</li>
+  <li><strong>Closed difficulty.</strong> <code>Difficulty = 1 | 2 | 3</code>, <code>bits = [4, 6, 8]</code>, <code>roundCount = [5, 7, 9]</code>; the only side job is hardcoded binary difficulty 1 for $25. Rounds use <code>createRng(Date.now())</code>.</li>
+  <li><strong>Teaching loop.</strong> Lessons gate parts, setup and nodes; every mistake shows an <code>explain</code>; hardware and IP errors are teaching sentences; content-integrity tests guard the data.</li>
+  <li><strong>Text.</strong> About 145 English user-facing strings spread across data, scenes and core messages; patterns like <code>"mistake(s)"</code>, <code>$${money}</code>, <code>padEnd</code> alignment; tests assert English regexes; <code>index.html</code> has <code>lang="en"</code>.</li>
+</ul>
+<p class="eyebrow">External context</p>
+<ul>
+  <li>Bitburner: Hacknet nodes as passive producers and BitNode prestige as "finish, then continue under new rules".</li>
+  <li>Grey Hack: procedurally generated networks as the content engine. Cisco Binary Game: a single fast bit drill reused over a million times.</li>
+  <li>Bitcoin difficulty retargeting keeps block rate stable as hash power grows.</li>
+  <li>BNCC Computação research exists in Brazil, but no PT-BR "hack the network to learn IT" game was found.</li>
+  <li>Serious-games ethics literature warns hacking and crypto games can normalize harm and recommends sanctioned-lab framing.</li>
+</ul>
+<p class="eyebrow">Past learnings</p>
+<p>None recorded in the repo.</p>
+</section>
+
+<section id="topic-axes">
+<h2>Topic Axes</h2>
+<ol class="axes">
+  <li>PT-BR language</li>
+  <li>Endless play past the ending</li>
+  <li>Swarm and NOC capacity</li>
+  <li>Mining economy</li>
+  <li>Teaching integrity of the new systems</li>
+</ol>
+</section>
+
+<section id="ranked-ideas">
+<h2>Ranked Ideas</h2>
+<ul class="jump">
+  <li><a href="#i1">1. Swarm nodes are real machines behind switch ports</a></li>
+  <li><a href="#i2">2. Mining runs on an action clock and replaces breach cash</a></li>
+  <li><a href="#i3">3. PT-BR as a style system, not a translation pass</a></li>
+  <li><a href="#i4">4. New systems ship ethical and lesson-gated</a></li>
+  <li><a href="#i5">5. One open-ended difficulty dial for side jobs and mining</a></li>
+  <li><a href="#i6">6. Seeded cities that are real IP plans</a></li>
+  <li><a href="#i7">7. The ending becomes a formatura, then pós-graduação</a></li>
+</ul>
+
+<article class="idea" id="i1">
+  <div class="chips"><span class="chip id">1.</span><span class="chip axis">Swarm and NOC capacity</span><span class="chip conf">Confidence 75%</span><span class="chip cx">Complexity High</span></div>
+  <h3>1. Swarm nodes are real machines behind switch ports</h3>
+  <dl>
+    <dt>Description</dt>
+    <dd>Give every node an <code>installed</code> build made from the existing parts catalog and evaluate it with the same <code>computeSpecs()</code>. The NOC becomes a small rack where routers and switches have a <strong>port count</strong>; each held node uses one port, so the node cap is the total port count. Nodes behind a switch share its uplink, so usable swarm power is limited by an oversubscription ratio (for example 4:1). "Specialized network hardware" is then literally a switch or router part inside a node's build: holding that node adds its ports and uplink. Split what resources do: the player's own rig keeps driving intrusion time and mistakes, while the swarm pool drives node requirements, mining and a post-ending tier the Core alone cannot unlock. <code>GameState</code> separates <em>held</em> from <em>ever breached</em>, with a save migration for saves that already hold all ten nodes.</dd>
+    <dt>Basis</dt>
+    <dd><code>direct:</code> <code>breached: string[]</code> (state.ts) carries no resources; <code>linkMbps: nic &amp;&amp; router ? Math.min(...)</code> (hardware.ts:97) is already a derived bottleneck; lessons.ts quiz explain "A link runs at the speed of its slowest end."; <code>roundSeconds</code> caps at 30 s and <code>mistakesAllowed</code> at 64 GB (hardware.ts:112-121), so pouring swarm power into intrusions saturates fast; the Core's requirements are reachable by one top rig. <code>external:</code> leaf/spine oversubscription in data centers; BOINC shared-capacity model.</dd>
+    <dt>Rationale</dt>
+    <dd>One data model covers three parts of change #3: contribution (nodes have builds), the cap (ports), and specialized hardware raising the cap (a switch part in a node). It also turns the cap into real networking content instead of an arbitrary number, and gives mining a resource pool that is not the same number as the intrusion timer.</dd>
+    <dt>Downsides</dt>
+    <dd>Largest refactor of the set: the single <code>nic</code>/<code>router</code> slot becomes a rack, node data grows, and the Workbench needs a NOC view. Save migration needs a rule (for example, keep the strongest nodes up to the new cap).</dd>
+    <dt>Confidence</dt><dd>75%</dd>
+    <dt>Complexity</dt><dd>High</dd>
+  </dl>
+  <figure>
+    <svg viewBox="0 0 760 250" role="img" aria-labelledby="f1t">
+      <title id="f1t">Player rig and NOC switch with node ports; a node carrying its own switch adds ports</title>
+      <rect class="hl" x="20" y="95" width="150" height="62" rx="8"/>
+      <text class="md" x="95" y="121" text-anchor="middle">Your rig</text>
+      <text class="sm mut" x="95" y="141" text-anchor="middle">drives intrusions</text>
+      <line class="ln" x1="170" y1="126" x2="240" y2="126"/>
+      <rect class="inf" x="240" y="85" width="170" height="82" rx="8"/>
+      <text class="md" x="325" y="112" text-anchor="middle">NOC switch</text>
+      <text class="sm" x="325" y="132" text-anchor="middle">8 ports · 1 Gbps uplink</text>
+      <text class="sm mut" x="325" y="152" text-anchor="middle">node cap = ports</text>
+      <line class="ln" x1="410" y1="105" x2="480" y2="45"/>
+      <line class="ln" x1="410" y1="126" x2="480" y2="126"/>
+      <line class="ln" x1="410" y1="147" x2="480" y2="207"/>
+      <rect class="box" x="480" y="22" width="150" height="46" rx="8"/>
+      <text class="sm" x="555" y="50" text-anchor="middle">Node · CPU/RAM/disk</text>
+      <rect class="box" x="480" y="103" width="150" height="46" rx="8"/>
+      <text class="sm" x="555" y="131" text-anchor="middle">Node · CPU/RAM/disk</text>
+      <rect class="wrn" x="480" y="184" width="150" height="46" rx="8"/>
+      <text class="sm" x="555" y="205" text-anchor="middle">Node with own switch</text>
+      <text class="sm" x="555" y="221" text-anchor="middle">+4 ports</text>
+      <line class="ln" x1="630" y1="207" x2="690" y2="207"/>
+      <text class="sm mut" x="700" y="200">more</text>
+      <text class="sm mut" x="700" y="216">nodes</text>
+    </svg>
+    <figcaption>Illustrative: the switch's ports set the node cap; a node whose build includes a switch raises it. Swarm power flows to mining and node requirements, not the intrusion timer.</figcaption>
+  </figure>
+</article>
+
+<article class="idea" id="i2">
+  <div class="chips"><span class="chip id">2.</span><span class="chip axis">Mining economy</span><span class="chip conf">Confidence 75%</span><span class="chip cx">Complexity Medium</span></div>
+  <h3>2. Mining runs on an action clock and replaces breach cash</h3>
+  <dl>
+    <dt>Description</dt>
+    <dd>Retire the cash branch of <code>breach()</code>: breaching a node only adds it to the swarm (and replays pay nothing). Income comes from mining. Time advances in <strong>blocks</strong> driven by player actions (finishing a lesson, an intrusion, an install, or an explicit "minerar N blocos" button) instead of a wall clock, so the economy is deterministic, testable, and has no offline-idle exploit. Each node splits its CPU between mining and an intrusion reserve; nodes are dispatched in merit order (best hash per watt first), and each block pays in proportion to the CPU assigned to mining.</dd>
+    <dt>Basis</dt>
+    <dd><code>direct:</code> no tick exists outside <code>MinigameScene.update</code> and <code>GameState</code> has no timestamp (evidence-mining-economy.md); <code>breach()</code> in state.ts pays <code>node.reward</code> and <code>REPLAY_RATIO</code> 20%; <code>earn</code>/<code>breach</code> fire once in <code>MinigameScene.finish</code>; <code>roundSeconds(cpuPower)</code> already converts CPU to gameplay. <code>external:</code> Crypto Mining Simulator's allocation lever; power-grid merit-order dispatch.</dd>
+    <dt>Rationale</dt>
+    <dd>Change #4 says mining must replace hack-for-cash and must consume CPU. Without an explicit clock decision, "consume" means nothing; with a block clock, both requirements become one small, pure function that tests can drive.</dd>
+    <dt>Downsides</dt>
+    <dd>Block time feels less like an idle game than real time; some players expect income while away. Balancing needs a spreadsheet pass because lessons stay the only other income. Variants worth deciding in brainstorming: an electricity bill (ANEEL tariff flags) as a money sink, and solo versus pool mining.</dd>
+    <dt>Confidence</dt><dd>75%</dd>
+    <dt>Complexity</dt><dd>Medium</dd>
+  </dl>
+  <figure>
+    <svg viewBox="0 0 760 150" role="img" aria-labelledby="f2t">
+      <title id="f2t">Player action advances blocks; CPU split between mining and intrusion reserve; mining share pays per block</title>
+      <rect class="box" x="10" y="45" width="150" height="56" rx="8"/>
+      <text class="md" x="85" y="70" text-anchor="middle">Player action</text>
+      <text class="sm mut" x="85" y="88" text-anchor="middle">lesson · intrusion</text>
+      <line class="ln" x1="160" y1="73" x2="215" y2="73"/>
+      <rect class="inf" x="215" y="45" width="130" height="56" rx="8"/>
+      <text class="md" x="280" y="70" text-anchor="middle">+N blocks</text>
+      <text class="sm" x="280" y="88" text-anchor="middle">game clock</text>
+      <line class="ln" x1="345" y1="73" x2="400" y2="73"/>
+      <rect class="hl" x="400" y="20" width="160" height="46" rx="8"/>
+      <text class="sm" x="480" y="48" text-anchor="middle">CPU for mining</text>
+      <rect class="box" x="400" y="82" width="160" height="46" rx="8"/>
+      <text class="sm" x="480" y="110" text-anchor="middle">CPU reserve (intrusions)</text>
+      <line class="ln" x1="560" y1="43" x2="615" y2="43"/>
+      <rect class="wrn" x="615" y="20" width="135" height="46" rx="8"/>
+      <text class="sm" x="682" y="48" text-anchor="middle">R$ per block</text>
+    </svg>
+    <figcaption>Illustrative: actions advance the chain; only CPU assigned to mining earns.</figcaption>
+  </figure>
+</article>
+
+<article class="idea" id="i3">
+  <div class="chips"><span class="chip id">3.</span><span class="chip axis">PT-BR language</span><span class="chip conf">Confidence 85%</span><span class="chip cx">Complexity Medium</span></div>
+  <h3>3. PT-BR as a style system, not a translation pass</h3>
+  <dl>
+    <dt>Description</dt>
+    <dd>Write Portuguese directly in the data and scenes (no i18n layer, since there is no second language), but back it with three small pieces. A <code>termos.ts</code> glossary decides which technical terms are translated ("roteador", "máscara de sub-rede", "placa de rede") and which stay in English as Brazilian IT uses them (DNS, firewall, hash, switch). A <code>fmt.ts</code> on <code>Intl</code> pt-BR formats prose numbers with a decimal comma ("4,8 GHz", "R$ 1.200") while technical notation (IPs, masks, CIDR) never localizes, provides real plurals instead of "erro(s)", and uses a part-gender field for agreement ("Placa-mãe instalada", "Processador instalado"). Tests assert on issue codes (<code>psu-overload</code>, <code>ip-broadcast</code>) instead of wording, plus one test that scans user-facing strings for leftover English words.</dd>
+    <dt>Basis</dt>
+    <dd><code>direct:</code> about 145 English strings (evidence-pt-br.md); <code>"mistake(s)"</code> at HubScene.ts:38 and MinigameScene.ts:54; tests assert <code>/socket/</code>, <code>/DDR5/</code>, <code>/Smart TV/</code>, <code>/BROADCAST/</code>, <code>/not your router/</code>; <code>index.html</code> <code>lang="en"</code>; <code>round1()</code> yields "4.8". <code>external:</code> Microsoft Language Portal PT-BR terminology conventions.</dd>
+    <dt>Rationale</dt>
+    <dd>Translation alone would leave "4.8" instead of "4,8", broken gender agreement in toasts, inconsistent terms across 11 lessons, and a test suite that breaks on every wording change. These pieces make PT-BR a rule that every new string (swarm, mining, cities) follows automatically.</dd>
+    <dt>Downsides</dt>
+    <dd>Needs a native-speaker pass on the glossary and lesson text; the English-word scan needs an allow-list for kept terms. Longer Portuguese strings will need layout checks on fixed-width buttons.</dd>
+    <dt>Confidence</dt><dd>85%</dd>
+    <dt>Complexity</dt><dd>Medium</dd>
+  </dl>
+</article>
+
+<article class="idea" id="i4">
+  <div class="chips"><span class="chip id">4.</span><span class="chip axis">Teaching integrity</span><span class="chip conf">Confidence 85%</span><span class="chip cx">Complexity Low</span></div>
+  <h3>4. New systems ship ethical and lesson-gated</h3>
+  <dl>
+    <dt>Description</dt>
+    <dd>Frame every city as an authorized lab or pentest contract ("contrato de laboratório autorizado"), and name the real-world equivalent honestly: using other people's machines to mine is cryptojacking and a crime. Add optional lectures on Lei 12.737/2012 (Lei Carolina Dieckmann), proof-of-work and its energy cost, and switch ports and oversubscription. Mining and the NOC rack unlock through the same lesson → quiz → explain gate as every existing part, and every new stat (hash rate, ports in use, oversubscription) gets a <code>MISSING_HINT</code>-style explanation, covered by the content-integrity tests.</dd>
+    <dt>Basis</dt>
+    <dd><code>direct:</code> no existing explain string covers mining or proof-of-work; <code>MISSING_HINT</code> (hardware.ts:26-34) and the lesson <code>requires</code> graph plus "every referenced lesson exists" test. <code>external:</code> DiGRA serious-games ethics and ethical-hacking education literature; Lei 12.737/2012.</dd>
+    <dt>Rationale</dt>
+    <dd>For a university extension project, a game that rewards mining on breached machines without comment is a reputational risk. Using the existing gate keeps the new systems as teachable as the old ones at almost no engineering cost.</dd>
+    <dt>Downsides</dt>
+    <dd>More text to write and review (in Portuguese). The framing must stay light enough not to feel like a lecture inside the game.</dd>
+    <dt>Confidence</dt><dd>85%</dd>
+    <dt>Complexity</dt><dd>Low</dd>
+  </dl>
+</article>
+
+<article class="idea" id="i5">
+  <div class="chips"><span class="chip id">5.</span><span class="chip axis">Endless play</span><span class="chip conf">Confidence 70%</span><span class="chip cx">Complexity Medium</span></div>
+  <h3>5. One open-ended difficulty dial for side jobs and mining</h3>
+  <dl>
+    <dt>Description</dt>
+    <dd>Replace <code>Difficulty = 1 | 2 | 3</code> with a numeric level that generators read through formulas: bits grow 4 → 6 → 8 → … → 16, subnet prefixes and CNAME chains get harder, rounds grow, each capped at a teaching ceiling. Side jobs become a job board of tiers on that dial, weighted toward the area where the player misses most (spaced review), with tiers unlocked by accuracy rather than cash. The same dial drives proof-of-work: "mine a block" is a hash/bit round whose required leading zero bits retarget upward as the swarm grows, so income grows more slowly than the swarm and endless play does not break the economy.</dd>
+    <dt>Basis</dt>
+    <dd><code>direct:</code> <code>export type Difficulty = 1 | 2 | 3;</code> (minigames.ts:33), <code>const bits = [4, 6, 8][d - 1];</code> (:76), <code>roundCount</code> <code>[5, 7, 9]</code>; the only side job is hardcoded binary level 1 for $25 (HubScene.ts:74-76). <code>external:</code> Bitcoin's difficulty retarget every 2016 blocks; Cisco Binary Game's ramping drill.</dd>
+    <dt>Rationale</dt>
+    <dd>The user's own example ("8 bits or more") needs a level outside the current union. One dial serves side-job tiers, harder cities and mining balance, instead of three scaling systems.</dd>
+    <dt>Downsides</dt>
+    <dd>Touches every generator and the exhaustive generator test. Teaching ceilings are a pedagogy decision the team must make (for example, is a /30 subnet question at level 12 still useful?).</dd>
+    <dt>Confidence</dt><dd>70%</dd>
+    <dt>Complexity</dt><dd>Medium</dd>
+  </dl>
+  <figure>
+    <svg viewBox="0 0 760 160" role="img" aria-labelledby="f5t">
+      <title id="f5t">One difficulty level feeds side-job tiers, city generation and mining difficulty</title>
+      <rect class="hl" x="20" y="52" width="170" height="56" rx="28"/>
+      <text class="md" x="105" y="76" text-anchor="middle">Difficulty level</text>
+      <text class="sm mut" x="105" y="94" text-anchor="middle">1 … ∞, with ceilings</text>
+      <line class="ln" x1="190" y1="72" x2="300" y2="30"/>
+      <line class="ln" x1="190" y1="80" x2="300" y2="80"/>
+      <line class="ln" x1="190" y1="88" x2="300" y2="130"/>
+      <rect class="box" x="300" y="8" width="230" height="44" rx="8"/>
+      <text class="sm" x="415" y="35" text-anchor="middle">Side-job tiers (4 → 16 bits)</text>
+      <rect class="box" x="300" y="58" width="230" height="44" rx="8"/>
+      <text class="sm" x="415" y="85" text-anchor="middle">City and node difficulty</text>
+      <rect class="wrn" x="300" y="108" width="230" height="44" rx="8"/>
+      <text class="sm" x="415" y="135" text-anchor="middle">PoW leading-zero bits (retarget)</text>
+    </svg>
+    <figcaption>Illustrative: one dial, three consumers.</figcaption>
+  </figure>
+</article>
+
+<article class="idea" id="i6">
+  <div class="chips"><span class="chip id">6.</span><span class="chip axis">Endless play</span><span class="chip conf">Confidence 65%</span><span class="chip cx">Complexity High</span></div>
+  <h3>6. Seeded cities that are real IP plans</h3>
+  <dl>
+    <dt>Description</dt>
+    <dd>Keep the handcrafted city as the finite campaign and generate extra cities from a seed. Each generated city is a real address plan: for example a /16 split into subnets, node IPs valid inside their subnet, gateways that make sense, all checked by <code>ip.ts</code> so the map itself is correct networking. City types (NAT, VLAN, IPv6, VPN) unlock through optional lectures via the existing <code>requires</code> field. Seeds are shareable as a class code ("código da turma", e.g. <code>RIO-4821</code>), replacing <code>createRng(Date.now())</code> where needed, so a whole class plays the same city and rounds with no server.</dd>
+    <dt>Basis</dt>
+    <dd><code>direct:</code> ten nodes with literal x/y in nodes.ts; <code>buildRounds(id, d, rng)</code> is already seeded; <code>createRng(Date.now())</code> at MinigameScene.ts:50; <code>NetNode</code>, <code>nodeStatus</code> and <code>checkRequirements</code> are generic. <code>external:</code> Grey Hack procedural networks; roguelike daily seeds.</dd>
+    <dt>Rationale</dt>
+    <dd>"More cities" becomes more networking practice, not just more map. Class codes make procedural content usable by a teacher, which matters for the extension project.</dd>
+    <dt>Downsides</dt>
+    <dd>Graph layout on 1280×720 without overlaps is real work. Validating generated plans needs property tests over many seeds.</dd>
+    <dt>Confidence</dt><dd>65%</dd>
+    <dt>Complexity</dt><dd>High</dd>
+  </dl>
+</article>
+
+<article class="idea" id="i7">
+  <div class="chips"><span class="chip id">7.</span><span class="chip axis">Endless play</span><span class="chip conf">Confidence 70%</span><span class="chip cx">Complexity Medium</span></div>
+  <h3>7. The ending becomes a formatura, then pós-graduação</h3>
+  <dl>
+    <dt>Description</dt>
+    <dd>Breaching the Data Center Core stays the ending, presented as a graduation: a "Certificado de conclusão" screen listing lessons completed and accuracy per area. After it, optional tiers (Especialização, Mestrado, Doutorado) raise the difficulty dial, open procedural cities and add optional lectures, each with its own certificate. Combined with a class code, the certificate gives the extension project per-student evidence of learning.</dd>
+    <dt>Basis</dt>
+    <dd><code>direct:</code> the win text in <code>objective()</code> ("certified root", state.ts:90) and <code>phaseOf() === 'won'</code> change nothing else today; <code>store.ts</code> merge-defaults can add a tier field to old saves. <code>external:</code> Bitburner BitNodes (continue after the ending under new rules; unlike Bitburner, this keeps progress).</dd>
+    <dt>Rationale</dt>
+    <dd>Satisfies "there must be an end" and "keep going" with one clear structure that Brazilian students recognize, and produces something teachers can use.</dd>
+    <dt>Downsides</dt>
+    <dd>Accuracy tracking needs new state. The academic ladder is a theme choice the team may prefer to name differently.</dd>
+    <dt>Confidence</dt><dd>70%</dd>
+    <dt>Complexity</dt><dd>Medium</dd>
+  </dl>
+</article>
+</section>
+
+<section id="rejection-summary">
+<h2>Rejection Summary</h2>
+<table>
+  <thead><tr><th>#</th><th>Idea</th><th>Reason Rejected</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td>Central message catalog (<code>messages.ts</code>)</td><td>Indirection with only one language; becomes an i18n layer in miniature. Idea 3 gives the consistency benefit without it.</td></tr>
+    <tr><td>2</td><td>DHCP-style lease on held nodes (renew or lose)</td><td>Scope addition that adds recurring chores; verifier rated weak. Could return as an optional lecture topic.</td></tr>
+    <tr><td>3</td><td>Self-amortizing upkeep tax on node contributions</td><td>Scope addition; oversubscription in idea 1 already limits usable swarm power.</td></tr>
+    <tr><td>4</td><td>Electricity bill with ANEEL tariff flags</td><td>Better as a brainstorm variant of idea 2 than a separate direction.</td></tr>
+    <tr><td>5</td><td>Solo versus pool mining</td><td>Better as a brainstorm variant of idea 2.</td></tr>
+    <tr><td>6</td><td>One coin per resource (CPU, RAM, storage)</td><td>Conflicts with the directive that mining consumes CPU; expands the economy beyond the ask.</td></tr>
+    <tr><td>7</td><td>Separate open difficulty, PoW retarget, adaptive side-job board ideas</td><td>Merged into idea 5.</td></tr>
+    <tr><td>8</td><td>Separate procedural city, IP-plan city, concept city types, class code ideas</td><td>Merged into idea 6.</td></tr>
+    <tr><td>9</td><td>Separate aggregator, split specs, multi-slot NOC, derived cap, nodes-as-builds ideas</td><td>Merged into idea 1.</td></tr>
+    <tr><td>10</td><td>Separate block clock, passive tick, CPU allocation, retire breach cash ideas</td><td>Merged into idea 2.</td></tr>
+    <tr><td>11</td><td>Separate glossary, formatter, decimal-comma, gender, code-based tests ideas</td><td>Merged into idea 3.</td></tr>
+    <tr><td>12</td><td>Separate ethics framing, lesson gates, explain maps ideas</td><td>Merged into idea 4.</td></tr>
+    <tr><td>13</td><td>Separate graduation ladder, win-as-checkpoint, certificate + class report ideas</td><td>Merged into idea 7.</td></tr>
+  </tbody>
+</table>
+<div class="callout">
+  <p><strong>Decision to make explicitly:</strong> the critic noted that the directive requires mining to <em>replace</em> node cash, not sit beside it. Idea 2 retires the cash branch of <code>breach()</code>; lesson rewards and the side job then become the only non-mining income.</p>
+</div>
+</section>
+
+<footer class="composition-signal">Composed <time datetime="2026-09-27T04:02-03:00">2026-09-27 04:02 (UTC−03:00)</time> by ce-ideate from the user's release-hardening request for Rootkit Academy.</footer>
+</main>
+</body>
+</html>
