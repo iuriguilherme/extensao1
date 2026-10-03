@@ -61,12 +61,23 @@ export interface NetConfig {
   dns: string;
 }
 
+/** Stable problem codes: tests and logic check these, never the message wording. */
+export type NetIssueCode =
+  | 'ip-invalid' | 'mask-invalid' | 'mask-mismatch' | 'ip-outside' | 'ip-network' | 'ip-broadcast'
+  | 'ip-conflict' | 'gateway-invalid' | 'gateway-not-router' | 'dns-invalid' | 'dns-unknown';
+
+export interface NetIssue {
+  code: NetIssueCode;
+  message: string;
+}
+
 /**
  * Validates a manual IPv4 configuration against the LAN, returning a list of
- * teaching-oriented errors (empty when the configuration works).
+ * teaching-oriented problems (empty when the configuration works).
  */
-export function validateNetConfig(config: NetConfig, lan: LanInfo): string[] {
-  const errors: string[] = [];
+export function validateNetConfig(config: NetConfig, lan: LanInfo): NetIssue[] {
+  const errors: NetIssue[] = [];
+  const fail = (code: NetIssueCode, message: string) => errors.push({ code, message });
   const ip = parseIp(config.ip);
   const mask = parseIp(config.mask);
   const gateway = parseIp(config.gateway);
@@ -74,37 +85,37 @@ export function validateNetConfig(config: NetConfig, lan: LanInfo): string[] {
   const routerIp = parseIp(lan.routerIp)!;
   const lanPrefix = maskToPrefix(parseIp(lan.mask)!)!;
 
-  if (ip === null) errors.push(`IP "${config.ip}" is not a valid IPv4 address (4 octets, 0–255).`);
+  if (ip === null) fail('ip-invalid', `IP "${config.ip}" is not a valid IPv4 address (4 octets, 0–255).`);
   if (mask === null || maskToPrefix(mask) === null) {
-    errors.push(`"${config.mask}" is not a valid subnet mask.`);
+    fail('mask-invalid', `"${config.mask}" is not a valid subnet mask.`);
   } else if (maskToPrefix(mask) !== lanPrefix) {
-    errors.push(`Mask ${config.mask} does not match the LAN (${lan.mask}). Hosts must agree on where the network ends.`);
+    fail('mask-mismatch', `Mask ${config.mask} does not match the LAN (${lan.mask}). Hosts must agree on where the network ends.`);
   }
 
   if (ip !== null) {
     if (!sameSubnet(ip, routerIp, lanPrefix)) {
-      errors.push(`${config.ip} is outside the LAN ${formatIp(networkAddress(routerIp, lanPrefix))}/${lanPrefix}. The router cannot reach you directly.`);
+      fail('ip-outside', `${config.ip} is outside the LAN ${formatIp(networkAddress(routerIp, lanPrefix))}/${lanPrefix}. The router cannot reach you directly.`);
     } else if (ip === networkAddress(routerIp, lanPrefix)) {
-      errors.push(`${config.ip} is the NETWORK address of this subnet; hosts cannot use it.`);
+      fail('ip-network', `${config.ip} is the NETWORK address of this subnet; hosts cannot use it.`);
     } else if (ip === broadcastAddress(routerIp, lanPrefix)) {
-      errors.push(`${config.ip} is the BROADCAST address of this subnet; hosts cannot use it.`);
+      fail('ip-broadcast', `${config.ip} is the BROADCAST address of this subnet; hosts cannot use it.`);
     } else {
       for (const [name, taken] of Object.entries(lan.takenBy)) {
-        if (parseIp(taken) === ip) errors.push(`${config.ip} is already used by ${name}. Two hosts with the same IP cause a conflict.`);
+        if (parseIp(taken) === ip) fail('ip-conflict', `${config.ip} is already used by ${name}. Two hosts with the same IP cause a conflict.`);
       }
     }
   }
 
   if (gateway === null) {
-    errors.push(`Gateway "${config.gateway}" is not a valid IPv4 address.`);
+    fail('gateway-invalid', `Gateway "${config.gateway}" is not a valid IPv4 address.`);
   } else if (gateway !== routerIp) {
-    errors.push(`Gateway ${config.gateway} is not your router. Traffic to other networks would go nowhere.`);
+    fail('gateway-not-router', `Gateway ${config.gateway} is not your router. Traffic to other networks would go nowhere.`);
   }
 
   if (dns === null) {
-    errors.push(`DNS "${config.dns}" is not a valid IPv4 address.`);
+    fail('dns-invalid', `DNS "${config.dns}" is not a valid IPv4 address.`);
   } else if (!lan.dnsServers.some((s) => parseIp(s) === dns)) {
-    errors.push(`${config.dns} is not a DNS server. Names like example.com would not resolve.`);
+    fail('dns-unknown', `${config.dns} is not a DNS server. Names like example.com would not resolve.`);
   }
 
   return errors;

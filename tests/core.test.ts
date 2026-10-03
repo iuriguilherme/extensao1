@@ -6,11 +6,12 @@ import {
 import { buildRounds, roundCount, type Difficulty } from '../src/core/minigames';
 import { createRng } from '../src/core/random';
 import {
-  breach, buy, canConnect, completeLesson, install, isOnline, newGame, nodeStatus, phaseOf, sell, setNetConfig,
+  breach, buy, canBuy, canConnect, completeLesson, install, isOnline, newGame, nodeStatus, phaseOf, sell, setNetConfig,
+  STARTING_MONEY,
 } from '../src/core/state';
 import { LESSONS, getLesson } from '../src/data/lessons';
 import { NODES, getNode, type MinigameId } from '../src/data/nodes';
-import { PARTS } from '../src/data/parts';
+import { PARTS, getPart } from '../src/data/parts';
 
 const STARTER = ['mb_b1', 'cpu_s1_2c', 'ram_4_ddr4', 'hdd_500', 'psu_250'];
 
@@ -20,6 +21,9 @@ describe('hardware', () => {
     expect(specs.boots).toBe(false);
     expect(specs.issues.map((i) => i.slot)).toEqual(
       expect.arrayContaining(['motherboard', 'cpu', 'ram', 'storage', 'psu']),
+    );
+    expect(specs.issues.map((i) => i.code)).toEqual(
+      expect.arrayContaining(['missing-motherboard', 'missing-cpu', 'missing-ram', 'missing-storage', 'missing-psu']),
     );
   });
 
@@ -33,10 +37,9 @@ describe('hardware', () => {
   it('rejects mismatched socket, RAM generation and weak PSU', () => {
     const specs = computeSpecs({ motherboard: 'mb_b1', cpu: 'cpu_s2_16c', ram: 'ram_32_ddr5', storage: 'hdd_500', psu: 'psu_250' });
     expect(specs.boots).toBe(false);
-    const text = specs.issues.map((i) => i.message).join('\n');
-    expect(text).toMatch(/socket/);
-    expect(text).toMatch(/DDR5/);
-    expect(text).toMatch(/PSU only delivers 250 W/);
+    expect(specs.issues.map((i) => i.code)).toEqual(
+      expect.arrayContaining(['socket-mismatch', 'ram-mismatch', 'psu-overload']),
+    );
   });
 
   it('link speed is the slowest end', () => {
@@ -93,11 +96,24 @@ describe('ip', () => {
     expect(validateNetConfig({ ip: '192.168.0.42', mask: '255.255.255.0', gateway: '192.168.0.1', dns: '203.0.113.53' }, lan)).toEqual([]);
   });
 
-  it('explains conflicts, broadcast and wrong gateway', () => {
-    expect(validateNetConfig({ ip: '192.168.0.10', mask: '255.255.255.0', gateway: '192.168.0.1', dns: '192.168.0.1' }, lan)[0]).toMatch(/Smart TV/);
-    expect(validateNetConfig({ ip: '192.168.0.255', mask: '255.255.255.0', gateway: '192.168.0.1', dns: '192.168.0.1' }, lan)[0]).toMatch(/BROADCAST/);
-    expect(validateNetConfig({ ip: '192.168.1.42', mask: '255.255.255.0', gateway: '192.168.0.1', dns: '192.168.0.1' }, lan)[0]).toMatch(/outside/);
-    expect(validateNetConfig({ ip: '192.168.0.42', mask: '255.255.255.0', gateway: '192.168.0.10', dns: '192.168.0.1' }, lan)[0]).toMatch(/not your router/);
+  const good = { ip: '192.168.0.42', mask: '255.255.255.0', gateway: '192.168.0.1', dns: '192.168.0.1' };
+  const firstCode = (config: Partial<typeof good>) => validateNetConfig({ ...good, ...config }, lan)[0]?.code;
+
+  it('reports conflicts, broadcast, outside-LAN and wrong gateway by code', () => {
+    expect(firstCode({ ip: '192.168.0.10' })).toBe('ip-conflict');
+    expect(firstCode({ ip: '192.168.0.255' })).toBe('ip-broadcast');
+    expect(firstCode({ ip: '192.168.1.42' })).toBe('ip-outside');
+    expect(firstCode({ gateway: '192.168.0.10' })).toBe('gateway-not-router');
+  });
+
+  it('reports every other configuration problem by code', () => {
+    expect(firstCode({ ip: '192.168.0' })).toBe('ip-invalid');
+    expect(firstCode({ mask: '255.0.255.0' })).toBe('mask-invalid');
+    expect(firstCode({ mask: '255.255.0.0' })).toBe('mask-mismatch');
+    expect(firstCode({ ip: '192.168.0.0' })).toBe('ip-network');
+    expect(firstCode({ gateway: 'router' })).toBe('gateway-invalid');
+    expect(firstCode({ dns: '8.8.8' })).toBe('dns-invalid');
+    expect(firstCode({ dns: '8.8.8.8' })).toBe('dns-unknown');
   });
 });
 
@@ -146,11 +162,17 @@ describe('progression', () => {
   it('can go from an empty case to the network', () => {
     const s = newGame();
     expect(phaseOf(s)).toBe('build');
-    expect(buy(s, 'mb_b1')).toMatch(/Study/);
+    expect(canBuy(s, getPart('mb_b1')).code).toBe('needs-lesson');
+    buy(s, 'mb_b1');
+    expect(s.inventory).toEqual([]);
+    expect(s.money).toBe(STARTING_MONEY);
 
     for (const id of ['computer-basics', 'power', 'cpu', 'memory', 'storage']) completeLesson(s, id);
     for (const id of STARTER) {
-      expect(buy(s, id)).toMatch(/Bought/);
+      const before = s.money;
+      buy(s, id);
+      expect(s.inventory).toContain(id);
+      expect(s.money).toBe(before - getPart(id).price);
       install(s, id);
     }
     expect(phaseOf(s)).toBe('connect');
@@ -189,5 +211,15 @@ describe('progression', () => {
     const before = s.money;
     sell(s, 'cpu_s1_2c');
     expect(s.money).toBe(before + 45);
+  });
+
+  it('refuses purchases the player cannot afford', () => {
+    const s = newGame();
+    completeLesson(s, 'computer-basics');
+    s.money = 10;
+    expect(canBuy(s, getPart('mb_b1')).code).toBe('no-money');
+    buy(s, 'mb_b1');
+    expect(s.inventory).toEqual([]);
+    expect(s.money).toBe(10);
   });
 });

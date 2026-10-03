@@ -37,7 +37,7 @@ export class ShopScene extends Phaser.Scene {
     parts.forEach((part, i) => {
       const y = 128 + i * 128;
       const check = canBuy(state, part);
-      const locked = check.reason?.startsWith('Study');
+      const locked = check.code === 'needs-lesson';
       const owned = state.inventory.filter((id) => id === part.id).length + (state.installed[part.slot] === part.id ? 1 : 0);
       this.layer.rect(20, y, WIDTH - 40, 116, COLORS.panel, locked ? COLORS.muted : COLORS.panelBorder);
       this.layer.text(40, y + 14, locked ? `🔒 ${part.name}` : part.name, textStyle(22, locked ? COLORS.muted : COLORS.accent));

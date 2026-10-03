@@ -2,8 +2,12 @@ import { getPart, type Part, type Slot } from '../data/parts';
 
 export type Installed = Partial<Record<Slot, string>>;
 
+/** Stable problem codes: tests and logic check these, never the message wording. */
+export type IssueCode = `missing-${Slot}` | 'socket-mismatch' | 'ram-mismatch' | 'psu-overload';
+
 export interface Issue {
   slot: Slot | 'system';
+  code: IssueCode;
   message: string;
 }
 
@@ -53,18 +57,20 @@ export function computeSpecs(installed: Installed): Specs {
   const router = part('router');
 
   for (const slot of BOOT_SLOTS) {
-    if (!installed[slot]) issues.push({ slot, message: MISSING_HINT[slot] });
+    if (!installed[slot]) issues.push({ slot, code: `missing-${slot}`, message: MISSING_HINT[slot] });
   }
 
   if (mb && cpu && mb.stats.socket !== cpu.stats.socket) {
     issues.push({
       slot: 'cpu',
+      code: 'socket-mismatch',
       message: `${cpu.name} uses socket ${cpu.stats.socket}, but ${mb.name} has socket ${mb.stats.socket}.`,
     });
   }
   if (mb && ram && mb.stats.ramType !== ram.stats.ramType) {
     issues.push({
       slot: 'ram',
+      code: 'ram-mismatch',
       message: `${ram.name} is ${ram.stats.ramType}, but ${mb.name} only takes ${mb.stats.ramType}.`,
     });
   }
@@ -74,14 +80,15 @@ export function computeSpecs(installed: Installed): Specs {
   if (psu && powerDraw > psuWatts) {
     issues.push({
       slot: 'psu',
+      code: 'psu-overload',
       message: `Parts draw ${powerDraw} W but the PSU only delivers ${psuWatts} W.`,
     });
   }
 
   const boots = issues.length === 0;
 
-  if (!nic) issues.push({ slot: 'nic', message: MISSING_HINT.nic });
-  if (!router) issues.push({ slot: 'router', message: MISSING_HINT.router });
+  if (!nic) issues.push({ slot: 'nic', code: 'missing-nic', message: MISSING_HINT.nic });
+  if (!router) issues.push({ slot: 'router', code: 'missing-router', message: MISSING_HINT.router });
   const networkReady = boots && !!nic && !!router;
 
   const cores = cpu?.stats.cores ?? 0;

@@ -80,7 +80,7 @@ export class NetSetupScene extends Phaser.Scene {
       const errors = validateNetConfig(config, HOME_LAN);
       this.result.clear();
       if (errors.length) {
-        const shown = errors.slice(0, 3).map((e) => `  • ${e}`);
+        const shown = errors.slice(0, 3).map((e) => `  • ${e.message}`);
         if (errors.length > 3) shown.push(`  (+${errors.length - 3} more problem${errors.length > 4 ? 's' : ''})`);
         this.result.text(360, 540, ['✗ Connection failed:', ...shown].join('\n'),
           textStyle(15, COLORS.danger, { wordWrap: { width: WIDTH - 400 }, lineSpacing: 3 }));
