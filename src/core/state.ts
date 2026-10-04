@@ -47,9 +47,9 @@ export function isLessonOpen(state: GameState, id: string): boolean {
   return getLesson(id).requires.every((req) => hasLesson(state, req));
 }
 
-export type BuyProblem = 'needs-lesson' | 'no-money';
+export type BuyIssueCode = 'needs-lesson' | 'no-money';
 
-export function canBuy(state: GameState, part: Part): { ok: boolean; code?: BuyProblem; reason?: string } {
+export function canBuy(state: GameState, part: Part): { ok: boolean; code?: BuyIssueCode; reason?: string } {
   if (!hasLesson(state, part.requiresLesson)) {
     return { ok: false, code: 'needs-lesson', reason: `Estude: ${getLesson(part.requiresLesson).title}` };
   }

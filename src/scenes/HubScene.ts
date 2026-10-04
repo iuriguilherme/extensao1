@@ -4,7 +4,7 @@ import { hasLesson, isOnline, phaseOf, specsOf } from '../core/state';
 import { FINAL_NODE_ID, getNode } from '../data/nodes';
 import { game, resetGame } from '../core/store';
 import { getPart, SLOT_LABELS } from '../data/parts';
-import { decimal, linkSpeed, money, plural } from '../core/fmt';
+import { alignColumns, decimal, linkSpeed, money, plural } from '../core/fmt';
 import { button, COLORS, fitText, header, HEIGHT, objectiveBar, panel, textStyle, WIDTH } from '../ui/widgets';
 
 /** The player's desk: a monitor showing the PC's state and the main menu. */
@@ -34,9 +34,7 @@ export class HubScene extends Phaser.Scene {
       const rows: [string, string][] = (['motherboard', 'cpu', 'ram', 'storage', 'psu'] as const)
         .map((slot) => [SLOT_LABELS[slot], getPart(state.installed[slot]!).name]);
       rows.push(['Consumo', `${specs.powerDraw} W / ${specs.psuWatts} W`]);
-      // Pad from the longest label so the monospace column survives longer PT-BR labels.
-      const pad = Math.max(...rows.map(([label]) => label.length)) + 1;
-      for (const [label, value] of rows) lines.push(`${label.padEnd(pad)} ${value}`);
+      lines.push(...alignColumns(rows, 2));
       lines.push('', 'Sistema operacional carregado.', '');
       lines.push(`Poder de CPU ${decimal(specs.cpuPower)}  →  ${roundSeconds(specs.cpuPower)} s por etapa da invasão`);
       lines.push(`RAM ${specs.ramGB} GB  →  aguenta ${plural(mistakesAllowed(specs.ramGB), 'erro', 'erros')}`);

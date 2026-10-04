@@ -43,6 +43,15 @@ export function plural(count: number, singular: string, pluralForm: string): str
   return `${count} ${count === 1 ? singular : pluralForm}`;
 }
 
+/**
+ * Lines up "label  value" rows in a monospace column, padding from the longest
+ * label so the column survives PT-BR labels of any length.
+ */
+export function alignColumns(rows: [string, string][], gap: number): string[] {
+  const width = Math.max(...rows.map(([label]) => label.length)) + gap;
+  return rows.map(([label, value]) => `${label.padEnd(width)}${value}`);
+}
+
 /** Picks the word form that agrees with a noun's gender ("instalado"/"instalada"). */
 export function agree(gender: Gender, masculine: string, feminine: string): string {
   return gender === 'f' ? feminine : masculine;

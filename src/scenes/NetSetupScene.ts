@@ -2,13 +2,14 @@ import Phaser from 'phaser';
 import { validateNetConfig, type LanInfo, type NetConfig } from '../core/ip';
 import { setNetConfig } from '../core/state';
 import { game, save } from '../core/store';
-import { plural } from '../core/fmt';
+import { alignColumns, plural } from '../core/fmt';
 import { button, COLORS, header, Layer, objectiveBar, panel, textStyle, WIDTH } from '../ui/widgets';
 
 /** The home LAN the player has to join. DHCP is "broken", so it is manual. */
 export const HOME_LAN: LanInfo = {
   routerIp: '192.168.0.1',
   mask: '255.255.255.0',
+  // Keys are shown to the player (sticky note, IP-conflict message), not ids.
   takenBy: { 'roteador': '192.168.0.1', 'Smart TV': '192.168.0.10', 'impressora': '192.168.0.20' },
   dnsServers: ['192.168.0.1', '203.0.113.53'],
 };
@@ -62,14 +63,12 @@ export class NetSetupScene extends Phaser.Scene {
 
     // Info sheet taped to the router.
     panel(this, 820, 76, 440, 300, COLORS.info);
-    // Pad from the longest label so the monospace column survives longer PT-BR labels.
     const noteRows: [string, string][] = [['IP do roteador:', HOME_LAN.routerIp], ['Máscara da LAN:', `${HOME_LAN.mask}  (/24)`]];
-    const pad = Math.max(...noteRows.map(([label]) => label.length)) + 1;
     this.add.text(840, 92, [
       'BILHETE COLADO NO ROTEADOR',
       '',
       'DHCP: DESLIGADO (alguém quebrou)',
-      ...noteRows.map(([label, value]) => `${label.padEnd(pad)}${value}`),
+      ...alignColumns(noteRows, 1),
       '',
       'Já estão na LAN:',
       ...Object.entries(HOME_LAN.takenBy).map(([name, ip]) => `  ${ip.padEnd(14)} ${name}`),
