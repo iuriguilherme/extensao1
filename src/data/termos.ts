@@ -77,18 +77,16 @@ export const TERMOS: Termo[] = [
 
 /**
  * Palavras e siglas em inglês permitidas no texto do jogador: termos mantidos,
- * protocolos, unidades e as frases de status HTTP (notação de protocolo).
- * A varredura de inglês (tests/content.test.ts) aceita apenas estas.
+ * protocolos e unidades. As frases de status HTTP ("404 Not Found") também
+ * ficam em inglês, mas a varredura (tests/content.test.ts) as aceita como frase
+ * inteira, lida de STATUSES, para que "Not" ou "No" soltos ainda sejam pegos.
  */
 export const INGLES_PERMITIDO: string[] = [
   ...TERMOS.filter((t) => t.mantido).map((t) => t.termo),
-  'Rootkit', 'Academy', 'CPU', 'RAM', 'DDR4', 'DDR5', 'HDD', 'NVMe', 'SATA',
+  'Rootkit', 'Academy', 'CPU', 'RAM', 'DDR4', 'DDR5', 'HDD', 'NVMe', 'SATA', 'PCIe', 'slot', 'flash', 'cache',
   'IP', 'IPv4', 'IPv6', 'TCP', 'UDP', 'ICMP', 'ARP', 'HTTP', 'HTTPS', 'SSH', 'FTP', 'SMTP', 'IMAP', 'POP3',
-  'SNMP', 'NTP', 'DHCP', 'RDP', 'DNS', 'MySQL', 'PostgreSQL', 'Telnet', 'URL', 'JSON', 'online', 'login',
+  'SNMP', 'NTP', 'DHCP', 'RDP', 'DNS', 'TLS', 'LAN', 'WAN', 'MAC', 'Ethernet', 'Gigabit', 'uplink', 'web',
+  'MySQL', 'PostgreSQL', 'Telnet', 'URL', 'JSON', 'online', 'login', 'OK',
   'A', 'AAAA', 'CNAME', 'MX', 'NS', 'TXT', 'PTR', 'SOA', 'SRV',
   'GET', 'POST', 'PUT', 'DELETE', 'ALLOW', 'DENY', 'ALL', 'eth0', 'gw',
-  // Frases de status HTTP: o aluno as vê assim no navegador e nos logs.
-  'OK', 'Moved', 'Permanently', 'Forbidden', 'Not', 'Found', 'Internal', 'Server', 'Error', 'Created',
-  'No', 'Content', 'temporary', 'redirect', 'Bad', 'Request', 'Unauthorized', 'Service', 'Unavailable',
-  'Modified', 'Method', 'Allowed', 'Too', 'Many', 'Requests', 'Gateway',
 ];
