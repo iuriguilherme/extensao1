@@ -11,7 +11,7 @@ import {
 } from '../src/core/state';
 import { LESSONS, TRACK_LABELS, getLesson } from '../src/data/lessons';
 import { NODES, getNode, type MinigameId } from '../src/data/nodes';
-import { PARTS, SLOTS, SLOT_GENDER, SLOT_LABELS, getPart } from '../src/data/parts';
+import { PARTS, SLOTS, SLOT_GENDER, SLOT_LABELS, describeStats, getPart } from '../src/data/parts';
 
 const STARTER = ['mb_b1', 'cpu_s1_2c', 'ram_4_ddr4', 'hdd_500', 'psu_250'];
 
@@ -220,6 +220,19 @@ describe('progression', () => {
     const before = s.money;
     sell(s, 'cpu_s1_2c');
     expect(s.money).toBe(before + 45);
+  });
+
+  it('install, sell and stat text agree in gender and use pt-BR numbers', () => {
+    const s = newGame();
+    for (const id of ['computer-basics', 'cpu']) completeLesson(s, id);
+    buy(s, 'mb_b1');
+    buy(s, 'cpu_s1_2c');
+    expect(install(s, 'mb_b1')).toContain('instalada');
+    expect(install(s, 'cpu_s1_2c')).toContain('instalado');
+    buy(s, 'cpu_s1_2c');
+    expect(sell(s, 'cpu_s1_2c')).toContain('R$ 45');
+    expect(describeStats(getPart('cpu_s1_2c'))).toContain('2,4 GHz');
+    expect(describeStats(getPart('cpu_s1_2c'))).toContain('2 núcleos');
   });
 
   it('refuses purchases the player cannot afford', () => {

@@ -1,7 +1,8 @@
 import Phaser from 'phaser';
 import { install, sell, specsOf, SELL_RATIO, uninstall } from '../core/state';
 import { game, save } from '../core/store';
-import { describeStats, formatMbps, getPart, SLOT_LABELS, SLOTS } from '../data/parts';
+import { describeStats, getPart, SLOT_LABELS, SLOTS } from '../data/parts';
+import { linkSpeed } from '../core/fmt';
 import { COLORS, header, Layer, objectiveBar, textStyle, toast } from '../ui/widgets';
 
 /** Install, remove and swap parts; shows what is wrong with the build and why. */
@@ -56,7 +57,7 @@ export class WorkbenchScene extends Phaser.Scene {
     // Diagnostics
     const diagY = 96 + SLOTS.length * 66 + 6;
     const diag: string[] = [
-      `Power: ${specs.powerDraw} W drawn / ${specs.psuWatts} W available   ·   CPU power ${specs.cpuPower}   ·   RAM ${specs.ramGB} GB   ·   Link ${formatMbps(specs.linkMbps)}`,
+      `Power: ${specs.powerDraw} W drawn / ${specs.psuWatts} W available   ·   CPU power ${specs.cpuPower}   ·   RAM ${specs.ramGB} GB   ·   Link ${linkSpeed(specs.linkMbps)}`,
     ];
     const problems = specs.issues.filter((i) => specs.boots ? true : i.slot !== 'nic' && i.slot !== 'router');
     diag.push(specs.boots ? '✓ System boots.' : '✗ System does not boot.');

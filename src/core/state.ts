@@ -1,6 +1,7 @@
 import { getLesson, LESSONS } from '../data/lessons';
 import { NODES, HOME_NODE_ID, FINAL_NODE_ID, getNode, type NetNode } from '../data/nodes';
 import { getPart, type Part, type Slot } from '../data/parts';
+import { agree, decimal, linkSpeed, money } from './fmt';
 import { computeSpecs, type Installed, type Specs } from './hardware';
 import type { NetConfig } from './ip';
 
@@ -50,9 +51,9 @@ export type BuyProblem = 'needs-lesson' | 'no-money';
 
 export function canBuy(state: GameState, part: Part): { ok: boolean; code?: BuyProblem; reason?: string } {
   if (!hasLesson(state, part.requiresLesson)) {
-    return { ok: false, code: 'needs-lesson', reason: `Study "${getLesson(part.requiresLesson).title}" first` };
+    return { ok: false, code: 'needs-lesson', reason: `Estude: ${getLesson(part.requiresLesson).title}` };
   }
-  if (state.money < part.price) return { ok: false, code: 'no-money', reason: 'Not enough money' };
+  if (state.money < part.price) return { ok: false, code: 'no-money', reason: 'Dinheiro insuficiente' };
   return { ok: true };
 }
 
@@ -75,21 +76,21 @@ export function objective(state: GameState): string {
   switch (phaseOf(state)) {
     case 'build': {
       const firstOpen = LESSONS.find((l) => l.track === 'hardware' && !hasLesson(state, l.id) && isLessonOpen(state, l.id));
-      if (firstOpen && state.lessonsCompleted.length < 2) return `Study "${firstOpen.title}" to learn what goes inside a computer.`;
-      if (state.inventory.length > 0) return 'Install the parts in your inventory at the Workbench.';
-      return `Get this PC to boot. ${specs.issues[0]?.message ?? ''}`;
+      if (firstOpen && state.lessonsCompleted.length < 2) return `Estude "${firstOpen.title}" para aprender o que vai dentro de um computador.`;
+      if (state.inventory.length > 0) return 'Instale na Bancada as peças do seu inventário.';
+      return `Faça este PC dar boot. ${specs.issues[0]?.message ?? ''}`;
     }
     case 'connect': {
-      if (!hasLesson(state, 'network-basics')) return 'Your PC boots! Now study "Networks 101" to get online.';
-      if (!specs.networkReady) return 'Buy and install a network card and a router.';
-      if (!hasLesson(state, 'ip-addressing')) return 'Study "IP addresses & subnets" to configure your connection.';
-      if (!hasLesson(state, 'dns')) return 'Study "DNS" so your PC can resolve names.';
-      return 'Open Network Setup and configure your IP address.';
+      if (!hasLesson(state, 'network-basics')) return `Seu PC dá boot! Agora estude "${getLesson('network-basics').title}" para ficar online.`;
+      if (!specs.networkReady) return 'Compre e instale uma placa de rede e um roteador.';
+      if (!hasLesson(state, 'ip-addressing')) return `Estude "${getLesson('ip-addressing').title}" para configurar sua conexão.`;
+      if (!hasLesson(state, 'dns')) return `Estude "${getLesson('dns').title}" para seu PC conseguir resolver nomes.`;
+      return 'Abra a Configuração de Rede e configure seu endereço IP.';
     }
     case 'explore':
-      return 'You are online. Open the Net Map and breach your way to the Data Center Core.';
+      return `Você está online. Abra o Mapa da Rede e invada nó por nó até o ${getNode(FINAL_NODE_ID).name}.`;
     case 'won':
-      return 'You breached the Data Center Core. You are a certified root. Keep exploring!';
+      return `Você invadiu o ${getNode(FINAL_NODE_ID).name}. Agora você é root certificado. Continue explorando!`;
   }
 }
 
@@ -111,11 +112,11 @@ export function checkRequirements(state: GameState, node: NetNode): RequirementC
   const specs = specsOf(state);
   const r = node.requires;
   const checks: RequirementCheck[] = [];
-  if (r.lesson) checks.push({ label: `Knowledge: ${getLesson(r.lesson).title}`, met: hasLesson(state, r.lesson) });
-  if (r.cpuPower) checks.push({ label: `CPU power ≥ ${r.cpuPower} (you: ${specs.cpuPower})`, met: specs.cpuPower >= r.cpuPower });
-  if (r.ramGB) checks.push({ label: `RAM ≥ ${r.ramGB} GB (you: ${specs.ramGB})`, met: specs.ramGB >= r.ramGB });
-  if (r.storageGB) checks.push({ label: `Storage ≥ ${r.storageGB} GB (you: ${specs.storageGB})`, met: specs.storageGB >= r.storageGB });
-  if (r.linkMbps) checks.push({ label: `Link ≥ ${r.linkMbps} Mbps (you: ${specs.linkMbps})`, met: specs.linkMbps >= r.linkMbps });
+  if (r.lesson) checks.push({ label: `Conhecimento: ${getLesson(r.lesson).title}`, met: hasLesson(state, r.lesson) });
+  if (r.cpuPower) checks.push({ label: `Poder de CPU ≥ ${decimal(r.cpuPower)} (você: ${decimal(specs.cpuPower)})`, met: specs.cpuPower >= r.cpuPower });
+  if (r.ramGB) checks.push({ label: `RAM ≥ ${r.ramGB} GB (você: ${specs.ramGB})`, met: specs.ramGB >= r.ramGB });
+  if (r.storageGB) checks.push({ label: `Armazenamento ≥ ${r.storageGB} GB (você: ${specs.storageGB})`, met: specs.storageGB >= r.storageGB });
+  if (r.linkMbps) checks.push({ label: `Link ≥ ${linkSpeed(r.linkMbps)} (você: ${linkSpeed(specs.linkMbps)})`, met: specs.linkMbps >= r.linkMbps });
   return checks;
 }
 
@@ -138,37 +139,39 @@ export function buy(state: GameState, partId: string): string {
   if (!check.ok) return check.reason!;
   state.money -= part.price;
   state.inventory.push(part.id);
-  return `Bought ${part.name}.`;
+  return `${part.name}: ${agree(part.gender, 'comprado', 'comprada')}.`;
 }
 
 export function sell(state: GameState, partId: string): string {
   const index = state.inventory.indexOf(partId);
-  if (index < 0) return 'Not in inventory.';
+  if (index < 0) return 'Não está no inventário.';
   const part = getPart(partId);
   state.inventory.splice(index, 1);
   const value = Math.floor(part.price * SELL_RATIO);
   state.money += value;
-  return `Sold ${part.name} for $${value}.`;
+  return `${part.name}: ${agree(part.gender, 'vendido', 'vendida')} por ${money(value)}.`;
 }
 
 /** Moves a part from inventory into its slot; any previous part goes back to inventory. */
 export function install(state: GameState, partId: string): string {
   const index = state.inventory.indexOf(partId);
-  if (index < 0) return 'Not in inventory.';
+  if (index < 0) return 'Não está no inventário.';
   const part = getPart(partId);
   state.inventory.splice(index, 1);
   const previous = state.installed[part.slot];
   if (previous) state.inventory.push(previous);
   state.installed[part.slot] = part.id;
-  return previous ? `Swapped ${getPart(previous).name} for ${part.name}.` : `Installed ${part.name}.`;
+  return previous
+    ? `${getPart(previous).name} trocad${agree(getPart(previous).gender, 'o', 'a')} por ${part.name}.`
+    : `${part.name}: ${agree(part.gender, 'instalado', 'instalada')}.`;
 }
 
 export function uninstall(state: GameState, slot: Slot): string {
   const id = state.installed[slot];
-  if (!id) return 'Slot is empty.';
+  if (!id) return 'Slot vazio.';
   delete state.installed[slot];
   state.inventory.push(id);
-  return `Removed ${getPart(id).name}.`;
+  return `${getPart(id).name}: ${agree(getPart(id).gender, 'removido', 'removida')}.`;
 }
 
 /** Records a passed quiz. Returns the cash awarded (0 on repeats). */

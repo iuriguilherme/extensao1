@@ -28,13 +28,13 @@ export interface Specs {
 const BOOT_SLOTS: Slot[] = ['motherboard', 'cpu', 'ram', 'storage', 'psu'];
 
 const MISSING_HINT: Record<Slot, string> = {
-  motherboard: 'No motherboard: nothing to plug the other parts into.',
-  cpu: 'No CPU: nothing can execute instructions.',
-  ram: 'No RAM: the CPU has no workspace to load the OS into.',
-  storage: 'No storage: there is no operating system to load.',
-  psu: 'No power supply: the parts have no power.',
-  nic: 'No network card: the PC cannot talk to any network.',
-  router: 'No router: your LAN has no path to the Internet.',
+  motherboard: 'Sem placa-mãe: não há onde conectar as outras peças.',
+  cpu: 'Sem processador: nada consegue executar instruções.',
+  ram: 'Sem memória RAM: o processador não tem espaço de trabalho para carregar o sistema.',
+  storage: 'Sem armazenamento: não há sistema operacional para carregar.',
+  psu: 'Sem fonte: as peças estão sem energia.',
+  nic: 'Sem placa de rede: o PC não consegue falar com nenhuma rede.',
+  router: 'Sem roteador: sua LAN não tem caminho até a Internet.',
 };
 
 /**
@@ -64,14 +64,14 @@ export function computeSpecs(installed: Installed): Specs {
     issues.push({
       slot: 'cpu',
       code: 'socket-mismatch',
-      message: `${cpu.name} uses socket ${cpu.stats.socket}, but ${mb.name} has socket ${mb.stats.socket}.`,
+      message: `${cpu.name} usa socket ${cpu.stats.socket}, mas ${mb.name} tem socket ${mb.stats.socket}.`,
     });
   }
   if (mb && ram && mb.stats.ramType !== ram.stats.ramType) {
     issues.push({
       slot: 'ram',
       code: 'ram-mismatch',
-      message: `${ram.name} is ${ram.stats.ramType}, but ${mb.name} only takes ${mb.stats.ramType}.`,
+      message: `${ram.name} é ${ram.stats.ramType}, mas ${mb.name} só aceita ${mb.stats.ramType}.`,
     });
   }
 
@@ -81,7 +81,7 @@ export function computeSpecs(installed: Installed): Specs {
     issues.push({
       slot: 'psu',
       code: 'psu-overload',
-      message: `Parts draw ${powerDraw} W but the PSU only delivers ${psuWatts} W.`,
+      message: `As peças consomem ${powerDraw} W, mas a fonte só fornece ${psuWatts} W.`,
     });
   }
 

@@ -2,7 +2,8 @@ import Phaser from 'phaser';
 import { mistakesAllowed, roundSeconds } from '../core/hardware';
 import { hasLesson, isOnline, phaseOf, specsOf } from '../core/state';
 import { game, resetGame } from '../core/store';
-import { getPart, formatMbps, SLOT_LABELS } from '../data/parts';
+import { getPart, SLOT_LABELS } from '../data/parts';
+import { linkSpeed } from '../core/fmt';
 import { button, COLORS, header, HEIGHT, objectiveBar, panel, textStyle, WIDTH } from '../ui/widgets';
 
 /** The player's desk: a monitor showing the PC's state and the main menu. */
@@ -39,7 +40,7 @@ export class HubScene extends Phaser.Scene {
       lines.push('');
       if (isOnline(state)) {
         lines.push(`eth0: ${state.netConfig!.ip}  gw ${state.netConfig!.gateway}  dns ${state.netConfig!.dns}`);
-        lines.push(`link: ${formatMbps(specs.linkMbps)}   status: ONLINE`);
+        lines.push(`link: ${linkSpeed(specs.linkMbps)}   status: ONLINE`);
       } else if (specs.networkReady) {
         lines.push('eth0: link up, no IP configured → open Network Setup');
       } else {
