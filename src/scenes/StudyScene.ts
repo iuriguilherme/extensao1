@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { hasLesson, isLessonOpen } from '../core/state';
 import { game } from '../core/store';
-import { getLesson, LESSONS, type LessonTrack } from '../data/lessons';
+import { getLesson, LESSONS, TRACK_LABELS, TRACKS } from '../data/lessons';
 import { COLORS, header, objectiveBar, textStyle } from '../ui/widgets';
 
 /** Lesson catalog grouped by track. */
@@ -16,10 +16,9 @@ export class StudyScene extends Phaser.Scene {
     objectiveBar(this);
     const state = game();
 
-    const tracks: LessonTrack[] = ['Hardware', 'Networking', 'Field Knowledge'];
-    tracks.forEach((track, col) => {
+    TRACKS.forEach((track, col) => {
       const x = 20 + col * 420;
-      this.add.text(x, 76, track.toUpperCase(), textStyle(18, COLORS.muted));
+      this.add.text(x, 76, TRACK_LABELS[track].toUpperCase(), textStyle(18, COLORS.muted));
       LESSONS.filter((l) => l.track === track).forEach((lesson, row) => {
         const y = 110 + row * 88;
         const done = hasLesson(state, lesson.id);

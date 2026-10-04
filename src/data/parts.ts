@@ -1,3 +1,5 @@
+import type { Gender } from '../core/fmt';
+
 /**
  * Hardware catalog.
  *
@@ -18,6 +20,17 @@ export const SLOT_LABELS: Record<Slot, string> = {
   psu: 'Power Supply',
   nic: 'Network Card',
   router: 'Router',
+};
+
+/** Grammatical gender of each slot's PT-BR label, for agreeing messages. */
+export const SLOT_GENDER: Record<Slot, Gender> = {
+  motherboard: 'f', // placa-mãe
+  cpu: 'm', // processador
+  ram: 'f', // memória
+  storage: 'm', // armazenamento
+  psu: 'f', // fonte
+  nic: 'f', // placa de rede
+  router: 'm', // roteador
 };
 
 export type Socket = 'S1' | 'S2';
@@ -46,6 +59,8 @@ export interface Part {
   id: string;
   name: string;
   slot: Slot;
+  /** Grammatical gender of the PT-BR name's head noun, for agreeing messages. */
+  gender: Gender;
   price: number;
   /** Power the part draws from the PSU, in watts. Routers are powered separately. */
   draw: number;
@@ -57,13 +72,13 @@ export interface Part {
 export const PARTS: Part[] = [
   // Motherboards
   {
-    id: 'mb_b1', name: 'Basic Board B1', slot: 'motherboard', price: 80, draw: 20,
+    id: 'mb_b1', name: 'Basic Board B1', slot: 'motherboard', gender: 'f', price: 80, draw: 20,
     requiresLesson: 'computer-basics',
     description: 'Entry board. Socket S1 CPUs, DDR4 memory. Every other part plugs into it.',
     stats: { socket: 'S1', ramType: 'DDR4' },
   },
   {
-    id: 'mb_x5', name: 'ProBoard X5', slot: 'motherboard', price: 240, draw: 30,
+    id: 'mb_x5', name: 'ProBoard X5', slot: 'motherboard', gender: 'f', price: 240, draw: 30,
     requiresLesson: 'cpu',
     description: 'Modern board. Socket S2 CPUs, DDR5 memory. Needed for high-end CPUs and RAM.',
     stats: { socket: 'S2', ramType: 'DDR5' },
@@ -71,25 +86,25 @@ export const PARTS: Part[] = [
 
   // CPUs
   {
-    id: 'cpu_s1_2c', name: 'Duo 2.4 GHz', slot: 'cpu', price: 90, draw: 45,
+    id: 'cpu_s1_2c', name: 'Duo 2.4 GHz', slot: 'cpu', gender: 'm', price: 90, draw: 45,
     requiresLesson: 'cpu',
     description: '2 cores at 2.4 GHz. Socket S1. Slow, but it runs.',
     stats: { socket: 'S1', cores: 2, ghz: 2.4 },
   },
   {
-    id: 'cpu_s1_4c', name: 'Quad 3.2 GHz', slot: 'cpu', price: 180, draw: 95,
+    id: 'cpu_s1_4c', name: 'Quad 3.2 GHz', slot: 'cpu', gender: 'm', price: 180, draw: 95,
     requiresLesson: 'cpu',
     description: '4 cores at 3.2 GHz. Socket S1. More cores = more work in parallel.',
     stats: { socket: 'S1', cores: 4, ghz: 3.2 },
   },
   {
-    id: 'cpu_s2_8c', name: 'Octa 4.0 GHz', slot: 'cpu', price: 420, draw: 150,
+    id: 'cpu_s2_8c', name: 'Octa 4.0 GHz', slot: 'cpu', gender: 'm', price: 420, draw: 150,
     requiresLesson: 'cpu',
     description: '8 cores at 4.0 GHz. Socket S2 — will not fit an S1 board.',
     stats: { socket: 'S2', cores: 8, ghz: 4.0 },
   },
   {
-    id: 'cpu_s2_16c', name: 'Hexadeca 4.8 GHz', slot: 'cpu', price: 900, draw: 280,
+    id: 'cpu_s2_16c', name: 'Hexadeca 4.8 GHz', slot: 'cpu', gender: 'm', price: 900, draw: 280,
     requiresLesson: 'cpu',
     description: '16 cores at 4.8 GHz. Socket S2. Hungry for power: check your PSU.',
     stats: { socket: 'S2', cores: 16, ghz: 4.8 },
@@ -97,25 +112,25 @@ export const PARTS: Part[] = [
 
   // RAM
   {
-    id: 'ram_4_ddr4', name: '4 GB DDR4', slot: 'ram', price: 30, draw: 3,
+    id: 'ram_4_ddr4', name: '4 GB DDR4', slot: 'ram', gender: 'f', price: 30, draw: 3,
     requiresLesson: 'memory',
     description: '4 GB of DDR4. Enough to boot, not much more.',
     stats: { ramType: 'DDR4', gb: 4 },
   },
   {
-    id: 'ram_16_ddr4', name: '16 GB DDR4', slot: 'ram', price: 90, draw: 5,
+    id: 'ram_16_ddr4', name: '16 GB DDR4', slot: 'ram', gender: 'f', price: 90, draw: 5,
     requiresLesson: 'memory',
     description: '16 GB of DDR4. Room for many programs at once.',
     stats: { ramType: 'DDR4', gb: 16 },
   },
   {
-    id: 'ram_32_ddr5', name: '32 GB DDR5', slot: 'ram', price: 210, draw: 6,
+    id: 'ram_32_ddr5', name: '32 GB DDR5', slot: 'ram', gender: 'f', price: 210, draw: 6,
     requiresLesson: 'memory',
     description: '32 GB of faster DDR5. DDR5 does not fit DDR4 slots.',
     stats: { ramType: 'DDR5', gb: 32 },
   },
   {
-    id: 'ram_64_ddr5', name: '64 GB DDR5', slot: 'ram', price: 420, draw: 8,
+    id: 'ram_64_ddr5', name: '64 GB DDR5', slot: 'ram', gender: 'f', price: 420, draw: 8,
     requiresLesson: 'memory',
     description: '64 GB of DDR5. Workstation territory.',
     stats: { ramType: 'DDR5', gb: 64 },
@@ -123,19 +138,19 @@ export const PARTS: Part[] = [
 
   // Storage
   {
-    id: 'hdd_500', name: '500 GB HDD', slot: 'storage', price: 40, draw: 8,
+    id: 'hdd_500', name: '500 GB HDD', slot: 'storage', gender: 'm', price: 40, draw: 8,
     requiresLesson: 'storage',
     description: 'Spinning magnetic disk. Cheap per GB, but ~120 MB/s and moving parts.',
     stats: { storageKind: 'HDD', gb: 500, readMBs: 120 },
   },
   {
-    id: 'ssd_512', name: '512 GB SATA SSD', slot: 'storage', price: 70, draw: 4,
+    id: 'ssd_512', name: '512 GB SATA SSD', slot: 'storage', gender: 'm', price: 70, draw: 4,
     requiresLesson: 'storage',
     description: 'Flash memory over SATA. No moving parts, ~550 MB/s.',
     stats: { storageKind: 'SATA SSD', gb: 512, readMBs: 550 },
   },
   {
-    id: 'nvme_2tb', name: '2 TB NVMe SSD', slot: 'storage', price: 160, draw: 6,
+    id: 'nvme_2tb', name: '2 TB NVMe SSD', slot: 'storage', gender: 'm', price: 160, draw: 6,
     requiresLesson: 'storage',
     description: 'Flash memory directly on PCIe lanes. ~3500 MB/s.',
     stats: { storageKind: 'NVMe SSD', gb: 2000, readMBs: 3500 },
@@ -143,19 +158,19 @@ export const PARTS: Part[] = [
 
   // PSUs
   {
-    id: 'psu_250', name: '250 W PSU', slot: 'psu', price: 35, draw: 0,
+    id: 'psu_250', name: '250 W PSU', slot: 'psu', gender: 'f', price: 35, draw: 0,
     requiresLesson: 'power',
     description: 'Converts wall AC into the DC voltages parts need. Max 250 W.',
     stats: { watts: 250 },
   },
   {
-    id: 'psu_450', name: '450 W PSU', slot: 'psu', price: 70, draw: 0,
+    id: 'psu_450', name: '450 W PSU', slot: 'psu', gender: 'f', price: 70, draw: 0,
     requiresLesson: 'power',
     description: 'Max 450 W. Leaves headroom for a mid-range build.',
     stats: { watts: 450 },
   },
   {
-    id: 'psu_750', name: '750 W PSU', slot: 'psu', price: 140, draw: 0,
+    id: 'psu_750', name: '750 W PSU', slot: 'psu', gender: 'f', price: 140, draw: 0,
     requiresLesson: 'power',
     description: 'Max 750 W. For power-hungry CPUs.',
     stats: { watts: 750 },
@@ -163,19 +178,19 @@ export const PARTS: Part[] = [
 
   // NICs
   {
-    id: 'nic_100', name: 'Fast Ethernet NIC', slot: 'nic', price: 15, draw: 2,
+    id: 'nic_100', name: 'Fast Ethernet NIC', slot: 'nic', gender: 'f', price: 15, draw: 2,
     requiresLesson: 'network-basics',
     description: 'Network Interface Card, 100 Mbps. Gives your PC a MAC address and an Ethernet port.',
     stats: { mbps: 100 },
   },
   {
-    id: 'nic_1g', name: 'Gigabit NIC', slot: 'nic', price: 40, draw: 3,
+    id: 'nic_1g', name: 'Gigabit NIC', slot: 'nic', gender: 'f', price: 40, draw: 3,
     requiresLesson: 'network-basics',
     description: 'Network Interface Card, 1000 Mbps (1 Gbps).',
     stats: { mbps: 1000 },
   },
   {
-    id: 'nic_10g', name: '10 Gigabit NIC', slot: 'nic', price: 180, draw: 8,
+    id: 'nic_10g', name: '10 Gigabit NIC', slot: 'nic', gender: 'f', price: 180, draw: 8,
     requiresLesson: 'network-basics',
     description: 'Network Interface Card, 10 Gbps. Data-center class.',
     stats: { mbps: 10000 },
@@ -183,19 +198,19 @@ export const PARTS: Part[] = [
 
   // Routers
   {
-    id: 'router_home', name: 'Home Router', slot: 'router', price: 50, draw: 0,
+    id: 'router_home', name: 'Home Router', slot: 'router', gender: 'm', price: 50, draw: 0,
     requiresLesson: 'network-basics',
     description: 'Connects your LAN to your ISP (the WAN). 100 Mbps ports.',
     stats: { mbps: 100 },
   },
   {
-    id: 'router_gig', name: 'Gigabit Router', slot: 'router', price: 130, draw: 0,
+    id: 'router_gig', name: 'Gigabit Router', slot: 'router', gender: 'm', price: 130, draw: 0,
     requiresLesson: 'network-basics',
     description: 'Gigabit ports. A link is only as fast as its slowest end.',
     stats: { mbps: 1000 },
   },
   {
-    id: 'router_10g', name: 'Fiber Edge Router', slot: 'router', price: 600, draw: 0,
+    id: 'router_10g', name: 'Fiber Edge Router', slot: 'router', gender: 'm', price: 600, draw: 0,
     requiresLesson: 'network-basics',
     description: '10 Gbps fiber uplink. Serious bandwidth.',
     stats: { mbps: 10000 },

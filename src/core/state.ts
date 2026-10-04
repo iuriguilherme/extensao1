@@ -74,7 +74,7 @@ export function objective(state: GameState): string {
   const specs = specsOf(state);
   switch (phaseOf(state)) {
     case 'build': {
-      const firstOpen = LESSONS.find((l) => l.track === 'Hardware' && !hasLesson(state, l.id) && isLessonOpen(state, l.id));
+      const firstOpen = LESSONS.find((l) => l.track === 'hardware' && !hasLesson(state, l.id) && isLessonOpen(state, l.id));
       if (firstOpen && state.lessonsCompleted.length < 2) return `Study "${firstOpen.title}" to learn what goes inside a computer.`;
       if (state.inventory.length > 0) return 'Install the parts in your inventory at the Workbench.';
       return `Get this PC to boot. ${specs.issues[0]?.message ?? ''}`;

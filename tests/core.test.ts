@@ -9,9 +9,9 @@ import {
   breach, buy, canBuy, canConnect, completeLesson, install, isOnline, newGame, nodeStatus, phaseOf, sell, setNetConfig,
   STARTING_MONEY,
 } from '../src/core/state';
-import { LESSONS, getLesson } from '../src/data/lessons';
+import { LESSONS, TRACK_LABELS, getLesson } from '../src/data/lessons';
 import { NODES, getNode, type MinigameId } from '../src/data/nodes';
-import { PARTS, getPart } from '../src/data/parts';
+import { PARTS, SLOTS, SLOT_GENDER, SLOT_LABELS, getPart } from '../src/data/parts';
 
 const STARTER = ['mb_b1', 'cpu_s1_2c', 'ram_4_ddr4', 'hdd_500', 'psu_250'];
 
@@ -151,6 +151,15 @@ describe('content integrity', () => {
 
   it('quiz answers point at real options', () => {
     for (const l of LESSONS) for (const q of l.quiz) expect(q.options[q.answer]).toBeDefined();
+  });
+
+  it('every part, slot and track has what PT-BR text needs', () => {
+    for (const p of PARTS) expect(['m', 'f']).toContain(p.gender);
+    for (const slot of SLOTS) {
+      expect(SLOT_LABELS[slot]).toBeTruthy();
+      expect(['m', 'f']).toContain(SLOT_GENDER[slot]);
+    }
+    for (const l of LESSONS) expect(TRACK_LABELS[l.track]).toBeTruthy();
   });
 
   it('node links are symmetric', () => {

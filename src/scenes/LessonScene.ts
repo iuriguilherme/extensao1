@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { completeLesson } from '../core/state';
 import { game, save } from '../core/store';
-import { getLesson, QUIZ_PASS_RATIO, type Lesson } from '../data/lessons';
+import { getLesson, QUIZ_PASS_RATIO, TRACK_LABELS, type Lesson } from '../data/lessons';
 import { COLORS, header, Layer, textStyle, WIDTH } from '../ui/widgets';
 
 /** Reads a lesson page by page, then runs its quiz. */
@@ -25,7 +25,7 @@ export class LessonScene extends Phaser.Scene {
   private showPage(index: number) {
     this.layer.clear();
     const pages = this.lesson.pages;
-    this.layer.text(60, 80, `${this.lesson.track} · page ${index + 1} of ${pages.length}`, textStyle(15, COLORS.muted));
+    this.layer.text(60, 80, `${TRACK_LABELS[this.lesson.track]} · page ${index + 1} of ${pages.length}`, textStyle(15, COLORS.muted));
     this.layer.rect(40, 110, WIDTH - 80, 440);
     this.layer.text(80, 150, pages[index], textStyle(26, COLORS.text, { wordWrap: { width: WIDTH - 160 }, lineSpacing: 12 }));
 

@@ -13,7 +13,15 @@ export interface QuizQuestion {
   explain: string;
 }
 
-export type LessonTrack = 'Hardware' | 'Networking' | 'Field Knowledge';
+export type LessonTrack = 'hardware' | 'networking' | 'field';
+
+export const TRACKS: LessonTrack[] = ['hardware', 'networking', 'field'];
+
+export const TRACK_LABELS: Record<LessonTrack, string> = {
+  hardware: 'Hardware',
+  networking: 'Redes',
+  field: 'Na prática',
+};
 
 export interface Lesson {
   id: string;
@@ -32,7 +40,7 @@ export const LESSONS: Lesson[] = [
   {
     id: 'computer-basics',
     title: 'What is a computer?',
-    track: 'Hardware',
+    track: 'hardware',
     requires: [],
     reward: 40,
     pages: [
@@ -65,7 +73,7 @@ export const LESSONS: Lesson[] = [
   {
     id: 'power',
     title: 'Power supplies',
-    track: 'Hardware',
+    track: 'hardware',
     requires: ['computer-basics'],
     reward: 40,
     pages: [
@@ -97,7 +105,7 @@ export const LESSONS: Lesson[] = [
   {
     id: 'cpu',
     title: 'The CPU',
-    track: 'Hardware',
+    track: 'hardware',
     requires: ['computer-basics'],
     reward: 50,
     pages: [
@@ -130,7 +138,7 @@ export const LESSONS: Lesson[] = [
   {
     id: 'memory',
     title: 'Memory (RAM)',
-    track: 'Hardware',
+    track: 'hardware',
     requires: ['computer-basics'],
     reward: 50,
     pages: [
@@ -163,7 +171,7 @@ export const LESSONS: Lesson[] = [
   {
     id: 'storage',
     title: 'Storage',
-    track: 'Hardware',
+    track: 'hardware',
     requires: ['computer-basics'],
     reward: 50,
     pages: [
@@ -196,7 +204,7 @@ export const LESSONS: Lesson[] = [
   {
     id: 'binary',
     title: 'Bits and bytes',
-    track: 'Hardware',
+    track: 'hardware',
     requires: ['computer-basics'],
     reward: 60,
     pages: [
@@ -231,7 +239,7 @@ export const LESSONS: Lesson[] = [
   {
     id: 'network-basics',
     title: 'Networks 101',
-    track: 'Networking',
+    track: 'networking',
     requires: ['cpu', 'memory', 'storage', 'power'],
     reward: 60,
     pages: [
@@ -264,7 +272,7 @@ export const LESSONS: Lesson[] = [
   {
     id: 'ip-addressing',
     title: 'IP addresses & subnets',
-    track: 'Networking',
+    track: 'networking',
     requires: ['network-basics', 'binary'],
     reward: 80,
     pages: [
@@ -304,7 +312,7 @@ export const LESSONS: Lesson[] = [
   {
     id: 'dns',
     title: 'DNS',
-    track: 'Networking',
+    track: 'networking',
     requires: ['ip-addressing'],
     reward: 80,
     pages: [
@@ -339,7 +347,7 @@ export const LESSONS: Lesson[] = [
   {
     id: 'ports',
     title: 'Ports & firewalls',
-    track: 'Field Knowledge',
+    track: 'field',
     requires: ['dns'],
     reward: 100,
     pages: [
@@ -372,7 +380,7 @@ export const LESSONS: Lesson[] = [
   {
     id: 'http',
     title: 'The Web (HTTP)',
-    track: 'Field Knowledge',
+    track: 'field',
     requires: ['dns'],
     reward: 100,
     pages: [
