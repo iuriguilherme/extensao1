@@ -40,7 +40,13 @@ granted access wrong right correct question result review take see get make used
 need needs work works slow faster free inside outside enough money price owned welcome hello click press
 `.split(/\s+/).filter(Boolean));
 
-const ALLOWED = new Set(INGLES_PERMITIDO.map((w) => w.toLowerCase()));
+/**
+ * All-caps entries (GET, ALL, DENY, DNS) are notation: they pass only when
+ * written in caps, so a loose "get" or "all" in a sentence is still caught.
+ */
+const isNotation = (w: string) => /^[A-Z0-9]+$/.test(w);
+const ALLOWED = new Set(INGLES_PERMITIDO.filter((w) => !isNotation(w)).map((w) => w.toLowerCase()));
+const NOTATION = new RegExp(`\\b(${INGLES_PERMITIDO.filter(isNotation).join('|')})\\b`, 'g');
 
 /** HTTP reason phrases are protocol notation: accepted only as whole phrases. */
 const PROTOCOL_PHRASES = [...STATUSES.map((s) => s.meaning)].sort((a, b) => b.length - a.length);
@@ -48,6 +54,7 @@ const PROTOCOL_PHRASES = [...STATUSES.map((s) => s.meaning)].sort((a, b) => b.le
 function englishWords(text: string): string[] {
   let rest = text;
   for (const phrase of PROTOCOL_PHRASES) rest = rest.split(phrase).join(' ');
+  rest = rest.replace(NOTATION, ' ');
   // Host and domain names (www.shop.test, mail.example.com) are notation too.
   rest = rest.replace(/[\p{L}\d@-]+(\.[\p{L}\d-]+)+/gu, ' ');
   return (rest.match(/\p{L}+/gu) ?? [])
@@ -158,6 +165,11 @@ describe('English scan', () => {
     expect(englishWords('O firewall libera DNS na porta 53')).toEqual([]);
     expect(englishWords('404 Not Found: o recurso não existe')).toEqual([]);
     expect(englishWords('192.168.0.0/24 · 1010 · ALLOW TCP 80')).toEqual([]);
+  });
+
+  it('accepts protocol tokens only in caps', () => {
+    expect(englishWords('ALLOW TCP 80 / DENY ALL / GET')).toEqual([]);
+    expect(englishWords('Get all parts')).toEqual(['get', 'all']);
   });
 
   it('still catches loose English that only appears inside a reason phrase', () => {

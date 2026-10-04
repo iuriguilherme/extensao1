@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { agree, decimal, linkSpeed, money, plural } from '../src/core/fmt';
+import { agree, alignColumns, decimal, linkSpeed, money, plural } from '../src/core/fmt';
 
 describe('fmt', () => {
   it('formats money in reais, without cents for whole amounts', () => {
@@ -35,6 +35,10 @@ describe('fmt', () => {
     expect(plural(0, 'erro', 'erros')).toBe('0 erros');
     expect(plural(2, 'erro', 'erros')).toBe('2 erros');
     expect(plural(4, 'erro', 'erros')).toBe('4 erros');
+  });
+
+  it('aligns values in one column after the longest label', () => {
+    expect(alignColumns([['CPU', '1'], ['Armazenamento', '2']], 2)).toEqual(['CPU            1', 'Armazenamento  2']);
   });
 
   it('picks the word form that agrees with the gender', () => {
