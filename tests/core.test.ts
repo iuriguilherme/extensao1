@@ -3,7 +3,7 @@ import { computeSpecs, mistakesAllowed, roundSeconds } from '../src/core/hardwar
 import {
   broadcastAddress, formatIp, maskToPrefix, networkAddress, parseIp, usableHosts, validateNetConfig, type LanInfo,
 } from '../src/core/ip';
-import { buildRounds, roundCount, type Difficulty } from '../src/core/minigames';
+import { buildRounds, roundCount, STATUSES, type Difficulty } from '../src/core/minigames';
 import { createRng } from '../src/core/random';
 import {
   breach, buy, canBuy, canConnect, completeLesson, install, isOnline, newGame, nodeStatus, phaseOf, sell, setNetConfig,
@@ -140,6 +140,22 @@ describe('minigames', () => {
       });
     }
   }
+});
+
+describe('minigame notation', () => {
+  it('HTTP reason phrases stay in English protocol notation', () => {
+    expect(STATUSES.find((s) => s.code === 404)!.meaning).toBe('Not Found');
+    expect(STATUSES.find((s) => s.code === 403)!.meaning).toBe('Forbidden');
+  });
+
+  it('subnet rounds keep CIDR and dotted addresses in standard form', () => {
+    for (let seed = 1; seed <= 30; seed++) {
+      for (const r of buildRounds('subnet', 2, createRng(seed))) {
+        if (r.kind !== 'choice') continue;
+        for (const o of r.options) expect(o).toMatch(/^(\d{1,3}\.){3}\d{1,3}$|^\d+$/);
+      }
+    }
+  });
 });
 
 describe('content integrity', () => {
