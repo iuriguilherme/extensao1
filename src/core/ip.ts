@@ -101,7 +101,7 @@ export function validateNetConfig(config: NetConfig, lan: LanInfo): NetIssue[] {
       fail('ip-broadcast', `${config.ip} é o endereço de BROADCAST desta sub-rede; hosts não podem usá-lo.`);
     } else {
       for (const [name, taken] of Object.entries(lan.takenBy)) {
-        if (parseIp(taken) === ip) fail('ip-conflict', `${config.ip} já está em uso por ${name}. Dois hosts com o mesmo IP causam conflito.`);
+        if (parseIp(taken) === ip) fail('ip-conflict', `${config.ip} já está em uso (${name}). Dois hosts com o mesmo IP causam conflito.`);
       }
     }
   }

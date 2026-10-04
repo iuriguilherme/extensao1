@@ -1,10 +1,11 @@
 import Phaser from 'phaser';
 import { mistakesAllowed, roundSeconds } from '../core/hardware';
 import { hasLesson, isOnline, phaseOf, specsOf } from '../core/state';
+import { FINAL_NODE_ID, getNode } from '../data/nodes';
 import { game, resetGame } from '../core/store';
 import { getPart, SLOT_LABELS } from '../data/parts';
-import { linkSpeed } from '../core/fmt';
-import { button, COLORS, header, HEIGHT, objectiveBar, panel, textStyle, WIDTH } from '../ui/widgets';
+import { decimal, linkSpeed, money, plural } from '../core/fmt';
+import { button, COLORS, fitText, header, HEIGHT, objectiveBar, panel, textStyle, WIDTH } from '../ui/widgets';
 
 /** The player's desk: a monitor showing the PC's state and the main menu. */
 export class HubScene extends Phaser.Scene {
@@ -14,7 +15,7 @@ export class HubScene extends Phaser.Scene {
 
   create() {
     this.cameras.main.setBackgroundColor(COLORS.bg);
-    header(this, 'ROOTKIT ACADEMY — your desk');
+    header(this, 'ROOTKIT ACADEMY — sua mesa');
     objectiveBar(this);
 
     const state = game();
@@ -26,45 +27,47 @@ export class HubScene extends Phaser.Scene {
     this.add.rectangle(360, 622, 160, 14, COLORS.panelBorder);
     const lines: string[] = [];
     if (!specs.boots) {
-      lines.push('[ NO SIGNAL ]', '', 'The machine will not start:', '');
+      lines.push('[ SEM SINAL ]', '', 'A máquina não liga:', '');
       for (const issue of specs.issues.filter((i) => i.slot !== 'nic' && i.slot !== 'router')) lines.push(`  ✗ ${issue.message}`);
     } else {
       lines.push('POST ........................ OK');
-      for (const slot of ['motherboard', 'cpu', 'ram', 'storage', 'psu'] as const) {
-        lines.push(`${SLOT_LABELS[slot].padEnd(14)} ${getPart(state.installed[slot]!).name}`);
-      }
-      lines.push(`Power draw     ${specs.powerDraw} W / ${specs.psuWatts} W`);
-      lines.push('', 'Operating system loaded.', '');
-      lines.push(`CPU power ${specs.cpuPower}  →  ${roundSeconds(specs.cpuPower)} s per intrusion step`);
-      lines.push(`RAM ${specs.ramGB} GB   →  survives ${mistakesAllowed(specs.ramGB)} mistake(s)`);
+      const rows: [string, string][] = (['motherboard', 'cpu', 'ram', 'storage', 'psu'] as const)
+        .map((slot) => [SLOT_LABELS[slot], getPart(state.installed[slot]!).name]);
+      rows.push(['Consumo', `${specs.powerDraw} W / ${specs.psuWatts} W`]);
+      // Pad from the longest label so the monospace column survives longer PT-BR labels.
+      const pad = Math.max(...rows.map(([label]) => label.length)) + 1;
+      for (const [label, value] of rows) lines.push(`${label.padEnd(pad)} ${value}`);
+      lines.push('', 'Sistema operacional carregado.', '');
+      lines.push(`Poder de CPU ${decimal(specs.cpuPower)}  →  ${roundSeconds(specs.cpuPower)} s por etapa da invasão`);
+      lines.push(`RAM ${specs.ramGB} GB  →  aguenta ${plural(mistakesAllowed(specs.ramGB), 'erro', 'erros')}`);
       lines.push('');
       if (isOnline(state)) {
         lines.push(`eth0: ${state.netConfig!.ip}  gw ${state.netConfig!.gateway}  dns ${state.netConfig!.dns}`);
         lines.push(`link: ${linkSpeed(specs.linkMbps)}   status: ONLINE`);
       } else if (specs.networkReady) {
-        lines.push('eth0: link up, no IP configured → open Network Setup');
+        lines.push('eth0: link ativo, sem IP configurado → abra a Configuração de Rede');
       } else {
-        lines.push('eth0: no network hardware detected');
+        lines.push('eth0: nenhum hardware de rede detectado');
       }
-      if (phase === 'won') lines.push('', '*** DATA CENTER CORE BREACHED — YOU WIN ***');
+      if (phase === 'won') lines.push('', `*** ${getNode(FINAL_NODE_ID).name.toUpperCase()} INVADIDO — VOCÊ VENCEU ***`);
     }
-    this.add.text(64, 112, lines.join('\n'), textStyle(17, specs.boots ? COLORS.accent : COLORS.danger, {
+    fitText(this.add.text(64, 112, lines.join('\n'), textStyle(17, specs.boots ? COLORS.accent : COLORS.danger, {
       lineSpacing: 6, wordWrap: { width: 670 },
-    }));
+    })), 670, 490);
 
     // Menu
     const x = 800;
     const w = 440;
     const items: { label: string; scene: string; enabled: boolean; hint: string }[] = [
-      { label: 'Study', scene: 'Study', enabled: true, hint: 'Lessons unlock parts and targets' },
-      { label: 'Shop', scene: 'Shop', enabled: true, hint: 'Buy hardware' },
-      { label: 'Workbench', scene: 'Workbench', enabled: true, hint: 'Install and swap parts' },
+      { label: 'Estudar', scene: 'Study', enabled: true, hint: 'As aulas liberam peças e alvos' },
+      { label: 'Loja', scene: 'Shop', enabled: true, hint: 'Compre hardware' },
+      { label: 'Bancada', scene: 'Workbench', enabled: true, hint: 'Instale e troque peças' },
       {
-        label: 'Network Setup', scene: 'NetSetup',
+        label: 'Configuração de Rede', scene: 'NetSetup',
         enabled: specs.networkReady && hasLesson(state, 'ip-addressing') && hasLesson(state, 'dns'),
-        hint: 'Needs NIC + router, IP and DNS lessons',
+        hint: 'Requer placa de rede, roteador e as aulas de IP e DNS',
       },
-      { label: 'Net Map', scene: 'NetMap', enabled: isOnline(state), hint: 'Needs an online PC' },
+      { label: 'Mapa da Rede', scene: 'NetMap', enabled: isOnline(state), hint: 'Requer um PC online' },
     ];
     items.forEach((item, i) => {
       const y = 100 + i * 88;
@@ -72,16 +75,17 @@ export class HubScene extends Phaser.Scene {
       this.add.text(x + 4, y + 62, item.hint, textStyle(13, COLORS.muted));
     });
 
-    button(this, x, 560, 210, 44, 'Side job ($)', () => {
-      this.scene.start('Minigame', { minigame: 'binary', difficulty: 1, reward: 25, title: 'Side job: fix the neighbor\'s router' });
+    const sideJobReward = 25;
+    button(this, x, 560, 210, 44, `Trabalho extra (${money(sideJobReward)})`, () => {
+      this.scene.start('Minigame', { minigame: 'binary', difficulty: 1, reward: sideJobReward, title: 'Trabalho extra: consertar o roteador do vizinho' });
     }, { size: 16, color: COLORS.info });
-    button(this, x + 230, 560, 210, 44, 'Reset save', () => {
-      if (window.confirm('Erase all progress and start over?')) {
+    button(this, x + 230, 560, 210, 44, 'Apagar progresso', () => {
+      if (window.confirm('Apagar todo o progresso e começar do zero?')) {
         resetGame();
         this.scene.restart();
       }
     }, { size: 16, color: COLORS.danger });
 
-    this.add.text(WIDTH - 16, HEIGHT - 60, 'progress saves automatically', textStyle(12, COLORS.muted)).setOrigin(1, 0.5);
+    this.add.text(WIDTH - 16, HEIGHT - 60, 'o progresso é salvo automaticamente', textStyle(12, COLORS.muted)).setOrigin(1, 0.5);
   }
 }

@@ -1,4 +1,6 @@
 import Phaser from 'phaser';
+import { money } from '../core/fmt';
+import { STARTING_MONEY } from '../core/state';
 import { hasSave, resetGame } from '../core/store';
 import { button, COLORS, HEIGHT, textStyle, WIDTH } from '../ui/widgets';
 
@@ -12,17 +14,17 @@ export class TitleScene extends Phaser.Scene {
     this.drawRain();
 
     this.add.text(WIDTH / 2, 190, 'ROOTKIT ACADEMY', textStyle(64, COLORS.accent)).setOrigin(0.5);
-    this.add.text(WIDTH / 2, 260, 'build it · wire it · breach it — learn IT the hands-on way', textStyle(20, COLORS.info)).setOrigin(0.5);
+    this.add.text(WIDTH / 2, 260, 'monte · conecte · invada — aprenda TI na prática', textStyle(20, COLORS.info)).setOrigin(0.5);
     this.add.text(WIDTH / 2, 330, [
-      'You inherited an empty computer case and $300.',
-      'Learn what goes inside, get it online, then explore the network.',
+      `Você herdou um gabinete vazio e ${money(STARTING_MONEY)}.`,
+      'Aprenda o que vai dentro, coloque o PC online e depois explore a rede.',
     ].join('\n'), textStyle(18, COLORS.text, { align: 'center', lineSpacing: 8 })).setOrigin(0.5);
 
     const saved = hasSave();
     if (saved) {
-      button(this, WIDTH / 2 - 150, 420, 300, 54, 'Continue', () => this.scene.start('Hub'), { size: 22 });
+      button(this, WIDTH / 2 - 150, 420, 300, 54, 'Continuar', () => this.scene.start('Hub'), { size: 22 });
     }
-    button(this, WIDTH / 2 - 150, saved ? 490 : 440, 300, 54, 'New Game', () => {
+    button(this, WIDTH / 2 - 150, saved ? 490 : 440, 300, 54, 'Novo jogo', () => {
       resetGame();
       this.scene.start('Hub');
     }, { size: 22, color: saved ? COLORS.warn : COLORS.accent });

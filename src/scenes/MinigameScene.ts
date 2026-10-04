@@ -5,7 +5,8 @@ import { createRng } from '../core/random';
 import { breach, earn, specsOf } from '../core/state';
 import { game, save } from '../core/store';
 import { MINIGAME_AREAS, type MinigameId } from '../data/nodes';
-import { COLORS, header, hex, Layer, textStyle, WIDTH } from '../ui/widgets';
+import { money, plural } from '../core/fmt';
+import { COLORS, fitText, header, hex, Layer, textStyle, WIDTH } from '../ui/widgets';
 
 export interface MinigameData {
   minigame: MinigameId;
@@ -51,7 +52,7 @@ export class MinigameScene extends Phaser.Scene {
     this.index = 0;
     this.mistakes = 0;
 
-    this.add.text(20, 70, `${MINIGAME_AREAS[data.minigame]} · ${this.seconds}s per step (CPU) · ${this.allowed} mistake(s) allowed (RAM)`, textStyle(14, COLORS.muted));
+    this.add.text(20, 70, `${MINIGAME_AREAS[data.minigame]} · ${this.seconds} s por etapa (CPU) · ${plural(this.allowed, 'erro permitido', 'erros permitidos')} (RAM)`, textStyle(14, COLORS.muted));
     this.status = this.add.text(WIDTH - 20, 70, '', textStyle(14, COLORS.info)).setOrigin(1, 0);
     this.add.rectangle(20, 96, WIDTH - 40, 10, COLORS.panel).setOrigin(0).setStrokeStyle(1, COLORS.panelBorder);
     this.timerBar = this.add.rectangle(20, 96, WIDTH - 40, 10, COLORS.accent).setOrigin(0);
@@ -77,7 +78,7 @@ export class MinigameScene extends Phaser.Scene {
     const blocks = this.allowed + 1;
     const left = Math.max(0, blocks - this.mistakes);
     const integrity = '■'.repeat(left) + '□'.repeat(blocks - left);
-    this.status.setText(`step ${Math.min(this.index + 1, this.rounds.length)}/${this.rounds.length}   integrity ${integrity}`);
+    this.status.setText(`etapa ${Math.min(this.index + 1, this.rounds.length)}/${this.rounds.length}   integridade ${integrity}`);
   }
 
   private showRound() {
@@ -87,7 +88,7 @@ export class MinigameScene extends Phaser.Scene {
     this.remaining = this.seconds;
     this.running = true;
     this.revealAnswer = () => {};
-    this.layer.text(40, 130, round.prompt, textStyle(28, COLORS.text, { wordWrap: { width: WIDTH - 80 } }));
+    fitText(this.layer.text(40, 130, round.prompt, textStyle(28, COLORS.text, { wordWrap: { width: WIDTH - 80 } })), WIDTH - 80, 56);
     if (round.kind === 'choice') this.showChoice(round);
     else this.showBits(round);
   }
@@ -121,7 +122,7 @@ export class MinigameScene extends Phaser.Scene {
     const gap = 16;
     const startX = (WIDTH - (round.bits * (size + gap) - gap)) / 2;
     const readout = this.layer.text(WIDTH / 2, 420, '', textStyle(28, COLORS.warn)).setOrigin(0.5);
-    const refresh = () => readout.setText(`${toBinary(value, round.bits)}  =  ${value}   (target ${round.target})`);
+    const refresh = () => readout.setText(`${toBinary(value, round.bits)}  =  ${value}   (alvo ${round.target})`);
     refresh();
 
     for (let i = 0; i < round.bits; i++) {
@@ -138,7 +139,7 @@ export class MinigameScene extends Phaser.Scene {
         if (value === round.target) this.resolve(true, round.explain);
       }, { size: 40, color: COLORS.info });
     }
-    this.layer.text(WIDTH / 2, 470, 'Tip: start from the biggest place value that fits.', textStyle(15, COLORS.muted)).setOrigin(0.5);
+    this.layer.text(WIDTH / 2, 470, 'Dica: comece pelo maior valor posicional que cabe.', textStyle(15, COLORS.muted)).setOrigin(0.5);
   }
 
   private resolve(correct: boolean, explain: string, timedOut = false) {
@@ -149,10 +150,10 @@ export class MinigameScene extends Phaser.Scene {
     const crashed = this.mistakes > this.allowed;
     const done = this.index === this.rounds.length - 1;
     this.layer.rect(40, 560, WIDTH - 80, 100, COLORS.panel, correct ? COLORS.accent : COLORS.danger);
-    this.layer.text(60, 572, `${correct ? '✓ Access step granted.' : timedOut ? '✗ Too slow — detected!' : '✗ Wrong move.'}  ${explain}`,
-      textStyle(17, correct ? COLORS.accent : COLORS.warn, { wordWrap: { width: WIDTH - 340 }, lineSpacing: 4 }));
+    fitText(this.layer.text(60, 572, `${correct ? '✓ Etapa liberada.' : timedOut ? '✗ Lento demais — detectado!' : '✗ Jogada errada.'}  ${explain}`,
+      textStyle(17, correct ? COLORS.accent : COLORS.warn, { wordWrap: { width: WIDTH - 340 }, lineSpacing: 4 })), WIDTH - 340, 80);
 
-    const label = crashed ? 'Intrusion crashed' : done ? 'Finish' : 'Next step >';
+    const label = crashed ? 'Invasão travou' : done ? 'Finalizar' : 'Próxima etapa >';
     this.layer.button(WIDTH - 270, 586, 210, 50, label, () => {
       if (crashed) this.finish(false);
       else if (done) this.finish(true);
@@ -173,13 +174,13 @@ export class MinigameScene extends Phaser.Scene {
       if (this.params.nodeId) reward = breach(state, this.params.nodeId);
       else earn(state, reward);
       save();
-      message = `ACCESS GRANTED\n\n+$${reward}`;
-      if (this.params.nodeId) message += '\nNew routes revealed on the Net Map.';
+      message = `ACESSO LIBERADO\n\n+${money(reward)}`;
+      if (this.params.nodeId) message += '\nNovas rotas reveladas no Mapa da Rede.';
     } else {
-      message = 'CONNECTION LOST\n\nToo many mistakes crashed your tools.\nStudy the area, upgrade RAM for more tolerance\nor CPU for more time, and try again.';
+      message = 'CONEXÃO PERDIDA\n\nErros demais derrubaram suas ferramentas.\nEstude a área, melhore a RAM para tolerar mais erros\nou o processador para ter mais tempo, e tente de novo.';
     }
     this.add.text(WIDTH / 2, 320, message, textStyle(30, success ? COLORS.accent : COLORS.danger, { align: 'center', lineSpacing: 8 })).setOrigin(0.5);
-    this.layer.button(WIDTH / 2 - 150, 520, 300, 56, 'Continue', () => this.leave(), { size: 22 });
+    this.layer.button(WIDTH / 2 - 150, 520, 300, 56, 'Continuar', () => this.leave(), { size: 22 });
   }
 
   private leave() {

@@ -2,13 +2,14 @@ import Phaser from 'phaser';
 import { validateNetConfig, type LanInfo, type NetConfig } from '../core/ip';
 import { setNetConfig } from '../core/state';
 import { game, save } from '../core/store';
+import { plural } from '../core/fmt';
 import { button, COLORS, header, Layer, objectiveBar, panel, textStyle, WIDTH } from '../ui/widgets';
 
 /** The home LAN the player has to join. DHCP is "broken", so it is manual. */
 export const HOME_LAN: LanInfo = {
   routerIp: '192.168.0.1',
   mask: '255.255.255.0',
-  takenBy: { 'the router': '192.168.0.1', 'the Smart TV': '192.168.0.10', 'the printer': '192.168.0.20' },
+  takenBy: { 'roteador': '192.168.0.1', 'Smart TV': '192.168.0.10', 'impressora': '192.168.0.20' },
   dnsServers: ['192.168.0.1', '203.0.113.53'],
 };
 
@@ -21,19 +22,19 @@ interface Field {
 
 const FIELDS: Field[] = [
   {
-    key: 'ip', label: 'IP address', hint: 'A free address inside the LAN (not network, broadcast or taken).',
+    key: 'ip', label: 'Endereço IP', hint: 'Um endereço livre dentro da LAN (nem de rede, nem de broadcast, nem ocupado).',
     choices: ['192.168.1.42', '192.168.0.10', '192.168.0.300', '192.168.0.255', '192.168.0.42', '10.0.0.42', '192.168.0.0'],
   },
   {
-    key: 'mask', label: 'Subnet mask', hint: 'Must match the LAN so everyone agrees where the network ends.',
+    key: 'mask', label: 'Máscara de sub-rede', hint: 'Precisa bater com a da LAN, para todos concordarem onde a rede termina.',
     choices: ['255.255.0.0', '255.255.255.255', '255.255.255.0', '255.0.255.0'],
   },
   {
-    key: 'gateway', label: 'Default gateway', hint: 'Where to send traffic for other networks.',
+    key: 'gateway', label: 'Gateway padrão', hint: 'Para onde mandar o tráfego destinado a outras redes.',
     choices: ['192.168.0.10', '192.168.0.255', '203.0.113.53', '192.168.0.1'],
   },
   {
-    key: 'dns', label: 'DNS server', hint: 'Who translates names into IPs for you.',
+    key: 'dns', label: 'Servidor DNS', hint: 'Quem traduz nomes em IPs para você.',
     choices: ['127.0.0.1', '192.168.0.20', '203.0.113.53', '192.168.0.1'],
   },
 ];
@@ -49,7 +50,7 @@ export class NetSetupScene extends Phaser.Scene {
 
   create() {
     this.cameras.main.setBackgroundColor(COLORS.bg);
-    header(this, 'Network Setup — eth0', () => this.scene.start('Hub'));
+    header(this, 'Configuração de Rede — eth0', () => this.scene.start('Hub'));
     const refreshObjective = objectiveBar(this).refresh;
     this.layer = new Layer(this);
     this.result = new Layer(this);
@@ -61,28 +62,30 @@ export class NetSetupScene extends Phaser.Scene {
 
     // Info sheet taped to the router.
     panel(this, 820, 76, 440, 300, COLORS.info);
+    // Pad from the longest label so the monospace column survives longer PT-BR labels.
+    const noteRows: [string, string][] = [['IP do roteador:', HOME_LAN.routerIp], ['Máscara da LAN:', `${HOME_LAN.mask}  (/24)`]];
+    const pad = Math.max(...noteRows.map(([label]) => label.length)) + 1;
     this.add.text(840, 92, [
-      'STICKY NOTE ON THE ROUTER',
+      'BILHETE COLADO NO ROTEADOR',
       '',
-      'DHCP: OFF (someone broke it)',
-      `Router LAN IP: ${HOME_LAN.routerIp}`,
-      `LAN mask:      ${HOME_LAN.mask}  (/24)`,
+      'DHCP: DESLIGADO (alguém quebrou)',
+      ...noteRows.map(([label, value]) => `${label.padEnd(pad)}${value}`),
       '',
-      'Already on the LAN:',
+      'Já estão na LAN:',
       ...Object.entries(HOME_LAN.takenBy).map(([name, ip]) => `  ${ip.padEnd(14)} ${name}`),
       '',
-      'Router forwards DNS: yes',
-      'ISP DNS: 203.0.113.53',
+      'O roteador repassa DNS: sim',
+      'DNS do provedor: 203.0.113.53',
     ].join('\n'), textStyle(15, COLORS.info, { lineSpacing: 4 }));
 
-    button(this, 40, 560, 300, 56, 'Apply settings', () => {
+    button(this, 40, 560, 300, 56, 'Aplicar', () => {
       const config = this.config();
       const errors = validateNetConfig(config, HOME_LAN);
       this.result.clear();
       if (errors.length) {
         const shown = errors.slice(0, 3).map((e) => `  • ${e.message}`);
-        if (errors.length > 3) shown.push(`  (+${errors.length - 3} more problem${errors.length > 4 ? 's' : ''})`);
-        this.result.text(360, 540, ['✗ Connection failed:', ...shown].join('\n'),
+        if (errors.length > 3) shown.push(`  (+${plural(errors.length - 3, 'outro problema', 'outros problemas')})`);
+        this.result.text(360, 540, ['✗ Falha na conexão:', ...shown].join('\n'),
           textStyle(15, COLORS.danger, { wordWrap: { width: WIDTH - 400 }, lineSpacing: 3 }));
         return;
       }
@@ -90,11 +93,11 @@ export class NetSetupScene extends Phaser.Scene {
       save();
       refreshObjective();
       this.result.text(360, 548, [
-        `✓ ping ${config.gateway} … reply in 1 ms`,
+        `✓ ping ${config.gateway} … resposta em 1 ms`,
         `✓ nslookup example.com via ${config.dns} … 203.0.113.80`,
-        'You are ONLINE.',
+        'Você está ONLINE.',
       ].join('\n'), textStyle(16, COLORS.accent, { lineSpacing: 3 }));
-      this.result.button(WIDTH - 260, 560, 220, 56, 'Open Net Map >', () => this.scene.start('NetMap'), { color: COLORS.warn });
+      this.result.button(WIDTH - 260, 560, 220, 56, 'Abrir Mapa da Rede >', () => this.scene.start('NetMap'), { color: COLORS.warn });
     }, { size: 22, color: COLORS.warn });
 
     this.drawFields();

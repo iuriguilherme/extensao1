@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { game } from '../core/store';
+import { money } from '../core/fmt';
 import { objective } from '../core/state';
 
 export const WIDTH = 1280;
@@ -34,6 +35,25 @@ export interface ButtonOptions {
   disabled?: boolean;
   color?: number;
   size?: number;
+  /** Wrap the label over several lines; it then shrinks to fit the button's height. */
+  wrap?: boolean;
+}
+
+/** Smallest font size text shrinks to before it is considered unreadable. */
+const MIN_FONT_SIZE = 11;
+
+/**
+ * Shrinks a text object's font step by step until it fits the box. Portuguese
+ * runs longer than English, so every fixed frame uses this as a safety net.
+ * A wrapped text is measured against maxHeight; a single line against maxWidth.
+ */
+export function fitText(text: Phaser.GameObjects.Text, maxWidth: number, maxHeight = Infinity): Phaser.GameObjects.Text {
+  let size = parseInt(String(text.style.fontSize), 10);
+  while (size > MIN_FONT_SIZE && (text.width > maxWidth || text.height > maxHeight)) {
+    size -= 1;
+    text.setFontSize(size);
+  }
+  return text;
 }
 
 export interface Button {
@@ -49,7 +69,10 @@ export function button(
 ): Button {
   const color = opts.color ?? COLORS.accent;
   const bg = scene.add.rectangle(0, 0, w, h, COLORS.panel).setOrigin(0).setStrokeStyle(2, color);
-  const label = scene.add.text(w / 2, h / 2, text, textStyle(opts.size ?? 18, color, { align: 'center' })).setOrigin(0.5);
+  const label = scene.add.text(w / 2, h / 2, text, textStyle(opts.size ?? 18, color, {
+    align: 'center', ...(opts.wrap ? { wordWrap: { width: w - 12 } } : {}),
+  })).setOrigin(0.5);
+  fitText(label, w - 12, h - 4);
   const container = scene.add.container(x, y, [bg, label]);
   let disabled = false;
 
@@ -72,10 +95,10 @@ export function button(
 export function header(scene: Phaser.Scene, title: string, back?: () => void) {
   scene.add.rectangle(0, 0, WIDTH, 56, COLORS.panel).setOrigin(0).setStrokeStyle(1, COLORS.panelBorder);
   scene.add.text(back ? 140 : 24, 28, title, textStyle(24, COLORS.accent)).setOrigin(0, 0.5);
-  const money = scene.add.text(WIDTH - 24, 28, '', textStyle(22, COLORS.warn)).setOrigin(1, 0.5);
-  const refresh = () => money.setText(`$${game().money}`);
+  const cash = scene.add.text(WIDTH - 24, 28, '', textStyle(22, COLORS.warn)).setOrigin(1, 0.5);
+  const refresh = () => cash.setText(money(game().money));
   refresh();
-  if (back) button(scene, 12, 10, 110, 36, '< Back', back, { size: 16 });
+  if (back) button(scene, 12, 10, 110, 36, '< Voltar', back, { size: 16 });
   return { refresh };
 }
 

@@ -2,7 +2,8 @@ import Phaser from 'phaser';
 import { buy, canBuy } from '../core/state';
 import { game, save } from '../core/store';
 import { describeStats, PARTS, SLOT_LABELS, SLOTS, type Slot } from '../data/parts';
-import { COLORS, header, Layer, objectiveBar, textStyle, toast, WIDTH } from '../ui/widgets';
+import { money } from '../core/fmt';
+import { COLORS, fitText, header, Layer, objectiveBar, textStyle, toast, WIDTH } from '../ui/widgets';
 
 export class ShopScene extends Phaser.Scene {
   private slot: Slot = 'motherboard';
@@ -16,7 +17,7 @@ export class ShopScene extends Phaser.Scene {
 
   create() {
     this.cameras.main.setBackgroundColor(COLORS.bg);
-    this.refreshHeader = header(this, 'Hardware Shop', () => this.scene.start('Hub')).refresh;
+    this.refreshHeader = header(this, 'Loja de Hardware', () => this.scene.start('Hub')).refresh;
     this.refreshObjective = objectiveBar(this).refresh;
     this.layer = new Layer(this);
     this.draw();
@@ -42,17 +43,16 @@ export class ShopScene extends Phaser.Scene {
       this.layer.rect(20, y, WIDTH - 40, 116, COLORS.panel, locked ? COLORS.muted : COLORS.panelBorder);
       this.layer.text(40, y + 14, locked ? `🔒 ${part.name}` : part.name, textStyle(22, locked ? COLORS.muted : COLORS.accent));
       this.layer.text(40, y + 46, describeStats(part), textStyle(16, COLORS.info));
-      this.layer.text(40, y + 72, part.description, textStyle(15, COLORS.text, { wordWrap: { width: 880 } }));
-      this.layer.text(WIDTH - 250, y + 16, `$${part.price}`, textStyle(24, COLORS.warn));
-      if (owned) this.layer.text(WIDTH - 150, y + 20, `owned: ${owned}`, textStyle(14, COLORS.muted));
-      const b = this.layer.button(WIDTH - 250, y + 56, 200, 42, check.ok ? 'Buy' : check.reason!, () => {
+      fitText(this.layer.text(40, y + 72, part.description, textStyle(15, COLORS.text, { wordWrap: { width: 880 } })), 880, 40);
+      this.layer.text(WIDTH - 250, y + 16, money(part.price), textStyle(24, COLORS.warn));
+      if (owned) this.layer.text(WIDTH - 130, y + 20, `você tem: ${owned}`, textStyle(14, COLORS.muted));
+      this.layer.button(WIDTH - 250, y + 56, 200, 42, check.ok ? 'Comprar' : check.reason!, () => {
         toast(this, buy(state, part.id));
         save();
         this.refreshHeader();
         this.refreshObjective();
         this.draw();
-      }, { size: check.ok ? 18 : 12, disabled: !check.ok });
-      if (!check.ok) b.label.setWordWrapWidth(190).setAlign('center');
+      }, { size: check.ok ? 18 : 14, disabled: !check.ok, wrap: !check.ok });
     });
   }
 }

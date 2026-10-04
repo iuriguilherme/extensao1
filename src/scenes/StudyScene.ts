@@ -2,7 +2,8 @@ import Phaser from 'phaser';
 import { hasLesson, isLessonOpen } from '../core/state';
 import { game } from '../core/store';
 import { getLesson, LESSONS, TRACK_LABELS, TRACKS } from '../data/lessons';
-import { COLORS, header, objectiveBar, textStyle } from '../ui/widgets';
+import { money } from '../core/fmt';
+import { COLORS, fitText, header, objectiveBar, textStyle } from '../ui/widgets';
 
 /** Lesson catalog grouped by track. */
 export class StudyScene extends Phaser.Scene {
@@ -12,7 +13,7 @@ export class StudyScene extends Phaser.Scene {
 
   create() {
     this.cameras.main.setBackgroundColor(COLORS.bg);
-    header(this, 'Study', () => this.scene.start('Hub'));
+    header(this, 'Estudar', () => this.scene.start('Hub'));
     objectiveBar(this);
     const state = game();
 
@@ -25,13 +26,13 @@ export class StudyScene extends Phaser.Scene {
         const open = isLessonOpen(state, lesson.id);
         const color = done ? COLORS.accent : open ? COLORS.warn : COLORS.muted;
         const bg = this.add.rectangle(x, y, 400, 78, COLORS.panel).setOrigin(0).setStrokeStyle(2, color);
-        this.add.text(x + 14, y + 10, `${done ? '✓' : open ? '●' : '🔒'} ${lesson.title}`, textStyle(19, color));
+        fitText(this.add.text(x + 14, y + 10, `${done ? '✓' : open ? '●' : '🔒'} ${lesson.title}`, textStyle(19, color)), 372);
         const sub = done
-          ? 'Completed — review anytime'
+          ? 'Concluída — revise quando quiser'
           : open
-            ? `Reward: $${lesson.reward}`
-            : `Requires: ${lesson.requires.filter((r) => !hasLesson(state, r)).map((r) => getLesson(r).title).join(', ')}`;
-        this.add.text(x + 14, y + 42, sub, textStyle(13, COLORS.text, { wordWrap: { width: 370 } }));
+            ? `Recompensa: ${money(lesson.reward)}`
+            : `Requer: ${lesson.requires.filter((r) => !hasLesson(state, r)).map((r) => getLesson(r).title).join(', ')}`;
+        fitText(this.add.text(x + 14, y + 42, sub, textStyle(13, COLORS.text, { wordWrap: { width: 370 } })), 370, 34);
         if (open) {
           bg.setInteractive({ useHandCursor: true });
           bg.on('pointerover', () => bg.setFillStyle(COLORS.accentDim, 0.35));
