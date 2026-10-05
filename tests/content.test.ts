@@ -22,6 +22,8 @@ import { LESSONS, TRACK_LABELS } from '../src/data/lessons';
 import { MINIGAME_AREAS, NODES, type MinigameId } from '../src/data/nodes';
 import { describeStats, getPart, PARTS, SLOT_LABELS } from '../src/data/parts';
 import { INGLES_PERMITIDO } from '../src/data/termos';
+import { NODE_KIND_LABELS, NODE_KINDS } from '../src/data/nodeBuilds';
+import { joinSwarm, leaveSwarm, removeSwitch } from '../src/core/swarm';
 
 /**
  * Common English words that never appear in Portuguese text. Words that are
@@ -109,6 +111,18 @@ function runtimeTexts(): string[] {
   setNetConfig(s, GOOD);
   out.push(objective(s));
   for (const n of NODES) out.push(...checkRequirements(s, n).map((c) => c.label));
+
+  // Swarm and NOC actions, including the blocked and refused ones.
+  s.inventory.push('sw_8_fast', 'router_gig');
+  out.push(install(s, 'sw_8_fast'), joinSwarm(s, 'isp').message);
+  for (const id of ['isp', 'museum', 'resolver', 'blog', 'shop', 'uni', 'mail', 'corp-fw']) {
+    s.breached.push(id);
+    out.push(joinSwarm(s, id).message);
+  }
+  out.push(joinSwarm(s, 'isp').message, leaveSwarm(s, 'core').message, leaveSwarm(s, 'isp').message);
+  out.push(removeSwitch(s, s.noc[0].id).message, removeSwitch(s, 'sw9').message);
+  out.push(install(s, 'router_gig'), uninstall(s, 'router'), leaveSwarm(s, 'museum').message);
+  out.push(...NODE_KINDS.map((k) => NODE_KIND_LABELS[k]));
   s.breached.push('core');
   out.push(objective(s));
 

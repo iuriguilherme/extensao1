@@ -52,6 +52,11 @@ export function alignColumns(rows: [string, string][], gap: number): string[] {
   return rows.map(([label, value]) => `${label.padEnd(width)}${value}`);
 }
 
+/** "A, B e C": commas between items and "e" before the last one. */
+export function listJoin(items: string[]): string {
+  return items.length < 2 ? items.join('') : `${items.slice(0, -1).join(', ')} e ${items[items.length - 1]}`;
+}
+
 /** Picks the word form that agrees with a noun's gender ("instalado"/"instalada"). */
 export function agree(gender: Gender, masculine: string, feminine: string): string {
   return gender === 'f' ? feminine : masculine;

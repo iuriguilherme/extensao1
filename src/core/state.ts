@@ -4,6 +4,7 @@ import { getPart, type Part, type Slot } from '../data/parts';
 import { agree, decimal, linkSpeed, money } from './fmt';
 import { computeSpecs, type Installed, type Specs } from './hardware';
 import type { NetConfig } from './ip';
+import { installSwitch, rehomeForRouter } from './swarm';
 
 export interface GameState {
   version: 1;
@@ -138,6 +139,13 @@ export function canConnect(state: GameState, node: NetNode): boolean {
     && checkRequirements(state, node).every((c) => c.met);
 }
 
+/** How many of a part the player has: in the inventory, in the case and in the NOC. */
+export function ownedCount(state: GameState, partId: string): number {
+  return state.inventory.filter((id) => id === partId).length
+    + Object.values(state.installed).filter((id) => id === partId).length
+    + state.noc.filter((e) => e.partId === partId).length;
+}
+
 export function allNodes(): NetNode[] {
   return NODES;
 }
@@ -163,11 +171,20 @@ export function sell(state: GameState, partId: string): string {
   return `${part.name} ${agree(part.gender, 'vendido', 'vendida')} por ${money(value)}.`;
 }
 
-/** Moves a part from inventory into its slot; any previous part goes back to inventory. */
+/**
+ * Moves a part from inventory into its slot; any previous part goes back to
+ * inventory. Switches go to the NOC instead. A router swap first checks that
+ * the nodes on its LAN ports still have somewhere to go.
+ */
 export function install(state: GameState, partId: string): string {
   const index = state.inventory.indexOf(partId);
   if (index < 0) return 'Não está no inventário.';
   const part = getPart(partId);
+  if (part.slot === 'switch') return installSwitch(state, partId).message;
+  if (part.slot === 'router' && state.installed.router) {
+    const check = rehomeForRouter(state, partId);
+    if (!check.ok) return check.message;
+  }
   state.inventory.splice(index, 1);
   const previous = state.installed[part.slot];
   if (previous) state.inventory.push(previous);
@@ -180,6 +197,10 @@ export function install(state: GameState, partId: string): string {
 export function uninstall(state: GameState, slot: Slot): string {
   const id = state.installed[slot];
   if (!id) return 'Não há nada instalado aí.';
+  if (slot === 'router') {
+    const check = rehomeForRouter(state, undefined);
+    if (!check.ok) return check.message;
+  }
   delete state.installed[slot];
   state.inventory.push(id);
   return `${getPart(id).name} ${agree(getPart(id).gender, 'removido', 'removida')}.`;

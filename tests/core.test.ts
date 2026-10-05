@@ -7,9 +7,11 @@ import { buildRounds, roundCount, STATUSES, type Difficulty } from '../src/core/
 import { createRng } from '../src/core/random';
 import {
   breach, buy, canBuy, canConnect, completeLesson, install, isOnline, newGame, nodeStatus, phaseOf, sell, setNetConfig,
-  specsOf, STARTING_MONEY, type GameState,
+  ownedCount, specsOf, STARTING_MONEY, uninstall, type GameState,
 } from '../src/core/state';
-import { dependents, freePorts, pickProvider, swarmReport, totalSpecs } from '../src/core/swarm';
+import {
+  dependents, freePorts, joinSwarm, leaveSwarm, pickProvider, removeSwitch, swarmReport, totalSpecs,
+} from '../src/core/swarm';
 import { LESSONS, TRACK_LABELS, getLesson } from '../src/data/lessons';
 import { NODES, getNode, type MinigameId } from '../src/data/nodes';
 import { NODE_KINDS, NODE_KIND_LABELS, buildContribution, nodeBuild, resolveBuild } from '../src/data/nodeBuilds';
@@ -365,6 +367,114 @@ describe('swarm math', () => {
     s.noc = [{ id: 'sw1', partId: 'sw_8_gig' }];
     attach(s, { museum: 'router' });
     expect(pickProvider(s, 'shop')).toBe('sw1');
+  });
+});
+
+describe('swarm actions', () => {
+  it('a breach with every port taken leaves the node waiting (AE2)', () => {
+    const s = onlineRig({ router: 'router_home' });
+    attach(s, { museum: 'router', resolver: 'router', blog: 'router', shop: 'router' });
+    breach(s, 'mail');
+    const r = joinSwarm(s, 'mail');
+    expect(r.code).toBe('no-free-port');
+    expect(s.breached).toContain('mail');
+    expect(s.swarm.mail).toBeUndefined();
+  });
+
+  it('joins a breached node to the best free port', () => {
+    const s = onlineRig();
+    breach(s, 'isp');
+    const r = joinSwarm(s, 'isp');
+    expect(r.ok).toBe(true);
+    expect(r.code).toBe('joined');
+    expect(s.swarm.isp).toBe('router');
+  });
+
+  it('refuses nodes that are not breached or already connected', () => {
+    const s = onlineRig();
+    expect(joinSwarm(s, 'isp').code).toBe('not-breached');
+    attach(s, { isp: 'router' });
+    expect(joinSwarm(s, 'isp').code).toBe('already-connected');
+    expect(leaveSwarm(s, 'mail').code).toBe('not-connected');
+  });
+
+  it('blocks disconnecting a switch node whose dependents cannot move, and names them (AE3)', () => {
+    const s = onlineRig({ router: 'router_home' });
+    attach(s, { uni: 'router', museum: 'router', resolver: 'router', blog: 'router' });
+    attach(s, { shop: 'uni', mail: 'uni', isp: 'uni' });
+    const before = structuredClone(s.swarm);
+    const r = leaveSwarm(s, 'uni');
+    expect(r.ok).toBe(false);
+    expect(r.code).toBe('blocked-dependents');
+    expect(s.swarm).toEqual(before);
+    const stuck = ['shop', 'mail', 'isp'].filter((id) => r.message.includes(getNode(id).name));
+    expect(stuck.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it('re-homes dependents when they fit elsewhere', () => {
+    const s = onlineRig();
+    s.noc = [{ id: 'sw1', partId: 'sw_8_gig' }];
+    attach(s, { shop: 'sw1', mail: 'sw1' });
+    const r = removeSwitch(s, 'sw1');
+    expect(r.ok).toBe(true);
+    expect(s.noc).toEqual([]);
+    expect(s.inventory).toContain('sw_8_gig');
+    expect(s.swarm.shop).toBe('router');
+    expect(s.swarm.mail).toBe('router');
+  });
+
+  it('moves a switch node together with the nodes below it', () => {
+    const s = onlineRig();
+    s.noc = [{ id: 'sw1', partId: 'sw_8_fast' }];
+    attach(s, { museum: 'router', resolver: 'router', blog: 'router', shop: 'router', isp: 'router', mail: 'router', core: 'router' });
+    attach(s, { uni: 'sw1' });
+    attach(s, { 'corp-fw': 'uni' });
+    s.noc.push({ id: 'sw2', partId: 'sw_8_gig' });
+    expect(removeSwitch(s, 'sw1').ok).toBe(true);
+    expect(s.swarm.uni).toBe('sw2');
+    expect(s.swarm['corp-fw']).toBe('uni');
+  });
+
+  it('blocks swapping to a router with fewer ports unless nodes can move (AE8)', () => {
+    const s = onlineRig();
+    attach(s, { museum: 'router', resolver: 'router', blog: 'router', shop: 'router', mail: 'router' });
+    s.inventory.push('router_home');
+    const blocked = install(s, 'router_home');
+    expect(s.installed.router).toBe('router_gig');
+    expect(blocked).toContain(getNode('mail').name);
+    s.noc = [{ id: 'sw1', partId: 'sw_8_gig' }];
+    install(s, 'router_home');
+    expect(s.installed.router).toBe('router_home');
+    expect(Object.values(s.swarm).filter((p) => p === 'router').length).toBe(4);
+    expect(Object.values(s.swarm).filter((p) => p === 'sw1').length).toBe(1);
+  });
+
+  it('removing the player NIC never blocks and keeps the swarm', () => {
+    const s = onlineRig();
+    attach(s, { resolver: 'router' });
+    uninstall(s, 'nic');
+    expect(s.installed.nic).toBeUndefined();
+    expect(s.swarm.resolver).toBe('router');
+  });
+
+  it('re-breaching leaves the connection state alone (AE10)', () => {
+    const s = onlineRig({ router: 'router_home' });
+    attach(s, { museum: 'router', resolver: 'router', blog: 'router', shop: 'router' });
+    breach(s, 'mail');
+    leaveSwarm(s, 'shop');
+    breach(s, 'mail');
+    expect(s.swarm.mail).toBeUndefined();
+  });
+
+  it('installing a switch puts it in the NOC, and owned counts include it', () => {
+    const s = onlineRig();
+    s.inventory.push('sw_8_gig');
+    const msg = install(s, 'sw_8_gig');
+    expect(s.noc.map((e) => e.partId)).toEqual(['sw_8_gig']);
+    expect(s.installed.switch).toBeUndefined();
+    expect(msg).toContain('8 portas');
+    expect(ownedCount(s, 'sw_8_gig')).toBe(1);
+    expect(freePorts(s, s.noc[0].id)).toBe(8);
   });
 });
 

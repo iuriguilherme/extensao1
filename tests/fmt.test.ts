@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { agree, alignColumns, decimal, linkSpeed, money, plural } from '../src/core/fmt';
+import { agree, alignColumns, decimal, linkSpeed, listJoin, money, plural } from '../src/core/fmt';
 
 describe('fmt', () => {
   it('formats money in reais, without cents for whole amounts', () => {
@@ -39,6 +39,12 @@ describe('fmt', () => {
 
   it('aligns values in one column after the longest label', () => {
     expect(alignColumns([['CPU', '1'], ['Armazenamento', '2']], 2)).toEqual(['CPU            1', 'Armazenamento  2']);
+  });
+
+  it('joins a list the Portuguese way, with "e" before the last item', () => {
+    expect(listJoin(['A'])).toBe('A');
+    expect(listJoin(['A', 'B'])).toBe('A e B');
+    expect(listJoin(['A', 'B', 'C'])).toBe('A, B e C');
   });
 
   it('picks the word form that agrees with the gender', () => {
