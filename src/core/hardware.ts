@@ -28,13 +28,13 @@ export interface Specs {
 const BOOT_SLOTS: Slot[] = ['motherboard', 'cpu', 'ram', 'storage', 'psu'];
 
 const MISSING_HINT: Record<Slot, string> = {
-  motherboard: 'Sem placa-mãe: não há onde conectar as outras peças.',
-  cpu: 'Sem processador: nada consegue executar instruções.',
-  ram: 'Sem memória RAM: o processador não tem espaço de trabalho para carregar o sistema.',
-  storage: 'Sem armazenamento: não há sistema operacional para carregar.',
-  psu: 'Sem fonte: as peças estão sem energia.',
-  nic: 'Sem placa de rede: o PC não consegue falar com nenhuma rede.',
-  router: 'Sem roteador: sua LAN não tem caminho até a Internet.',
+  motherboard: 'Sem placa-mãe: as outras peças não têm onde ser encaixadas.',
+  cpu: 'Sem processador: não há quem execute os programas.',
+  ram: 'Sem memória RAM: o processador não tem onde carregar o sistema operacional.',
+  storage: 'Sem armazenamento: o sistema operacional não tem onde ficar guardado.',
+  psu: 'Sem fonte: nenhuma peça recebe energia.',
+  nic: 'Sem placa de rede: o PC não tem como se conectar a nenhuma rede.',
+  router: 'Sem roteador: a sua rede local não tem saída para a internet.',
 };
 
 /**
@@ -64,14 +64,14 @@ export function computeSpecs(installed: Installed): Specs {
     issues.push({
       slot: 'cpu',
       code: 'socket-mismatch',
-      message: `${cpu.name} usa socket ${cpu.stats.socket}, mas ${mb.name} tem socket ${mb.stats.socket}.`,
+      message: `${cpu.name} é socket ${cpu.stats.socket}: não encaixa na ${mb.name}, que é socket ${mb.stats.socket}.`,
     });
   }
   if (mb && ram && mb.stats.ramType !== ram.stats.ramType) {
     issues.push({
       slot: 'ram',
       code: 'ram-mismatch',
-      message: `${ram.name} é ${ram.stats.ramType}, mas ${mb.name} só aceita ${mb.stats.ramType}.`,
+      message: `${ram.name} é ${ram.stats.ramType}: não encaixa na ${mb.name}, que só aceita ${mb.stats.ramType}.`,
     });
   }
 
@@ -81,7 +81,7 @@ export function computeSpecs(installed: Installed): Specs {
     issues.push({
       slot: 'psu',
       code: 'psu-overload',
-      message: `As peças consomem ${powerDraw} W, mas a fonte só fornece ${psuWatts} W.`,
+      message: `As peças precisam de ${powerDraw} W, mas a fonte só aguenta ${psuWatts} W.`,
     });
   }
 

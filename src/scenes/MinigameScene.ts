@@ -52,7 +52,7 @@ export class MinigameScene extends Phaser.Scene {
     this.index = 0;
     this.mistakes = 0;
 
-    this.add.text(20, 70, `${MINIGAME_AREAS[data.minigame]} · ${this.seconds} s por etapa (CPU) · ${plural(this.allowed, 'erro permitido', 'erros permitidos')} (RAM)`, textStyle(14, COLORS.muted));
+    this.add.text(20, 70, `${MINIGAME_AREAS[data.minigame]} · ${this.seconds} s por etapa (processador) · ${plural(this.allowed, 'erro permitido', 'erros permitidos')} (RAM)`, textStyle(14, COLORS.muted));
     this.status = this.add.text(WIDTH - 20, 70, '', textStyle(14, COLORS.info)).setOrigin(1, 0);
     this.add.rectangle(20, 96, WIDTH - 40, 10, COLORS.panel).setOrigin(0).setStrokeStyle(1, COLORS.panelBorder);
     this.timerBar = this.add.rectangle(20, 96, WIDTH - 40, 10, COLORS.accent).setOrigin(0);
@@ -139,7 +139,7 @@ export class MinigameScene extends Phaser.Scene {
         if (value === round.target) this.resolve(true, round.explain);
       }, { size: 40, color: COLORS.info });
     }
-    this.layer.text(WIDTH / 2, 470, 'Dica: comece pelo maior valor posicional que cabe.', textStyle(15, COLORS.muted)).setOrigin(0.5);
+    this.layer.text(WIDTH / 2, 470, 'Dica: comece pela maior casa que ainda cabe no número.', textStyle(15, COLORS.muted)).setOrigin(0.5);
   }
 
   private resolve(correct: boolean, explain: string, timedOut = false) {
@@ -150,10 +150,10 @@ export class MinigameScene extends Phaser.Scene {
     const crashed = this.mistakes > this.allowed;
     const done = this.index === this.rounds.length - 1;
     this.layer.rect(40, 560, WIDTH - 80, 100, COLORS.panel, correct ? COLORS.accent : COLORS.danger);
-    fitText(this.layer.text(60, 572, `${correct ? '✓ Etapa liberada.' : timedOut ? '✗ Lento demais — detectado!' : '✗ Jogada errada.'}  ${explain}`,
+    fitText(this.layer.text(60, 572, `${correct ? '✓ Etapa vencida.' : timedOut ? '✗ Demorou demais e foi detectado!' : '✗ Resposta errada.'}  ${explain}`,
       textStyle(17, correct ? COLORS.accent : COLORS.warn, { wordWrap: { width: WIDTH - 340 }, lineSpacing: 4 })), WIDTH - 340, 80);
 
-    const label = crashed ? 'Invasão travou' : done ? 'Finalizar' : 'Próxima etapa >';
+    const label = crashed ? 'A invasão caiu' : done ? 'Finalizar' : 'Próxima etapa >';
     this.layer.button(WIDTH - 270, 586, 210, 50, label, () => {
       if (crashed) this.finish(false);
       else if (done) this.finish(true);
@@ -175,9 +175,9 @@ export class MinigameScene extends Phaser.Scene {
       else earn(state, reward);
       save();
       message = `ACESSO LIBERADO\n\n+${money(reward)}`;
-      if (this.params.nodeId) message += '\nNovas rotas reveladas no Mapa da Rede.';
+      if (this.params.nodeId) message += '\nNovos caminhos apareceram no Mapa da Rede.';
     } else {
-      message = 'CONEXÃO PERDIDA\n\nErros demais derrubaram suas ferramentas.\nEstude a área, melhore a RAM para tolerar mais erros\nou o processador para ter mais tempo, e tente de novo.';
+      message = 'CONEXÃO PERDIDA\n\nVocê errou demais e foi desconectado.\nEstude mais o assunto ou melhore o PC: mais RAM aguenta\nmais erros, e um processador melhor dá mais tempo.';
     }
     this.add.text(WIDTH / 2, 320, message, textStyle(30, success ? COLORS.accent : COLORS.danger, { align: 'center', lineSpacing: 8 })).setOrigin(0.5);
     this.layer.button(WIDTH / 2 - 150, 520, 300, 56, 'Continuar', () => this.leave(), { size: 22 });

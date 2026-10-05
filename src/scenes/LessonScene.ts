@@ -53,7 +53,7 @@ export class LessonScene extends Phaser.Scene {
         const right = i === q.answer;
         b.label.setText(`${right ? '✓' : '✗'} ${option}`);
         b.label.setColor(right ? '#39ff88' : '#ff4d6a');
-        fitText(this.layer.text(60, 520, `${right ? 'Correto!' : 'Quase.'} ${q.explain}`, textStyle(19, right ? COLORS.accent : COLORS.warn, { wordWrap: { width: WIDTH - 120 } })), WIDTH - 120, 64);
+        fitText(this.layer.text(60, 520, `${right ? 'Isso aí!' : 'Não é bem isso.'} ${q.explain}`, textStyle(19, right ? COLORS.accent : COLORS.warn, { wordWrap: { width: WIDTH - 120 } })), WIDTH - 120, 64);
         const total = correct + (right ? 1 : 0);
         const lastQ = index === quiz.length - 1;
         this.layer.button(WIDTH - 280, 590, 240, 52, lastQ ? 'Ver resultado >' : 'Próxima >', () => {
@@ -74,13 +74,13 @@ export class LessonScene extends Phaser.Scene {
       save();
       this.refreshHeader();
       message += reward > 0
-        ? `Aula concluída! +${money(reward)}\nNovas peças, configurações ou alvos podem ter sido liberados.`
-        : 'Aula revisada. Conhecimento renovado!';
+        ? `Aula concluída! +${money(reward)}\nVeja o que foi liberado: peças, configurações ou alvos novos.`
+        : 'Revisão feita. Matéria fresquinha na cabeça!';
     } else {
-      message += 'Não deu para passar. Revise as páginas e tente de novo.';
+      message += 'Não foi dessa vez. Releia a aula e tente de novo.';
     }
     this.layer.text(WIDTH / 2, 260, message, textStyle(28, passed ? COLORS.accent : COLORS.warn, { align: 'center' })).setOrigin(0.5);
-    if (!passed) this.layer.button(WIDTH / 2 - 310, 460, 300, 56, 'Revisar aula', () => this.showPage(0));
-    this.layer.button(passed ? WIDTH / 2 - 150 : WIDTH / 2 + 10, 460, 300, 56, 'Voltar para Estudar', () => this.scene.start('Study'), { color: COLORS.info });
+    if (!passed) this.layer.button(WIDTH / 2 - 310, 460, 300, 56, 'Reler a aula', () => this.showPage(0));
+    this.layer.button(passed ? WIDTH / 2 - 150 : WIDTH / 2 + 10, 460, 300, 56, 'Voltar às aulas', () => this.scene.start('Study'), { color: COLORS.info });
   }
 }

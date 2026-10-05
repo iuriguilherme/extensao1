@@ -17,7 +17,7 @@ export class ShopScene extends Phaser.Scene {
 
   create() {
     this.cameras.main.setBackgroundColor(COLORS.bg);
-    this.refreshHeader = header(this, 'Loja de Hardware', () => this.scene.start('Hub')).refresh;
+    this.refreshHeader = header(this, 'Loja de Informática', () => this.scene.start('Hub')).refresh;
     this.refreshObjective = objectiveBar(this).refresh;
     this.layer = new Layer(this);
     this.draw();
@@ -45,7 +45,7 @@ export class ShopScene extends Phaser.Scene {
       this.layer.text(40, y + 46, describeStats(part), textStyle(16, COLORS.info));
       fitText(this.layer.text(40, y + 72, part.description, textStyle(15, COLORS.text, { wordWrap: { width: 880 } })), 880, 40);
       this.layer.text(WIDTH - 250, y + 16, money(part.price), textStyle(24, COLORS.warn));
-      if (owned) this.layer.text(WIDTH - 130, y + 20, `você tem: ${owned}`, textStyle(14, COLORS.muted));
+      if (owned) this.layer.text(WIDTH - 130, y + 20, `você já tem ${owned}`, textStyle(14, COLORS.muted));
       this.layer.button(WIDTH - 250, y + 56, 200, 42, check.ok ? 'Comprar' : check.reason!, () => {
         toast(this, buy(state, part.id));
         save();

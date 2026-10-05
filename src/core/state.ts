@@ -51,7 +51,7 @@ export type BuyIssueCode = 'needs-lesson' | 'no-money';
 
 export function canBuy(state: GameState, part: Part): { ok: boolean; code?: BuyIssueCode; reason?: string } {
   if (!hasLesson(state, part.requiresLesson)) {
-    return { ok: false, code: 'needs-lesson', reason: `Estude: ${getLesson(part.requiresLesson).title}` };
+    return { ok: false, code: 'needs-lesson', reason: `Requer a aula: ${getLesson(part.requiresLesson).title}` };
   }
   if (state.money < part.price) return { ok: false, code: 'no-money', reason: 'Dinheiro insuficiente' };
   return { ok: true };
@@ -76,21 +76,21 @@ export function objective(state: GameState): string {
   switch (phaseOf(state)) {
     case 'build': {
       const firstOpen = LESSONS.find((l) => l.track === 'hardware' && !hasLesson(state, l.id) && isLessonOpen(state, l.id));
-      if (firstOpen && state.lessonsCompleted.length < 2) return `Estude "${firstOpen.title}" para aprender o que vai dentro de um computador.`;
-      if (state.inventory.length > 0) return 'Instale na Bancada as peças do seu inventário.';
-      return `Faça este PC dar boot. ${specs.issues[0]?.message ?? ''}`;
+      if (firstOpen && state.lessonsCompleted.length < 2) return `Faça a aula "${firstOpen.title}" para descobrir o que tem dentro de um computador.`;
+      if (state.inventory.length > 0) return 'Vá até a Bancada e instale as peças que você comprou.';
+      return `Faça o PC dar boot. ${specs.issues[0]?.message ?? ''}`;
     }
     case 'connect': {
-      if (!hasLesson(state, 'network-basics')) return `Seu PC dá boot! Agora estude "${getLesson('network-basics').title}" para ficar online.`;
+      if (!hasLesson(state, 'network-basics')) return `Seu PC deu boot! Agora faça a aula "${getLesson('network-basics').title}" para colocá-lo na internet.`;
       if (!specs.networkReady) return 'Compre e instale uma placa de rede e um roteador.';
-      if (!hasLesson(state, 'ip-addressing')) return `Estude "${getLesson('ip-addressing').title}" para configurar sua conexão.`;
-      if (!hasLesson(state, 'dns')) return `Estude "${getLesson('dns').title}" para seu PC conseguir resolver nomes.`;
-      return 'Abra a Configuração de Rede e configure seu endereço IP.';
+      if (!hasLesson(state, 'ip-addressing')) return `Faça a aula "${getLesson('ip-addressing').title}" para aprender a configurar a sua conexão.`;
+      if (!hasLesson(state, 'dns')) return `Faça a aula "${getLesson('dns').title}" para entender como o PC acha os sites pelo nome.`;
+      return 'Abra a Configuração de Rede e defina o seu endereço IP.';
     }
     case 'explore':
-      return `Você está online. Abra o Mapa da Rede e invada nó por nó até o ${getNode(FINAL_NODE_ID).name}.`;
+      return `Você está online! Abra o Mapa da Rede e vá invadindo nó por nó até chegar ao ${getNode(FINAL_NODE_ID).name}.`;
     case 'won':
-      return `Você invadiu o ${getNode(FINAL_NODE_ID).name}. Agora você é root certificado. Continue explorando!`;
+      return `Você invadiu o ${getNode(FINAL_NODE_ID).name}! Agora você é root de verdade. Pode continuar explorando à vontade.`;
   }
 }
 
@@ -112,11 +112,11 @@ export function checkRequirements(state: GameState, node: NetNode): RequirementC
   const specs = specsOf(state);
   const r = node.requires;
   const checks: RequirementCheck[] = [];
-  if (r.lesson) checks.push({ label: `Conhecimento: ${getLesson(r.lesson).title}`, met: hasLesson(state, r.lesson) });
-  if (r.cpuPower) checks.push({ label: `Poder de CPU ≥ ${decimal(r.cpuPower)} (você: ${decimal(specs.cpuPower)})`, met: specs.cpuPower >= r.cpuPower });
-  if (r.ramGB) checks.push({ label: `RAM ≥ ${r.ramGB} GB (você: ${specs.ramGB})`, met: specs.ramGB >= r.ramGB });
-  if (r.storageGB) checks.push({ label: `Armazenamento ≥ ${r.storageGB} GB (você: ${specs.storageGB})`, met: specs.storageGB >= r.storageGB });
-  if (r.linkMbps) checks.push({ label: `Link ≥ ${linkSpeed(r.linkMbps)} (você: ${linkSpeed(specs.linkMbps)})`, met: specs.linkMbps >= r.linkMbps });
+  if (r.lesson) checks.push({ label: `Aula: ${getLesson(r.lesson).title}`, met: hasLesson(state, r.lesson) });
+  if (r.cpuPower) checks.push({ label: `Processamento ≥ ${decimal(r.cpuPower)} (você tem ${decimal(specs.cpuPower)})`, met: specs.cpuPower >= r.cpuPower });
+  if (r.ramGB) checks.push({ label: `RAM ≥ ${r.ramGB} GB (você tem ${specs.ramGB} GB)`, met: specs.ramGB >= r.ramGB });
+  if (r.storageGB) checks.push({ label: `Armazenamento ≥ ${r.storageGB} GB (você tem ${specs.storageGB} GB)`, met: specs.storageGB >= r.storageGB });
+  if (r.linkMbps) checks.push({ label: `Link ≥ ${linkSpeed(r.linkMbps)} (você tem ${linkSpeed(specs.linkMbps)})`, met: specs.linkMbps >= r.linkMbps });
   return checks;
 }
 
@@ -139,7 +139,7 @@ export function buy(state: GameState, partId: string): string {
   if (!check.ok) return check.reason!;
   state.money -= part.price;
   state.inventory.push(part.id);
-  return `${part.name}: ${agree(part.gender, 'comprado', 'comprada')}.`;
+  return `${part.name} ${agree(part.gender, 'comprado', 'comprada')}!`;
 }
 
 export function sell(state: GameState, partId: string): string {
@@ -149,7 +149,7 @@ export function sell(state: GameState, partId: string): string {
   state.inventory.splice(index, 1);
   const value = Math.floor(part.price * SELL_RATIO);
   state.money += value;
-  return `${part.name}: ${agree(part.gender, 'vendido', 'vendida')} por ${money(value)}.`;
+  return `${part.name} ${agree(part.gender, 'vendido', 'vendida')} por ${money(value)}.`;
 }
 
 /** Moves a part from inventory into its slot; any previous part goes back to inventory. */
@@ -162,16 +162,16 @@ export function install(state: GameState, partId: string): string {
   if (previous) state.inventory.push(previous);
   state.installed[part.slot] = part.id;
   return previous
-    ? `${getPart(previous).name} trocad${agree(getPart(previous).gender, 'o', 'a')} por ${part.name}.`
-    : `${part.name}: ${agree(part.gender, 'instalado', 'instalada')}.`;
+    ? `Você trocou ${agree(getPart(previous).gender, 'o', 'a')} ${getPart(previous).name} ${agree(part.gender, 'pelo', 'pela')} ${part.name}.`
+    : `${part.name} ${agree(part.gender, 'instalado', 'instalada')}!`;
 }
 
 export function uninstall(state: GameState, slot: Slot): string {
   const id = state.installed[slot];
-  if (!id) return 'Slot vazio.';
+  if (!id) return 'Não há nada instalado aí.';
   delete state.installed[slot];
   state.inventory.push(id);
-  return `${getPart(id).name}: ${agree(getPart(id).gender, 'removido', 'removida')}.`;
+  return `${getPart(id).name} ${agree(getPart(id).gender, 'removido', 'removida')}.`;
 }
 
 /** Records a passed quiz. Returns the cash awarded (0 on repeats). */

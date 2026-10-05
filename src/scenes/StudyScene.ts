@@ -31,7 +31,7 @@ export class StudyScene extends Phaser.Scene {
           ? 'Concluída — revise quando quiser'
           : open
             ? `Recompensa: ${money(lesson.reward)}`
-            : `Requer: ${lesson.requires.filter((r) => !hasLesson(state, r)).map((r) => getLesson(r).title).join(', ')}`;
+            : `Antes, faça: ${lesson.requires.filter((r) => !hasLesson(state, r)).map((r) => getLesson(r).title).join(', ')}`;
         fitText(this.add.text(x + 14, y + 42, sub, textStyle(13, COLORS.text, { wordWrap: { width: 370 } })), 370, 34);
         if (open) {
           bg.setInteractive({ useHandCursor: true });

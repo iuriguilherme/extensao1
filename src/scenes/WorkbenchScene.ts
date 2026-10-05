@@ -57,17 +57,17 @@ export class WorkbenchScene extends Phaser.Scene {
     // Diagnostics
     const diagY = 96 + SLOTS.length * 66 + 6;
     const diag: string[] = [
-      `Energia: ${specs.powerDraw} W consumidos / ${specs.psuWatts} W disponíveis   ·   Poder de CPU ${decimal(specs.cpuPower)}   ·   RAM ${specs.ramGB} GB   ·   Link ${linkSpeed(specs.linkMbps)}`,
+      `Energia: ${specs.powerDraw} W usados de ${specs.psuWatts} W   ·   Processamento ${decimal(specs.cpuPower)}   ·   RAM ${specs.ramGB} GB   ·   Link ${linkSpeed(specs.linkMbps)}`,
     ];
     const problems = specs.issues.filter((i) => specs.boots ? true : i.slot !== 'nic' && i.slot !== 'router');
-    diag.push(specs.boots ? '✓ O sistema dá boot.' : '✗ O sistema não dá boot.');
+    diag.push(specs.boots ? '✓ O PC dá boot.' : '✗ O PC não dá boot.');
     for (const p of problems.slice(0, 3)) diag.push(`  • ${p.message}`);
     this.layer.text(20, diagY, diag.join('\n'), textStyle(14, specs.boots ? COLORS.accent : COLORS.warn, { lineSpacing: 4, wordWrap: { width: 1240 } }));
 
     // Inventory
     this.layer.text(650, 70, 'INVENTÁRIO', textStyle(16, COLORS.muted));
     if (state.inventory.length === 0) {
-      this.layer.text(650, 100, 'Vazio. Compre peças na Loja.', textStyle(16, COLORS.muted));
+      this.layer.text(650, 100, 'Nada por aqui. Compre peças na Loja.', textStyle(16, COLORS.muted));
     }
     state.inventory.slice(0, 9).forEach((id, i) => {
       const part = getPart(id);

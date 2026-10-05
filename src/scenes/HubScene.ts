@@ -15,7 +15,7 @@ export class HubScene extends Phaser.Scene {
 
   create() {
     this.cameras.main.setBackgroundColor(COLORS.bg);
-    header(this, 'ROOTKIT ACADEMY — sua mesa');
+    header(this, 'ROOTKIT ACADEMY — sua estação');
     objectiveBar(this);
 
     const state = game();
@@ -27,7 +27,7 @@ export class HubScene extends Phaser.Scene {
     this.add.rectangle(360, 622, 160, 14, COLORS.panelBorder);
     const lines: string[] = [];
     if (!specs.boots) {
-      lines.push('[ SEM SINAL ]', '', 'A máquina não liga:', '');
+      lines.push('[ SEM SINAL ]', '', 'O PC não dá boot:', '');
       for (const issue of specs.issues.filter((i) => i.slot !== 'nic' && i.slot !== 'router')) lines.push(`  ✗ ${issue.message}`);
     } else {
       lines.push('POST ........................ OK');
@@ -36,16 +36,16 @@ export class HubScene extends Phaser.Scene {
       rows.push(['Consumo', `${specs.powerDraw} W / ${specs.psuWatts} W`]);
       lines.push(...alignColumns(rows, 2));
       lines.push('', 'Sistema operacional carregado.', '');
-      lines.push(`Poder de CPU ${decimal(specs.cpuPower)}  →  ${roundSeconds(specs.cpuPower)} s por etapa da invasão`);
-      lines.push(`RAM ${specs.ramGB} GB  →  aguenta ${plural(mistakesAllowed(specs.ramGB), 'erro', 'erros')}`);
+      lines.push(`Processamento ${decimal(specs.cpuPower)}  →  ${roundSeconds(specs.cpuPower)} s para cada etapa da invasão`);
+      lines.push(`RAM ${specs.ramGB} GB  →  aguenta ${plural(mistakesAllowed(specs.ramGB), 'erro', 'erros')} por invasão`);
       lines.push('');
       if (isOnline(state)) {
         lines.push(`eth0: ${state.netConfig!.ip}  gw ${state.netConfig!.gateway}  dns ${state.netConfig!.dns}`);
         lines.push(`link: ${linkSpeed(specs.linkMbps)}   status: ONLINE`);
       } else if (specs.networkReady) {
-        lines.push('eth0: link ativo, sem IP configurado → abra a Configuração de Rede');
+        lines.push('eth0: cabo conectado, mas sem IP → abra a Configuração de Rede');
       } else {
-        lines.push('eth0: nenhum hardware de rede detectado');
+        lines.push('eth0: nenhuma placa de rede encontrada');
       }
       if (phase === 'won') lines.push('', `*** ${getNode(FINAL_NODE_ID).name.toUpperCase()} INVADIDO — VOCÊ VENCEU ***`);
     }
@@ -58,14 +58,14 @@ export class HubScene extends Phaser.Scene {
     const w = 440;
     const items: { label: string; scene: string; enabled: boolean; hint: string }[] = [
       { label: 'Estudar', scene: 'Study', enabled: true, hint: 'As aulas liberam peças e alvos' },
-      { label: 'Loja', scene: 'Shop', enabled: true, hint: 'Compre hardware' },
+      { label: 'Loja', scene: 'Shop', enabled: true, hint: 'Compre peças para o PC' },
       { label: 'Bancada', scene: 'Workbench', enabled: true, hint: 'Instale e troque peças' },
       {
         label: 'Configuração de Rede', scene: 'NetSetup',
         enabled: specs.networkReady && hasLesson(state, 'ip-addressing') && hasLesson(state, 'dns'),
-        hint: 'Requer placa de rede, roteador e as aulas de IP e DNS',
+        hint: 'Precisa de placa de rede, roteador e das aulas de IP e DNS',
       },
-      { label: 'Mapa da Rede', scene: 'NetMap', enabled: isOnline(state), hint: 'Requer um PC online' },
+      { label: 'Mapa da Rede', scene: 'NetMap', enabled: isOnline(state), hint: 'Precisa do PC conectado à internet' },
     ];
     items.forEach((item, i) => {
       const y = 100 + i * 88;

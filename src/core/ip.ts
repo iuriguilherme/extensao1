@@ -85,37 +85,37 @@ export function validateNetConfig(config: NetConfig, lan: LanInfo): NetIssue[] {
   const routerIp = parseIp(lan.routerIp)!;
   const lanPrefix = maskToPrefix(parseIp(lan.mask)!)!;
 
-  if (ip === null) fail('ip-invalid', `IP "${config.ip}" não é um endereço IPv4 válido (4 octetos, 0–255).`);
+  if (ip === null) fail('ip-invalid', `"${config.ip}" não é um IPv4 válido: são 4 octetos, cada um de 0 a 255.`);
   if (mask === null || maskToPrefix(mask) === null) {
     fail('mask-invalid', `"${config.mask}" não é uma máscara de sub-rede válida.`);
   } else if (maskToPrefix(mask) !== lanPrefix) {
-    fail('mask-mismatch', `A máscara ${config.mask} não bate com a da LAN (${lan.mask}). Os hosts precisam concordar sobre onde a rede termina.`);
+    fail('mask-mismatch', `A máscara ${config.mask} é diferente da usada na LAN (${lan.mask}). Todos os hosts precisam da mesma máscara para saber até onde vai a rede.`);
   }
 
   if (ip !== null) {
     if (!sameSubnet(ip, routerIp, lanPrefix)) {
-      fail('ip-outside', `${config.ip} está fora da LAN ${formatIp(networkAddress(routerIp, lanPrefix))}/${lanPrefix}. O roteador não consegue alcançar você diretamente.`);
+      fail('ip-outside', `${config.ip} não faz parte da LAN ${formatIp(networkAddress(routerIp, lanPrefix))}/${lanPrefix}, então o roteador não consegue falar direto com você.`);
     } else if (ip === networkAddress(routerIp, lanPrefix)) {
-      fail('ip-network', `${config.ip} é o endereço de REDE desta sub-rede; hosts não podem usá-lo.`);
+      fail('ip-network', `${config.ip} é o endereço de REDE desta sub-rede: nenhum host pode usar esse endereço.`);
     } else if (ip === broadcastAddress(routerIp, lanPrefix)) {
-      fail('ip-broadcast', `${config.ip} é o endereço de BROADCAST desta sub-rede; hosts não podem usá-lo.`);
+      fail('ip-broadcast', `${config.ip} é o endereço de BROADCAST desta sub-rede: nenhum host pode usar esse endereço.`);
     } else {
       for (const [name, taken] of Object.entries(lan.takenBy)) {
-        if (parseIp(taken) === ip) fail('ip-conflict', `${config.ip} já está em uso (${name}). Dois hosts com o mesmo IP causam conflito.`);
+        if (parseIp(taken) === ip) fail('ip-conflict', `${config.ip} já pertence a outro aparelho (${name}). Dois hosts com o mesmo IP entram em conflito.`);
       }
     }
   }
 
   if (gateway === null) {
-    fail('gateway-invalid', `Gateway "${config.gateway}" não é um endereço IPv4 válido.`);
+    fail('gateway-invalid', `"${config.gateway}" não é um IPv4 válido para o gateway.`);
   } else if (gateway !== routerIp) {
-    fail('gateway-not-router', `O gateway ${config.gateway} não é o seu roteador. O tráfego para outras redes não chegaria a lugar nenhum.`);
+    fail('gateway-not-router', `O gateway ${config.gateway} não é o seu roteador: o que você mandar para outras redes não vai chegar a lugar nenhum.`);
   }
 
   if (dns === null) {
-    fail('dns-invalid', `DNS "${config.dns}" não é um endereço IPv4 válido.`);
+    fail('dns-invalid', `"${config.dns}" não é um IPv4 válido para o DNS.`);
   } else if (!lan.dnsServers.some((s) => parseIp(s) === dns)) {
-    fail('dns-unknown', `${config.dns} não é um servidor DNS. Nomes como example.com não seriam resolvidos.`);
+    fail('dns-unknown', `${config.dns} não é um servidor DNS: nomes como example.com não vão ser traduzidos em IP.`);
   }
 
   return errors;

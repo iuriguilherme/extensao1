@@ -23,19 +23,19 @@ interface Field {
 
 const FIELDS: Field[] = [
   {
-    key: 'ip', label: 'Endereço IP', hint: 'Um endereço livre dentro da LAN (nem de rede, nem de broadcast, nem ocupado).',
+    key: 'ip', label: 'Endereço IP', hint: 'Um endereço livre da LAN: não pode ser o de rede, o de broadcast nem um já usado.',
     choices: ['192.168.1.42', '192.168.0.10', '192.168.0.300', '192.168.0.255', '192.168.0.42', '10.0.0.42', '192.168.0.0'],
   },
   {
-    key: 'mask', label: 'Máscara de sub-rede', hint: 'Precisa bater com a da LAN, para todos concordarem onde a rede termina.',
+    key: 'mask', label: 'Máscara de sub-rede', hint: 'Tem que ser igual à da LAN, senão os hosts discordam sobre até onde vai a rede.',
     choices: ['255.255.0.0', '255.255.255.255', '255.255.255.0', '255.0.255.0'],
   },
   {
-    key: 'gateway', label: 'Gateway padrão', hint: 'Para onde mandar o tráfego destinado a outras redes.',
+    key: 'gateway', label: 'Gateway padrão', hint: 'Por onde sai tudo o que vai para outras redes.',
     choices: ['192.168.0.10', '192.168.0.255', '203.0.113.53', '192.168.0.1'],
   },
   {
-    key: 'dns', label: 'Servidor DNS', hint: 'Quem traduz nomes em IPs para você.',
+    key: 'dns', label: 'Servidor DNS', hint: 'Quem traduz o nome dos sites em endereço IP.',
     choices: ['127.0.0.1', '192.168.0.20', '203.0.113.53', '192.168.0.1'],
   },
 ];
@@ -70,10 +70,10 @@ export class NetSetupScene extends Phaser.Scene {
       'DHCP: DESLIGADO (alguém quebrou)',
       ...alignColumns(noteRows, 1),
       '',
-      'Já estão na LAN:',
+      'Aparelhos já na rede:',
       ...Object.entries(HOME_LAN.takenBy).map(([name, ip]) => `  ${ip.padEnd(14)} ${name}`),
       '',
-      'O roteador repassa DNS: sim',
+      'O roteador também faz DNS: sim',
       'DNS do provedor: 203.0.113.53',
     ].join('\n'), textStyle(15, COLORS.info, { lineSpacing: 4 }));
 
@@ -84,7 +84,7 @@ export class NetSetupScene extends Phaser.Scene {
       if (errors.length) {
         const shown = errors.slice(0, 3).map((e) => `  • ${e.message}`);
         if (errors.length > 3) shown.push(`  (+${plural(errors.length - 3, 'outro problema', 'outros problemas')})`);
-        this.result.text(360, 540, ['✗ Falha na conexão:', ...shown].join('\n'),
+        this.result.text(360, 540, ['✗ Não conectou:', ...shown].join('\n'),
           textStyle(15, COLORS.danger, { wordWrap: { width: WIDTH - 400 }, lineSpacing: 3 }));
         return;
       }
@@ -94,7 +94,7 @@ export class NetSetupScene extends Phaser.Scene {
       this.result.text(360, 548, [
         `✓ ping ${config.gateway} … resposta em 1 ms`,
         `✓ nslookup example.com via ${config.dns} … 203.0.113.80`,
-        'Você está ONLINE.',
+        'Você está online!',
       ].join('\n'), textStyle(16, COLORS.accent, { lineSpacing: 3 }));
       this.result.button(WIDTH - 260, 560, 220, 56, 'Abrir Mapa da Rede >', () => this.scene.start('NetMap'), { color: COLORS.warn });
     }, { size: 22, color: COLORS.warn });

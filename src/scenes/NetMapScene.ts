@@ -63,10 +63,10 @@ export class NetMapScene extends Phaser.Scene {
       const t = this.add.text(lx + 18, 656, label, textStyle(13, color)).setOrigin(0, 0.5);
       lx += t.width + 40;
     }
-    this.add.text(24, 76, 'Clique em um nó para inspecioná-lo.', textStyle(13, COLORS.muted));
+    this.add.text(24, 76, 'Clique em um nó para ver os detalhes.', textStyle(13, COLORS.muted));
 
     if (!isOnline(state)) {
-      this.add.text(WIDTH / 2, 360, 'OFFLINE — configure sua rede primeiro.', textStyle(28, COLORS.danger)).setOrigin(0.5);
+      this.add.text(WIDTH / 2, 360, 'SEM CONEXÃO — configure a rede primeiro.', textStyle(28, COLORS.danger)).setOrigin(0.5);
     }
   }
 
@@ -81,7 +81,7 @@ export class NetMapScene extends Phaser.Scene {
     fitText(this.info.text(x + 14, y + 10, `${node.name}  (${node.ip})`, textStyle(18, STATUS_COLOR[status])), w - 28);
 
     if (status === 'home') {
-      this.info.text(x + 14, y + 42, 'Este é você. Invada os vizinhos para enxergar mais longe.', textStyle(14));
+      this.info.text(x + 14, y + 42, 'Este é o seu PC. Invada os vizinhos para descobrir o resto da rede.', textStyle(14));
       return;
     }
 
@@ -101,7 +101,7 @@ export class NetMapScene extends Phaser.Scene {
         minigame: node.minigame,
         difficulty: node.difficulty,
         reward,
-        title: `Conectando a ${node.name} (${node.ip})`,
+        title: `Invadindo: ${node.name} (${node.ip})`,
       });
     }, { disabled: !ok, color: COLORS.warn, size: 16 });
     if (!ok) b.label.setColor(hex(COLORS.muted));

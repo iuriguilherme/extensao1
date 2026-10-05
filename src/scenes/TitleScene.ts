@@ -17,7 +17,7 @@ export class TitleScene extends Phaser.Scene {
     this.add.text(WIDTH / 2, 260, 'monte · conecte · invada — aprenda TI na prática', textStyle(20, COLORS.info)).setOrigin(0.5);
     this.add.text(WIDTH / 2, 330, [
       `Você herdou um gabinete vazio e ${money(STARTING_MONEY)}.`,
-      'Aprenda o que vai dentro, coloque o PC online e depois explore a rede.',
+      'Descubra o que vai dentro dele, coloque o PC na internet e saia explorando a rede.',
     ].join('\n'), textStyle(18, COLORS.text, { align: 'center', lineSpacing: 8 })).setOrigin(0.5);
 
     const saved = hasSave();
