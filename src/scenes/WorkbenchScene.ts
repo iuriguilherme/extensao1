@@ -64,6 +64,15 @@ export class WorkbenchScene extends Phaser.Scene {
     this.act(result.message, result.ok ? COLORS.accent : COLORS.warn);
   }
 
+  /** Installs or removes a part; a refused change (e.g. nodes would lose their port) shows as a warning. */
+  private actOnRig(change: () => string) {
+    const state = game();
+    const rig = () => JSON.stringify([state.installed, state.noc]);
+    const before = rig();
+    const message = change();
+    this.act(message, rig() === before ? COLORS.warn : COLORS.accent);
+  }
+
   private draw() {
     this.layer.clear();
     const tabs: [Tab, string][] = [['case', 'Gabinete'], ['noc', 'NOC e enxame']];
@@ -95,7 +104,7 @@ export class WorkbenchScene extends Phaser.Scene {
       if (id) {
         const part = getPart(id);
         fitText(this.layer.text(34, y + 28, `${part.name} — ${describeStats(part)}`, textStyle(15, COLORS.text)), 480);
-        this.layer.button(520, y + 12, 88, 34, 'Remover', () => this.act(uninstall(state, slot)), { size: 14, color: COLORS.warn });
+        this.layer.button(520, y + 12, 88, 34, 'Remover', () => this.actOnRig(() => uninstall(state, slot)), { size: 14, color: COLORS.warn });
       } else {
         this.layer.text(34, y + 28, '(vazio)', textStyle(15, COLORS.muted));
       }
@@ -122,7 +131,7 @@ export class WorkbenchScene extends Phaser.Scene {
       this.layer.rect(650, y, 610, 44);
       this.layer.text(662, y + 5, part.name, textStyle(15, COLORS.text));
       this.layer.text(662, y + 24, `${SLOT_LABELS[part.slot]} · ${describeStats(part)}`, textStyle(12, COLORS.info));
-      this.layer.button(1020, y + 6, 110, 32, 'Instalar', () => this.act(install(state, id)), { size: 14 });
+      this.layer.button(1020, y + 6, 110, 32, 'Instalar', () => this.actOnRig(() => install(state, id)), { size: 14 });
       this.layer.button(1140, y + 6, 110, 32, `Vender ${money(Math.floor(part.price * SELL_RATIO))}`, () => this.act(sell(state, id)), { size: 13, color: COLORS.warn });
     });
     if (state.inventory.length > 9) {

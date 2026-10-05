@@ -449,6 +449,27 @@ describe('swarm actions', () => {
     expect(Object.values(s.swarm).filter((p) => p === 'sw1').length).toBe(1);
   });
 
+  it('blocks removing a switch whose nodes cannot move, and changes nothing', () => {
+    const s = onlineRig({ router: 'router_home' });
+    s.noc = [{ id: 'sw1', partId: 'sw_8_gig' }];
+    attach(s, { museum: 'router', resolver: 'router', blog: 'router', shop: 'router', mail: 'sw1' });
+    const before = structuredClone({ noc: s.noc, swarm: s.swarm, inventory: s.inventory });
+    const r = removeSwitch(s, 'sw1');
+    expect(r.ok).toBe(false);
+    expect(r.code).toBe('blocked-dependents');
+    expect(r.message).toContain(getNode('mail').name);
+    expect({ noc: s.noc, swarm: s.swarm, inventory: s.inventory }).toEqual(before);
+  });
+
+  it('blocks removing the router while nodes use its ports, and changes nothing', () => {
+    const s = onlineRig();
+    attach(s, { resolver: 'router' });
+    const before = structuredClone({ installed: s.installed, swarm: s.swarm, inventory: s.inventory });
+    const message = uninstall(s, 'router');
+    expect(message).toContain(getNode('resolver').name);
+    expect({ installed: s.installed, swarm: s.swarm, inventory: s.inventory }).toEqual(before);
+  });
+
   it('removing the player NIC never blocks and keeps the swarm', () => {
     const s = onlineRig();
     attach(s, { resolver: 'router' });
