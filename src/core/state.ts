@@ -14,6 +14,15 @@ export interface GameState {
   /** Saved once the player enters a valid manual IP configuration. */
   netConfig: NetConfig | null;
   breached: string[];
+  /** Switches installed in the NOC; ids are stable so attachments survive reordering. */
+  noc: NocEntry[];
+  /** Connected nodes (the swarm): node id -> id of the port provider it is plugged into. */
+  swarm: Record<string, string>;
+}
+
+export interface NocEntry {
+  id: string;
+  partId: string;
 }
 
 export const STARTING_MONEY = 300;
@@ -30,6 +39,8 @@ export function newGame(): GameState {
     lessonsCompleted: [],
     netConfig: null,
     breached: [],
+    noc: [],
+    swarm: {},
   };
 }
 

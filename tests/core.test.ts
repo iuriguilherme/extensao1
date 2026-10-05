@@ -7,8 +7,9 @@ import { buildRounds, roundCount, STATUSES, type Difficulty } from '../src/core/
 import { createRng } from '../src/core/random';
 import {
   breach, buy, canBuy, canConnect, completeLesson, install, isOnline, newGame, nodeStatus, phaseOf, sell, setNetConfig,
-  STARTING_MONEY,
+  specsOf, STARTING_MONEY, type GameState,
 } from '../src/core/state';
+import { dependents, freePorts, pickProvider, swarmReport, totalSpecs } from '../src/core/swarm';
 import { LESSONS, TRACK_LABELS, getLesson } from '../src/data/lessons';
 import { NODES, getNode, type MinigameId } from '../src/data/nodes';
 import { NODE_KINDS, NODE_KIND_LABELS, buildContribution, nodeBuild, resolveBuild } from '../src/data/nodeBuilds';
@@ -236,6 +237,134 @@ describe('content integrity', () => {
 
   it('node links are symmetric', () => {
     for (const n of NODES) for (const id of n.links) expect(getNode(id).links).toContain(n.id);
+  });
+});
+
+const NET = { ip: '192.168.0.42', mask: '255.255.255.0', gateway: '192.168.0.1', dns: '192.168.0.1' };
+
+/** An online player rig; the S2 option swaps in a 32 CPU-power octa-core build. */
+function onlineRig(opts: { octa?: boolean; router?: string } = {}): GameState {
+  const s = newGame();
+  s.installed = opts.octa
+    ? { motherboard: 'mb_x5', cpu: 'cpu_s2_8c', ram: 'ram_32_ddr5', storage: 'ssd_512', psu: 'psu_450' }
+    : { motherboard: 'mb_b1', cpu: 'cpu_s1_2c', ram: 'ram_4_ddr4', storage: 'hdd_500', psu: 'psu_250' };
+  s.installed.nic = 'nic_1g';
+  s.installed.router = opts.router ?? 'router_gig';
+  s.netConfig = { ...NET };
+  return s;
+}
+
+/** Marks nodes breached and attaches them, bypassing the mutators. */
+function attach(s: GameState, links: Record<string, string>) {
+  for (const [node, provider] of Object.entries(links)) {
+    if (!s.breached.includes(node)) s.breached.push(node);
+    s.swarm[node] = provider;
+  }
+}
+
+describe('swarm math', () => {
+  it('starts empty, so old saves load with no NOC and nothing connected', () => {
+    const s = newGame();
+    expect(s.noc).toEqual([]);
+    expect(s.swarm).toEqual({});
+  });
+
+  it('uplink caps usable power behind a switch (AE1)', () => {
+    const s = onlineRig();
+    s.noc = [{ id: 'sw1', partId: 'sw_8_gig' }];
+    attach(s, { shop: 'sw1', mail: 'sw1', uni: 'sw1' });
+    const r = swarmReport(s);
+    expect(r.bandwidthMbps).toBe(1000);
+    expect(r.usable.cpuPower).toBeLessThan(r.raw.cpuPower);
+  });
+
+  it('intrusion stats stay capped however big the swarm is (AE5)', () => {
+    const s = onlineRig({ octa: true, router: 'router_10g' });
+    s.noc = [{ id: 'sw1', partId: 'sw_48_10g' }];
+    attach(s, { core: 'sw1', shop: 'sw1', mail: 'sw1', blog: 'sw1', resolver: 'sw1' });
+    const t = totalSpecs(s);
+    expect(t.cpuPower).toBeGreaterThan(88);
+    expect(t.ramGB).toBeGreaterThan(64);
+    expect(roundSeconds(t.cpuPower)).toBe(30);
+    expect(mistakesAllowed(t.ramGB)).toBe(4);
+  });
+
+  it('a 32 CPU-power rig plus the swarm passes the core CPU requirement (AE6)', () => {
+    const s = onlineRig({ octa: true });
+    expect(specsOf(s).cpuPower).toBe(32);
+    s.noc = [{ id: 'sw1', partId: 'sw_8_gig' }];
+    attach(s, { shop: 'sw1', mail: 'router' });
+    expect(totalSpecs(s).cpuPower).toBeGreaterThanOrEqual(getNode('core').requires.cpuPower!);
+  });
+
+  it('fast node links never change the player link (AE7)', () => {
+    const s = onlineRig({ router: 'router_home' });
+    s.installed.nic = 'nic_100';
+    s.noc = [{ id: 'sw1', partId: 'sw_48_10g' }];
+    attach(s, { core: 'sw1' });
+    expect(totalSpecs(s).linkMbps).toBe(100);
+  });
+
+  it('the swarm counts only while the own rig is online (AE9)', () => {
+    const s = onlineRig();
+    attach(s, { resolver: 'router' });
+    expect(totalSpecs(s).cpuPower).toBeGreaterThan(specsOf(s).cpuPower);
+    delete s.installed.nic;
+    expect(totalSpecs(s)).toEqual(specsOf(s));
+    expect(s.swarm.resolver).toBe('router');
+  });
+
+  it('storage adds in full even when bandwidth caps CPU and RAM', () => {
+    const s = onlineRig({ router: 'router_home' });
+    attach(s, { core: 'router', shop: 'router' });
+    const r = swarmReport(s);
+    expect(r.usable.cpuPower).toBeLessThan(r.raw.cpuPower);
+    expect(totalSpecs(s).storageGB).toBe(specsOf(s).storageGB + r.raw.storageGB);
+  });
+
+  it('connecting another node never lowers usable power', () => {
+    const order = ['museum', 'resolver', 'blog', 'shop', 'mail', 'core'];
+    for (const router of ['router_home', 'router_gig']) {
+      const s = onlineRig({ router });
+      let prev = swarmReport(s).usable;
+      for (const node of order.slice(0, 4)) {
+        attach(s, { [node]: 'router' });
+        const next = swarmReport(s).usable;
+        expect(next.cpuPower).toBeGreaterThanOrEqual(prev.cpuPower);
+        expect(next.ramGB).toBeGreaterThanOrEqual(prev.ramGB);
+        expect(next.storageGB).toBeGreaterThanOrEqual(prev.storageGB);
+        prev = next;
+      }
+    }
+  });
+
+  it('a port-providing node uses one parent port and adds its own', () => {
+    const s = onlineRig();
+    const before = freePorts(s, 'router');
+    attach(s, { isp: 'router' });
+    expect(freePorts(s, 'router')).toBe(before - 1);
+    expect(freePorts(s, 'isp')).toBe(4);
+  });
+
+  it('a switch-type node caps its subtree at its own link', () => {
+    const s = onlineRig({ router: 'router_10g' });
+    attach(s, { uni: 'router' });
+    expect(swarmReport(s).bandwidthMbps).toBe(1000);
+    attach(s, { shop: 'uni', mail: 'uni' });
+    expect(swarmReport(s).bandwidthMbps).toBe(1000);
+  });
+
+  it('dependents include nested descendants', () => {
+    const s = onlineRig();
+    attach(s, { isp: 'router', uni: 'isp', shop: 'uni' });
+    expect(dependents(s, 'isp').sort()).toEqual(['shop', 'uni']);
+  });
+
+  it('a new node goes where it adds the most bandwidth', () => {
+    const s = onlineRig({ router: 'router_home' });
+    s.noc = [{ id: 'sw1', partId: 'sw_8_gig' }];
+    attach(s, { museum: 'router' });
+    expect(pickProvider(s, 'shop')).toBe('sw1');
   });
 });
 
