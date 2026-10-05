@@ -79,6 +79,11 @@ export interface Contribution {
   ports: number;
 }
 
+/** Names of the parts inside a node, for the breach result and the Net Map. */
+export function nodePartNames(node: NetNode): string[] {
+  return Object.values(nodeBuild(node)).map((id) => getPart(id).name);
+}
+
 export function buildContribution(build: NodeBuild): Contribution {
   const stats = (slot: Slot) => (build[slot] ? getPart(build[slot]!).stats : {});
   const cpu = stats('cpu');

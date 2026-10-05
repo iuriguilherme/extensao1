@@ -5,9 +5,8 @@ import { createRng } from '../core/random';
 import { breach, earn } from '../core/state';
 import { joinSwarm, totalSpecs } from '../core/swarm';
 import { game, save } from '../core/store';
-import { nodeBuild } from '../data/nodeBuilds';
+import { nodePartNames } from '../data/nodeBuilds';
 import { MINIGAME_AREAS, getNode, type MinigameId } from '../data/nodes';
-import { getPart } from '../data/parts';
 import { listJoin, money, plural } from '../core/fmt';
 import { COLORS, fitText, header, hex, Layer, textStyle, WIDTH } from '../ui/widgets';
 
@@ -187,7 +186,7 @@ export class MinigameScene extends Phaser.Scene {
     if (nodeId) {
       reward = breach(state, nodeId);
       if (firstBreach) {
-        const parts = Object.values(nodeBuild(getNode(nodeId))).map((id) => getPart(id).name);
+        const parts = nodePartNames(getNode(nodeId));
         const join = joinSwarm(state, nodeId);
         joined = join.ok;
         details = [

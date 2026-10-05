@@ -1,13 +1,13 @@
 import Phaser from 'phaser';
 import { install, isOnline, sell, specsOf, SELL_RATIO, uninstall, type GameState } from '../core/state';
 import {
-  attachedTo, connectedNodes, freePorts, installSwitch, joinSwarm, leaveSwarm, providerLabel, providers,
+  attachedTo, connectedNodes, freePorts, installSwitch, joinSwarm, leaveSwarm, nodeStats, providerLabel, providers,
   removeSwitch, swarmReport, totalSpecs, type Provider, type SwarmResult,
 } from '../core/swarm';
 import { game, save } from '../core/store';
 import { describeStats, getPart, CASE_SLOTS, SLOT_LABELS } from '../data/parts';
 import { getNode, HOME_NODE_ID } from '../data/nodes';
-import { buildContribution, nodeBuild, NODE_KIND_LABELS, type Contribution } from '../data/nodeBuilds';
+import { NODE_KIND_LABELS, type Contribution } from '../data/nodeBuilds';
 import { decimal, linkSpeed, money, plural } from '../core/fmt';
 import { COLORS, fitText, header, Layer, objectiveBar, textStyle, toast } from '../ui/widgets';
 
@@ -21,8 +21,10 @@ interface Row {
 const ROW_H = 32;
 const LIST_W = 840;
 const SIDE_X = 880;
+/** Bottom of the content area, above the objective bar. */
+const CONTENT_BOTTOM = 636;
+const SHELF_ROW_H = 54;
 
-const nodeStats = (id: string): Contribution => buildContribution(nodeBuild(getNode(id)));
 const kindLabel = (id: string) => {
   const kind = getNode(id).hardware?.kind;
   return kind ? NODE_KIND_LABELS[kind] : '';
@@ -234,7 +236,7 @@ export class WorkbenchScene extends Phaser.Scene {
       }
     }
 
-    const bottom = 636;
+    const bottom = CONTENT_BOTTOM;
     const fits = Math.max(1, Math.floor((bottom - top) / ROW_H));
     const perPage = rows.length > fits ? Math.max(1, fits - 1) : fits;
     const pages = Math.max(1, Math.ceil(rows.length / perPage));
@@ -261,17 +263,17 @@ export class WorkbenchScene extends Phaser.Scene {
         textStyle(14, COLORS.muted, { wordWrap: { width: w } })), w, 60);
       return;
     }
-    const fits = Math.max(1, Math.floor((636 - startY) / 54));
+    const fits = Math.max(1, Math.floor((CONTENT_BOTTOM - startY) / SHELF_ROW_H));
     owned.slice(0, fits).forEach((id, i) => {
       const part = getPart(id);
-      const y = startY + i * 54;
+      const y = startY + i * SHELF_ROW_H;
       this.layer.rect(SIDE_X, y, w, 48);
       fitText(this.layer.text(SIDE_X + 10, y + 5, part.name, textStyle(14, COLORS.text)), w - 120);
       fitText(this.layer.text(SIDE_X + 10, y + 26, describeStats(part), textStyle(12, COLORS.info)), w - 120);
       this.layer.button(SIDE_X + w - 104, y + 8, 96, 32, 'Instalar', () => this.actSwarm(installSwitch(state, id)), { size: 14 });
     });
     if (owned.length > fits) {
-      this.layer.text(SIDE_X, startY + fits * 54, `…e mais ${owned.length - fits}`, textStyle(14, COLORS.muted));
+      this.layer.text(SIDE_X, startY + fits * SHELF_ROW_H, `…e mais ${owned.length - fits}`, textStyle(14, COLORS.muted));
     }
   }
 }

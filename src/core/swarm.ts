@@ -2,7 +2,7 @@ import { getNode } from '../data/nodes';
 import { buildContribution, nodeBuild, type Contribution } from '../data/nodeBuilds';
 import { getPart } from '../data/parts';
 import { listJoin, plural } from './fmt';
-import type { Specs } from './hardware';
+import { round1, type Specs } from './hardware';
 import { isOnline, specsOf, type GameState } from './state';
 
 /**
@@ -31,9 +31,8 @@ export interface Provider {
   uplinkMbps: number;
 }
 
-const round1 = (n: number) => Math.round(n * 10) / 10;
-
-function nodeStats(nodeId: string): Contribution {
+/** What a node's hardware adds to the swarm. */
+export function nodeStats(nodeId: string): Contribution {
   return buildContribution(nodeBuild(getNode(nodeId)));
 }
 
@@ -57,7 +56,7 @@ export function providers(state: GameState): Provider[] {
   return out;
 }
 
-export function providerById(state: GameState, id: string): Provider | undefined {
+function providerById(state: GameState, id: string): Provider | undefined {
   return providers(state).find((p) => p.id === id);
 }
 
@@ -77,15 +76,13 @@ export function dependents(state: GameState, providerId: string): string[] {
   return out;
 }
 
-/** A connected node's throughput: its own link, shared with everything plugged in below it. */
-function nodeThroughput(state: GameState, nodeId: string): number {
-  const link = nodeStats(nodeId).linkMbps;
-  const below = attachedTo(state, nodeId).reduce((sum, child) => sum + nodeThroughput(state, child), 0);
-  return Math.min(link, link + below);
-}
-
+/**
+ * What a router or NOC switch carries: the links of the nodes on its ports,
+ * capped by its uplink. A port node's own link caps its whole subtree, so
+ * nodes plugged into it add nothing beyond that link.
+ */
 function providerThroughput(state: GameState, provider: Provider): number {
-  const sum = attachedTo(state, provider.id).reduce((total, child) => total + nodeThroughput(state, child), 0);
+  const sum = attachedTo(state, provider.id).reduce((total, child) => total + nodeStats(child).linkMbps, 0);
   return Math.min(provider.uplinkMbps, sum);
 }
 

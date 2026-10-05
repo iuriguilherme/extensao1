@@ -2,9 +2,8 @@ import Phaser from 'phaser';
 import { canConnect, checkRequirements, isOnline, nodeStatus, REPLAY_RATIO, type NodeStatus } from '../core/state';
 import { game } from '../core/store';
 import { providerLabel } from '../core/swarm';
-import { NODE_KIND_LABELS, nodeBuild } from '../data/nodeBuilds';
+import { NODE_KIND_LABELS, nodePartNames } from '../data/nodeBuilds';
 import { MINIGAME_AREAS, NODES, getNode, type NetNode } from '../data/nodes';
-import { getPart } from '../data/parts';
 import { listJoin, money } from '../core/fmt';
 import { COLORS, fitText, header, hex, Layer, objectiveBar, textStyle, WIDTH } from '../ui/widgets';
 
@@ -111,7 +110,7 @@ export class NetMapScene extends Phaser.Scene {
     const breached = status === 'breached';
     if (breached) {
       cy += 6;
-      const parts = Object.values(nodeBuild(node)).map((id) => getPart(id).name);
+      const parts = nodePartNames(node);
       if (parts.length) {
         const list = fitText(this.info.text(x + 14, cy, `Peças: ${listJoin(parts)}.`, textStyle(13, COLORS.text, { wordWrap: { width: w - 28 } })), w - 28, 54);
         cy += list.height + 6;
