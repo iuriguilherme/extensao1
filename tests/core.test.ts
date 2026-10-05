@@ -509,6 +509,39 @@ describe('swarm in requirements', () => {
   });
 });
 
+describe('swarm balance', () => {
+  const coreNeeds = getNode('core').requires;
+
+  it('a mid-tier rig plus a realistic swarm meets the core CPU, RAM and storage', () => {
+    const s = onlineRig({ octa: true });
+    s.noc = [{ id: 'sw1', partId: 'sw_8_gig' }];
+    attach(s, { shop: 'sw1', mail: 'router' });
+    const t = totalSpecs(s);
+    expect(t.cpuPower).toBeGreaterThanOrEqual(coreNeeds.cpuPower!);
+    expect(t.ramGB).toBeGreaterThanOrEqual(coreNeeds.ramGB!);
+    expect(t.storageGB).toBeGreaterThanOrEqual(coreNeeds.storageGB!);
+    expect(specsOf(s).cpuPower).toBeLessThan(coreNeeds.cpuPower!);
+  });
+
+  it('the starter rig plus its first two breaches meets a CPU requirement it could not alone', () => {
+    const s = onlineRig({ router: 'router_home' });
+    s.installed.nic = 'nic_100';
+    const uniCpu = getNode('uni').requires.cpuPower!;
+    expect(specsOf(s).cpuPower).toBeLessThan(uniCpu);
+    attach(s, { isp: 'router', museum: 'router' });
+    expect(totalSpecs(s).cpuPower).toBeGreaterThanOrEqual(uniCpu);
+  });
+
+  it('a 10 Gbps switch lets the end-game swarm use all its power', () => {
+    const s = onlineRig({ octa: true, router: 'router_10g' });
+    s.noc = [{ id: 'sw1', partId: 'sw_48_10g' }];
+    attach(s, { core: 'sw1', shop: 'sw1', mail: 'sw1' });
+    const r = swarmReport(s);
+    expect(r.limited).toBe(false);
+    expect(r.usable).toEqual(r.raw);
+  });
+});
+
 describe('progression', () => {
   it('can go from an empty case to the network', () => {
     const s = newGame();

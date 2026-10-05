@@ -67,10 +67,30 @@ The game has three phases. Each one needs knowledge from the one before it.
   Hardware also changes how the mini-games play:
   - **CPU power** (cores × GHz) gives you more seconds per step.
   - **RAM** lets you make more mistakes before the intrusion crashes.
-- Breaching a node pays cash and reveals the nodes linked to it. You spend the
-  cash on better parts, which let you reach harder nodes. The goal is the
-  **Data Center Core**, which needs a top-tier build: 16 cores, 64 GB, NVMe
-  storage and 10 Gbps on both the NIC and the router.
+- Breaching a node pays cash, reveals the nodes linked to it and shows the
+  parts inside it. You spend the cash on better parts, which let you reach
+  harder nodes. The goal is the **Data Center Core**: 70 CPU power, 64 GB,
+  1000 GB of storage and 10 Gbps on both your NIC and router.
+
+### 4. The swarm and the NOC
+
+- Every node is a real machine (workstation, server, edge router,
+  distribution switch, data center) at a tier 1-3, built from the parts
+  catalog. A breached node joins your **swarm** when a port is free, and its
+  CPU power, RAM and storage add to your own totals wherever they count:
+  node requirements, intrusion time and allowed mistakes. Intrusion help
+  keeps its caps, so the quizzes still have to be answered.
+- **Ports set the swarm size.** Your router has a few built-in LAN ports,
+  switches installed in the NOC (the Workbench's second tab) add more, and a
+  connected router or switch node adds its own. Each node is attached to one
+  port provider; removing a provider moves its nodes elsewhere first, or is
+  blocked with a message naming the nodes that would lose their port.
+- **Swarm bandwidth limits usable power.** Each provider carries at most its
+  uplink, and a switch node shares its own link with everything below it.
+  Usable CPU power and RAM are capped by total swarm bandwidth; storage is
+  not. Your own link stays the slower of your NIC and router.
+- The swarm counts only while your own PC boots and is online; connections
+  are kept and come back when it is fixed.
 - To avoid soft-locks: parts sell back for 50%, breached nodes can be replayed
   for 20% of the reward, and the hub has a **Side job** (a binary mini-game)
   that pays a little cash at any time.
@@ -86,9 +106,11 @@ src/
     lessons.ts   lessons: pages + quiz, prerequisites, rewards
     parts.ts     hardware catalog: stats, prices, lesson gates
     nodes.ts     network map: nodes, links, requirements, mini-game per node
+    nodeBuilds.ts node hardware by kind and tier
   core/          pure game logic, no Phaser, unit tested
     state.ts     game state + all rules (buy/install/progress/breach)
     hardware.ts  build validation and specs → gameplay effects
+    swarm.ts     ports, attachment, swarm bandwidth, usable power, NOC actions
     ip.ts        IPv4 math + network-config validation
     minigames.ts question generators for each knowledge area
     random.ts    seeded RNG
