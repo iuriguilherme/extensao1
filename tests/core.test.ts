@@ -11,6 +11,7 @@ import {
 } from '../src/core/state';
 import { LESSONS, TRACK_LABELS, getLesson } from '../src/data/lessons';
 import { NODES, getNode, type MinigameId } from '../src/data/nodes';
+import { NODE_KINDS, NODE_KIND_LABELS, buildContribution, nodeBuild, resolveBuild } from '../src/data/nodeBuilds';
 import { CASE_SLOTS, PARTS, SLOTS, SLOT_GENDER, SLOT_LABELS, describeStats, getPart } from '../src/data/parts';
 
 const STARTER = ['mb_b1', 'cpu_s1_2c', 'ram_4_ddr4', 'hdd_500', 'psu_250'];
@@ -195,6 +196,42 @@ describe('content integrity', () => {
     expect(CASE_SLOTS).not.toContain('switch');
     const specs = computeSpecs({ motherboard: 'mb_b1', cpu: 'cpu_s1_2c', ram: 'ram_4_ddr4', storage: 'hdd_500', psu: 'psu_250' });
     expect(specs.issues.map((i) => i.code)).not.toContain('missing-switch');
+  });
+
+  it('every node but home resolves to real hardware with a network card', () => {
+    for (const n of NODES) {
+      if (n.id === 'home') {
+        expect(n.hardware).toBeUndefined();
+        continue;
+      }
+      expect(n.hardware).toBeDefined();
+      const build = nodeBuild(n);
+      for (const [slot, id] of Object.entries(build)) expect(getPart(id).slot).toBe(slot);
+      expect(build.nic).toBeDefined();
+      expect(NODE_KIND_LABELS[n.hardware!.kind]).toBeTruthy();
+    }
+  });
+
+  it('only router and switch kinds provide ports', () => {
+    for (const kind of NODE_KINDS) {
+      for (const tier of [1, 2, 3] as const) {
+        const ports = buildContribution(resolveBuild({ kind, tier })).ports;
+        if (kind === 'edge-router' || kind === 'distribution-switch') expect(ports).toBeGreaterThan(0);
+        else expect(ports).toBe(0);
+      }
+    }
+  });
+
+  it('an override replaces only the overridden part', () => {
+    const base = resolveBuild({ kind: 'server', tier: 1 });
+    const custom = resolveBuild({ kind: 'server', tier: 1, overrides: { ram: 'ram_64_ddr5' } });
+    expect(custom.ram).toBe('ram_64_ddr5');
+    expect({ ...custom, ram: base.ram }).toEqual(base);
+  });
+
+  it('a build contributes the stats of its parts', () => {
+    const c = buildContribution({ cpu: 'cpu_s1_4c', ram: 'ram_16_ddr4', storage: 'ssd_512', nic: 'nic_1g', switch: 'sw_8_gig' });
+    expect(c).toEqual({ cpuPower: 12.8, ramGB: 16, storageGB: 512, linkMbps: 1000, ports: 8 });
   });
 
   it('node links are symmetric', () => {
