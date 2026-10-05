@@ -1,7 +1,7 @@
 import { getNode } from '../data/nodes';
 import { buildContribution, nodeBuild, type Contribution } from '../data/nodeBuilds';
 import { getPart } from '../data/parts';
-import { listJoin, plural } from './fmt';
+import { agree, listJoin, plural } from './fmt';
 import { round1, type Specs } from './hardware';
 import { isOnline, specsOf, type GameState } from './state';
 
@@ -206,7 +206,8 @@ function cloneSwarm(state: GameState): GameState {
 
 function blockedMessage(state: GameState, action: string, stuck: string[]): string {
   const names = stuck.flatMap((n) => [n, ...dependents(state, n)]).map(nodeName);
-  return `Não dá para ${action}: ${listJoin(names)} ${names.length === 1 ? 'ficaria' : 'ficariam'} sem porta. Desconecte esses nós antes ou instale mais um switch.`;
+  const one = names.length === 1;
+  return `Não dá para ${action}: ${listJoin(names)} ${one ? 'ficaria' : 'ficariam'} sem porta. Desconecte ${one ? 'esse nó' : 'esses nós'} antes ou instale mais um switch.`;
 }
 
 const movedNote = (moved: number) => (moved > 0 ? ` ${plural(moved, 'nó mudou', 'nós mudaram')} de porta.` : '');
@@ -248,7 +249,7 @@ export function installSwitch(state: GameState, partId: string): SwarmResult {
   let n = 1;
   while (used.has(`sw${n}`)) n++;
   state.noc.push({ id: `sw${n}`, partId });
-  return result(true, 'switch-installed', `${part.name} instalado no NOC: mais ${plural(part.stats.ports ?? 0, 'porta', 'portas')} para o enxame.`);
+  return result(true, 'switch-installed', `${part.name} ${agree(part.gender, 'instalado', 'instalada')} no NOC: mais ${plural(part.stats.ports ?? 0, 'porta', 'portas')} para o enxame.`);
 }
 
 /** Takes a switch out of the NOC; its nodes move to other ports first, or nothing changes. */
@@ -260,11 +261,11 @@ export function removeSwitch(state: GameState, nocId: string): SwarmResult {
   const trial = cloneSwarm(state);
   trial.noc = trial.noc.filter((e) => e.id !== nocId);
   const stuck = relocate(trial, children, dependents(state, nocId));
-  if (stuck.length) return result(false, 'blocked-dependents', blockedMessage(state, `remover o ${part.name}`, stuck));
+  if (stuck.length) return result(false, 'blocked-dependents', blockedMessage(state, `remover ${agree(part.gender, 'o', 'a')} ${part.name}`, stuck));
   state.swarm = trial.swarm;
   state.noc = trial.noc;
   state.inventory.push(entry.partId);
-  return result(true, 'switch-removed', `${part.name} removido do NOC.${movedNote(children.length)}`);
+  return result(true, 'switch-removed', `${part.name} ${agree(part.gender, 'removido', 'removida')} do NOC.${movedNote(children.length)}`);
 }
 
 /**
