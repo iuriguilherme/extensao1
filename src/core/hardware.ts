@@ -35,6 +35,7 @@ const MISSING_HINT: Record<Slot, string> = {
   psu: 'Sem fonte: nenhuma peça recebe energia.',
   nic: 'Sem placa de rede: o PC não tem como se conectar a nenhuma rede.',
   router: 'Sem roteador: a sua rede local não tem saída para a internet.',
+  switch: 'Sem switch: as portas do roteador são as únicas para ligar nós ao enxame.',
 };
 
 /**

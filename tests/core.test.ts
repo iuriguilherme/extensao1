@@ -11,7 +11,7 @@ import {
 } from '../src/core/state';
 import { LESSONS, TRACK_LABELS, getLesson } from '../src/data/lessons';
 import { NODES, getNode, type MinigameId } from '../src/data/nodes';
-import { PARTS, SLOTS, SLOT_GENDER, SLOT_LABELS, describeStats, getPart } from '../src/data/parts';
+import { CASE_SLOTS, PARTS, SLOTS, SLOT_GENDER, SLOT_LABELS, describeStats, getPart } from '../src/data/parts';
 
 const STARTER = ['mb_b1', 'cpu_s1_2c', 'ram_4_ddr4', 'hdd_500', 'psu_250'];
 
@@ -176,6 +176,25 @@ describe('content integrity', () => {
       expect(['m', 'f']).toContain(SLOT_GENDER[slot]);
     }
     for (const l of LESSONS) expect(TRACK_LABELS[l.track]).toBeTruthy();
+  });
+
+  it('switches and routers carry the ports and uplink the NOC needs', () => {
+    const switches = PARTS.filter((p) => p.slot === 'switch');
+    expect(switches.length).toBeGreaterThan(0);
+    expect(switches.length).toBeLessThanOrEqual(4);
+    for (const p of switches) {
+      expect(p.stats.ports).toBeGreaterThan(0);
+      expect(p.stats.uplinkMbps).toBeGreaterThan(0);
+      expect(p.draw).toBe(0);
+    }
+    for (const p of PARTS.filter((p) => p.slot === 'router')) expect(p.stats.ports).toBeGreaterThan(0);
+    expect(getPart('router_home').stats.ports).toBe(4);
+  });
+
+  it('switches never count as a case part', () => {
+    expect(CASE_SLOTS).not.toContain('switch');
+    const specs = computeSpecs({ motherboard: 'mb_b1', cpu: 'cpu_s1_2c', ram: 'ram_4_ddr4', storage: 'hdd_500', psu: 'psu_250' });
+    expect(specs.issues.map((i) => i.code)).not.toContain('missing-switch');
   });
 
   it('node links are symmetric', () => {

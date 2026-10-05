@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { install, sell, specsOf, SELL_RATIO, uninstall } from '../core/state';
 import { game, save } from '../core/store';
-import { describeStats, getPart, SLOT_LABELS, SLOTS } from '../data/parts';
+import { describeStats, getPart, CASE_SLOTS, SLOT_LABELS } from '../data/parts';
 import { decimal, linkSpeed, money } from '../core/fmt';
 import { COLORS, fitText, header, Layer, objectiveBar, textStyle, toast } from '../ui/widgets';
 
@@ -38,7 +38,7 @@ export class WorkbenchScene extends Phaser.Scene {
 
     // Slots
     this.layer.text(20, 70, 'DENTRO DO GABINETE', textStyle(16, COLORS.muted));
-    SLOTS.forEach((slot, i) => {
+    CASE_SLOTS.forEach((slot, i) => {
       const y = 96 + i * 66;
       const id = state.installed[slot];
       const issue = specs.issues.find((s) => s.slot === slot);
@@ -55,7 +55,7 @@ export class WorkbenchScene extends Phaser.Scene {
     });
 
     // Diagnostics
-    const diagY = 96 + SLOTS.length * 66 + 6;
+    const diagY = 96 + CASE_SLOTS.length * 66 + 6;
     const diag: string[] = [
       `Energia: ${specs.powerDraw} W usados de ${specs.psuWatts} W   ·   Processamento ${decimal(specs.cpuPower)}   ·   RAM ${specs.ramGB} GB   ·   Link ${linkSpeed(specs.linkMbps)}`,
     ];

@@ -247,6 +247,7 @@ export const LESSONS: Lesson[] = [
       'A PLACA DE REDE é o que liga o computador à rede. Cada placa de rede vem de fábrica com um endereço físico único: o endereço MAC.',
       'O ROTEADOR encaminha o tráfego de uma rede para outra. O roteador da sua casa liga a sua LAN ao PROVEDOR de internet, e o provedor dá acesso ao resto da internet.',
       'A largura de banda é medida em bits por segundo (Mbps, Gbps). A conexão nunca passa da velocidade do equipamento mais lento do caminho.',
+      'O SWITCH serve para ligar vários aparelhos na mesma rede local: cada um ocupa uma porta. O roteador de casa já vem com algumas portas LAN, mas quando elas acabam, você coloca um switch. Tudo o que os aparelhos ligados no switch mandam para o resto da rede sai por um único link, o UPLINK. Com um uplink lento, todo mundo ligado no switch fica preso a essa velocidade.',
     ],
     quiz: [
       {
@@ -266,6 +267,12 @@ export const LESSONS: Lesson[] = [
         options: ['1 Gbps', '1,1 Gbps', '100 Mbps', '550 Mbps'],
         answer: 2,
         explain: 'A conexão nunca passa da velocidade do equipamento mais lento: aqui, o roteador.',
+      },
+      {
+        question: 'As 8 portas do seu switch estão ocupadas. Como você liga mais um aparelho?',
+        options: ['É só ligar, o switch dá um jeito', 'Colocando outro switch, ou trocando por um com mais portas', 'Desligando o roteador', 'Trocando a placa de rede do PC'],
+        answer: 1,
+        explain: 'Cada aparelho ocupa uma porta. Sem porta livre, só mais portas resolvem: outro switch ou um switch maior.',
       },
     ],
   },

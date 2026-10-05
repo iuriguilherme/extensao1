@@ -60,6 +60,9 @@ export const TERMOS: Termo[] = [
   { conceito: 'DNS record', termo: 'registro DNS', genero: 'm', mantido: false },
   { conceito: 'ISP', termo: 'provedor', genero: 'm', mantido: false },
   { conceito: 'email', termo: 'e-mail', genero: 'm', mantido: false },
+  { conceito: 'uplink', termo: 'uplink', genero: 'm', mantido: true, nota: 'O link que leva o tráfego de um switch para o resto da rede.' },
+  { conceito: 'NOC (network operations center)', termo: 'NOC', genero: 'm', mantido: true, nota: 'Na primeira menção, "NOC (centro de operações de rede)".' },
+  { conceito: 'swarm', termo: 'enxame', genero: 'm', mantido: false, nota: 'Os nós invadidos que estão conectados e somam poder ao seu PC.' },
 
   // ─── Jogo ───────────────────────────────────────────────────────────────
   { conceito: 'lesson', termo: 'aula', genero: 'f', mantido: false },

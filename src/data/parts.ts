@@ -8,9 +8,13 @@ import { decimal, linkSpeed, plural, type Gender } from '../core/fmt';
  * sell. Brand names are fictional on purpose.
  */
 
-export type Slot = 'motherboard' | 'cpu' | 'ram' | 'storage' | 'psu' | 'nic' | 'router';
+export type Slot = 'motherboard' | 'cpu' | 'ram' | 'storage' | 'psu' | 'nic' | 'router' | 'switch';
 
-export const SLOTS: Slot[] = ['motherboard', 'cpu', 'ram', 'storage', 'psu', 'nic', 'router'];
+/** Every catalog slot, in Shop tab order. */
+export const SLOTS: Slot[] = ['motherboard', 'cpu', 'ram', 'storage', 'psu', 'nic', 'router', 'switch'];
+
+/** Slots that hold one part each on the Workbench; switches live in the NOC instead. */
+export const CASE_SLOTS: Slot[] = SLOTS.filter((s) => s !== 'switch');
 
 export const SLOT_LABELS: Record<Slot, string> = {
   motherboard: 'Placa-mãe',
@@ -20,6 +24,7 @@ export const SLOT_LABELS: Record<Slot, string> = {
   psu: 'Fonte',
   nic: 'Placa de rede',
   router: 'Roteador',
+  switch: 'Switch',
 };
 
 /** Grammatical gender of each slot's PT-BR label, for agreeing messages. */
@@ -31,6 +36,7 @@ export const SLOT_GENDER: Record<Slot, Gender> = {
   psu: 'f', // fonte
   nic: 'f', // placa de rede
   router: 'm', // roteador
+  switch: 'm', // switch
 };
 
 export type Socket = 'S1' | 'S2';
@@ -53,6 +59,10 @@ export interface PartStats {
   watts?: number;
   /** NIC / router link speed */
   mbps?: number;
+  /** Router (built-in LAN ports) / switch: how many nodes it can connect. */
+  ports?: number;
+  /** Switch: speed of the link that carries its traffic out to the swarm. */
+  uplinkMbps?: number;
 }
 
 export interface Part {
@@ -200,20 +210,46 @@ export const PARTS: Part[] = [
   {
     id: 'router_home', name: 'Roteador Doméstico', slot: 'router', gender: 'm', price: 50, draw: 0,
     requiresLesson: 'network-basics',
-    description: 'Conecta a sua rede local (LAN) à internet do provedor (WAN). Portas de 100 Mbps.',
-    stats: { mbps: 100 },
+    description: 'Conecta a sua rede local (LAN) à internet do provedor (WAN). Tem 4 portas LAN de 100 Mbps.',
+    stats: { mbps: 100, ports: 4 },
   },
   {
     id: 'router_gig', name: 'Roteador Gigabit', slot: 'router', gender: 'm', price: 130, draw: 0,
     requiresLesson: 'network-basics',
-    description: 'Portas Gigabit. Mas a conexão nunca passa da velocidade do equipamento mais lento do caminho.',
-    stats: { mbps: 1000 },
+    description: '8 portas LAN Gigabit. Mas a conexão nunca passa da velocidade do equipamento mais lento do caminho.',
+    stats: { mbps: 1000, ports: 8 },
   },
   {
     id: 'router_10g', name: 'Roteador de Borda de Fibra', slot: 'router', gender: 'm', price: 600, draw: 0,
     requiresLesson: 'network-basics',
-    description: 'Uplink de fibra de 10 Gbps. Isso sim é largura de banda.',
-    stats: { mbps: 10000 },
+    description: 'Uplink de fibra de 10 Gbps e 8 portas LAN. Isso sim é largura de banda.',
+    stats: { mbps: 10000, ports: 8 },
+  },
+
+  // Switches (installed in the NOC, powered separately like routers)
+  {
+    id: 'sw_8_fast', name: 'Switch 8 portas Fast Ethernet', slot: 'switch', gender: 'm', price: 40, draw: 0,
+    requiresLesson: 'network-basics',
+    description: 'Mais 8 portas para ligar nós ao enxame. Só que tudo o que passa por ele sai por um uplink de 100 Mbps.',
+    stats: { ports: 8, uplinkMbps: 100 },
+  },
+  {
+    id: 'sw_8_gig', name: 'Switch 8 portas Gigabit', slot: 'switch', gender: 'm', price: 90, draw: 0,
+    requiresLesson: 'network-basics',
+    description: '8 portas e uplink de 1 Gbps: os nós ligados nele conversam bem mais rápido com o seu NOC.',
+    stats: { ports: 8, uplinkMbps: 1000 },
+  },
+  {
+    id: 'sw_24_gig', name: 'Switch 24 portas Gigabit', slot: 'switch', gender: 'm', price: 260, draw: 0,
+    requiresLesson: 'network-basics',
+    description: '24 portas, mas um uplink de só 1 Gbps: com muitos nós ligados, eles disputam essa banda.',
+    stats: { ports: 24, uplinkMbps: 1000 },
+  },
+  {
+    id: 'sw_48_10g', name: 'Switch 48 portas 10 Gigabit', slot: 'switch', gender: 'm', price: 700, draw: 0,
+    requiresLesson: 'network-basics',
+    description: '48 portas e uplink de 10 Gbps. Equipamento de data center.',
+    stats: { ports: 48, uplinkMbps: 10000 },
   },
 ];
 
@@ -233,7 +269,8 @@ export function describeStats(part: Part): string {
     case 'ram': return `${s.gb} GB ${s.ramType}`;
     case 'storage': return `${s.gb} GB ${s.storageKind} · ${s.readMBs} MB/s`;
     case 'psu': return `fornece até ${s.watts} W`;
-    case 'nic':
-    case 'router': return linkSpeed(s.mbps ?? 0);
+    case 'nic': return linkSpeed(s.mbps ?? 0);
+    case 'router': return `${linkSpeed(s.mbps ?? 0)} · ${plural(s.ports ?? 0, 'porta LAN', 'portas LAN')}`;
+    case 'switch': return `${plural(s.ports ?? 0, 'porta', 'portas')} · uplink de ${linkSpeed(s.uplinkMbps ?? 0)}`;
   }
 }
