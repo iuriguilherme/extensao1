@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { buy, canBuy } from '../core/state';
+import { buy, canBuy, ownedCount } from '../core/state';
 import { game, save } from '../core/store';
 import { describeStats, PARTS, SLOT_LABELS, SLOTS, type Slot } from '../data/parts';
 import { money } from '../core/fmt';
@@ -39,7 +39,7 @@ export class ShopScene extends Phaser.Scene {
       const y = 128 + i * 128;
       const check = canBuy(state, part);
       const locked = check.code === 'needs-lesson';
-      const owned = state.inventory.filter((id) => id === part.id).length + (state.installed[part.slot] === part.id ? 1 : 0);
+      const owned = ownedCount(state, part.id);
       this.layer.rect(20, y, WIDTH - 40, 116, COLORS.panel, locked ? COLORS.muted : COLORS.panelBorder);
       this.layer.text(40, y + 14, locked ? `🔒 ${part.name}` : part.name, textStyle(22, locked ? COLORS.muted : COLORS.accent));
       this.layer.text(40, y + 46, describeStats(part), textStyle(16, COLORS.info));

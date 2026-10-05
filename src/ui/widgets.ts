@@ -111,12 +111,17 @@ export function objectiveBar(scene: Phaser.Scene) {
   return { refresh };
 }
 
-/** Floating message that fades out. */
+/**
+ * Floating message that fades out. Long messages wrap inside the canvas and
+ * grow upward from above the objective bar, and stay longer on screen.
+ */
 export function toast(scene: Phaser.Scene, message: string, color = COLORS.accent) {
-  const t = scene.add.text(WIDTH / 2, HEIGHT - 70, message, textStyle(18, color, {
+  const t = scene.add.text(WIDTH / 2, HEIGHT - 50, message, textStyle(18, color, {
     backgroundColor: hex(COLORS.panel), padding: { x: 14, y: 8 },
-  })).setOrigin(0.5).setDepth(1000);
-  scene.tweens.add({ targets: t, alpha: 0, delay: 1800, duration: 500, onComplete: () => t.destroy() });
+    align: 'center', wordWrap: { width: WIDTH - 120 },
+  })).setOrigin(0.5, 1).setDepth(1000);
+  const delay = Math.max(1800, message.length * 45);
+  scene.tweens.add({ targets: t, alpha: 0, delay, duration: 500, onComplete: () => t.destroy() });
 }
 
 /**
