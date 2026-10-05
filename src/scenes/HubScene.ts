@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { mistakesAllowed, roundSeconds } from '../core/hardware';
 import { hasLesson, isOnline, phaseOf, specsOf } from '../core/state';
+import { connectedNodes, swarmReport, totalSpecs } from '../core/swarm';
 import { FINAL_NODE_ID, getNode } from '../data/nodes';
 import { game, resetGame } from '../core/store';
 import { getPart, SLOT_LABELS } from '../data/parts';
@@ -36,8 +37,16 @@ export class HubScene extends Phaser.Scene {
       rows.push(['Consumo', `${specs.powerDraw} W / ${specs.psuWatts} W`]);
       lines.push(...alignColumns(rows, 2));
       lines.push('', 'Sistema operacional carregado.', '');
-      lines.push(`Processamento ${decimal(specs.cpuPower)}  →  ${roundSeconds(specs.cpuPower)} s para cada etapa da invasão`);
-      lines.push(`RAM ${specs.ramGB} GB  →  aguenta ${plural(mistakesAllowed(specs.ramGB), 'erro', 'erros')} por invasão`);
+      const total = totalSpecs(state);
+      lines.push(`Processamento ${decimal(total.cpuPower)}  →  ${roundSeconds(total.cpuPower)} s para cada etapa da invasão`);
+      lines.push(`RAM ${total.ramGB} GB  →  aguenta ${plural(mistakesAllowed(total.ramGB), 'erro', 'erros')} por invasão`);
+      const nodes = connectedNodes(state).length;
+      if (nodes > 0 && isOnline(state)) {
+        const r = swarmReport(state);
+        lines.push(`Enxame: ${plural(nodes, 'nó', 'nós')}, +${decimal(r.usable.cpuPower)} de processamento e +${r.usable.ramGB} GB de RAM`);
+      } else if (nodes > 0) {
+        lines.push(`Enxame: ${plural(nodes, 'nó parado', 'nós parados')} até o PC voltar a ficar online`);
+      }
       lines.push('');
       if (isOnline(state)) {
         lines.push(`eth0: ${state.netConfig!.ip}  gw ${state.netConfig!.gateway}  dns ${state.netConfig!.dns}`);

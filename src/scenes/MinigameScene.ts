@@ -2,7 +2,8 @@ import Phaser from 'phaser';
 import { mistakesAllowed, roundSeconds } from '../core/hardware';
 import { buildRounds, toBinary, type BitsRound, type ChoiceRound, type Difficulty, type Round } from '../core/minigames';
 import { createRng } from '../core/random';
-import { breach, earn, specsOf } from '../core/state';
+import { breach, earn } from '../core/state';
+import { totalSpecs } from '../core/swarm';
 import { game, save } from '../core/store';
 import { MINIGAME_AREAS, type MinigameId } from '../data/nodes';
 import { money, plural } from '../core/fmt';
@@ -45,7 +46,7 @@ export class MinigameScene extends Phaser.Scene {
     this.cameras.main.setBackgroundColor(COLORS.bg);
     header(this, data.title, () => this.leave());
 
-    const specs = specsOf(game());
+    const specs = totalSpecs(game());
     this.seconds = roundSeconds(specs.cpuPower);
     this.allowed = mistakesAllowed(specs.ramGB) + (data.nodeId ? 0 : 1);
     this.rounds = buildRounds(data.minigame, data.difficulty, createRng(Date.now()));

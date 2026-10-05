@@ -6,7 +6,7 @@ import {
 import { buildRounds, roundCount, STATUSES, type Difficulty } from '../src/core/minigames';
 import { createRng } from '../src/core/random';
 import {
-  breach, buy, canBuy, canConnect, completeLesson, install, isOnline, newGame, nodeStatus, phaseOf, sell, setNetConfig,
+  breach, buy, canBuy, canConnect, checkRequirements, completeLesson, install, isOnline, newGame, nodeStatus, phaseOf, sell, setNetConfig,
   ownedCount, specsOf, STARTING_MONEY, uninstall, type GameState,
 } from '../src/core/state';
 import {
@@ -475,6 +475,37 @@ describe('swarm actions', () => {
     expect(msg).toContain('8 portas');
     expect(ownedCount(s, 'sw_8_gig')).toBe(1);
     expect(freePorts(s, s.noc[0].id)).toBe(8);
+  });
+});
+
+describe('swarm in requirements', () => {
+  const met = (s: GameState, id: string, prefix: string) =>
+    checkRequirements(s, getNode(id)).find((c) => c.label.startsWith(prefix))!.met;
+
+  it('connected nodes help meet CPU and RAM requirements while online', () => {
+    const s = onlineRig();
+    expect(met(s, 'uni', 'Processamento')).toBe(false);
+    expect(met(s, 'uni', 'RAM')).toBe(false);
+    attach(s, { resolver: 'router' });
+    expect(met(s, 'uni', 'Processamento')).toBe(true);
+    expect(met(s, 'uni', 'RAM')).toBe(true);
+    s.netConfig = null;
+    expect(met(s, 'uni', 'Processamento')).toBe(false);
+  });
+
+  it('the link requirement ignores the swarm', () => {
+    const s = onlineRig({ router: 'router_home' });
+    s.installed.nic = 'nic_100';
+    s.noc = [{ id: 'sw1', partId: 'sw_48_10g' }];
+    attach(s, { core: 'sw1' });
+    expect(met(s, 'shop', 'Link')).toBe(false);
+  });
+
+  it('online state and game phase do not depend on the swarm', () => {
+    const s = onlineRig();
+    const before = [isOnline(s), phaseOf(s)];
+    attach(s, { resolver: 'router', shop: 'router' });
+    expect([isOnline(s), phaseOf(s)]).toEqual(before);
   });
 });
 

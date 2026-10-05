@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { install, sell, specsOf, SELL_RATIO, uninstall } from '../core/state';
+import { totalSpecs } from '../core/swarm';
 import { game, save } from '../core/store';
 import { describeStats, getPart, CASE_SLOTS, SLOT_LABELS } from '../data/parts';
 import { decimal, linkSpeed, money } from '../core/fmt';
@@ -35,6 +36,7 @@ export class WorkbenchScene extends Phaser.Scene {
     this.layer.clear();
     const state = game();
     const specs = specsOf(state);
+    const total = totalSpecs(state);
 
     // Slots
     this.layer.text(20, 70, 'DENTRO DO GABINETE', textStyle(16, COLORS.muted));
@@ -57,7 +59,7 @@ export class WorkbenchScene extends Phaser.Scene {
     // Diagnostics
     const diagY = 96 + CASE_SLOTS.length * 66 + 6;
     const diag: string[] = [
-      `Energia: ${specs.powerDraw} W usados de ${specs.psuWatts} W   ·   Processamento ${decimal(specs.cpuPower)}   ·   RAM ${specs.ramGB} GB   ·   Link ${linkSpeed(specs.linkMbps)}`,
+      `Energia: ${specs.powerDraw} W usados de ${specs.psuWatts} W   ·   Processamento ${decimal(total.cpuPower)}   ·   RAM ${total.ramGB} GB   ·   Link ${linkSpeed(specs.linkMbps)}`,
     ];
     const problems = specs.issues.filter((i) => specs.boots ? true : i.slot !== 'nic' && i.slot !== 'router');
     diag.push(specs.boots ? '✓ O PC dá boot.' : '✗ O PC não dá boot.');

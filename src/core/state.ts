@@ -4,7 +4,7 @@ import { getPart, type Part, type Slot } from '../data/parts';
 import { agree, decimal, linkSpeed, money } from './fmt';
 import { computeSpecs, type Installed, type Specs } from './hardware';
 import type { NetConfig } from './ip';
-import { installSwitch, rehomeForRouter } from './swarm';
+import { installSwitch, rehomeForRouter, totalSpecs } from './swarm';
 
 export interface GameState {
   version: 1;
@@ -120,14 +120,35 @@ export interface RequirementCheck {
   met: boolean;
 }
 
+/**
+ * What a node demands and whether the player meets it. CPU power, RAM and
+ * storage count the usable swarm; the link is always the player's own.
+ */
 export function checkRequirements(state: GameState, node: NetNode): RequirementCheck[] {
-  const specs = specsOf(state);
+  const specs = totalSpecs(state);
+  const own = specsOf(state);
+  const swarmNote = (total: number, mine: number) => (total > mine ? ', contando o enxame' : '');
   const r = node.requires;
   const checks: RequirementCheck[] = [];
   if (r.lesson) checks.push({ label: `Aula: ${getLesson(r.lesson).title}`, met: hasLesson(state, r.lesson) });
-  if (r.cpuPower) checks.push({ label: `Processamento ≥ ${decimal(r.cpuPower)} (você tem ${decimal(specs.cpuPower)})`, met: specs.cpuPower >= r.cpuPower });
-  if (r.ramGB) checks.push({ label: `RAM ≥ ${r.ramGB} GB (você tem ${specs.ramGB} GB)`, met: specs.ramGB >= r.ramGB });
-  if (r.storageGB) checks.push({ label: `Armazenamento ≥ ${r.storageGB} GB (você tem ${specs.storageGB} GB)`, met: specs.storageGB >= r.storageGB });
+  if (r.cpuPower) {
+    checks.push({
+      label: `Processamento ≥ ${decimal(r.cpuPower)} (você tem ${decimal(specs.cpuPower)}${swarmNote(specs.cpuPower, own.cpuPower)})`,
+      met: specs.cpuPower >= r.cpuPower,
+    });
+  }
+  if (r.ramGB) {
+    checks.push({
+      label: `RAM ≥ ${r.ramGB} GB (você tem ${specs.ramGB} GB${swarmNote(specs.ramGB, own.ramGB)})`,
+      met: specs.ramGB >= r.ramGB,
+    });
+  }
+  if (r.storageGB) {
+    checks.push({
+      label: `Armazenamento ≥ ${r.storageGB} GB (você tem ${specs.storageGB} GB${swarmNote(specs.storageGB, own.storageGB)})`,
+      met: specs.storageGB >= r.storageGB,
+    });
+  }
   if (r.linkMbps) checks.push({ label: `Link ≥ ${linkSpeed(r.linkMbps)} (você tem ${linkSpeed(specs.linkMbps)})`, met: specs.linkMbps >= r.linkMbps });
   return checks;
 }
