@@ -153,7 +153,7 @@ export class MinigameScene extends Phaser.Scene {
     fitText(this.layer.text(60, 572, `${correct ? '✓ Etapa vencida.' : timedOut ? '✗ Demorou demais e foi detectado!' : '✗ Resposta errada.'}  ${explain}`,
       textStyle(17, correct ? COLORS.accent : COLORS.warn, { wordWrap: { width: WIDTH - 340 }, lineSpacing: 4 })), WIDTH - 340, 80);
 
-    const label = crashed ? 'A invasão caiu' : done ? 'Finalizar' : 'Próxima etapa >';
+    const label = crashed ? 'Acesso perdido' : done ? 'Finalizar' : 'Próxima etapa >';
     this.layer.button(WIDTH - 270, 586, 210, 50, label, () => {
       if (crashed) this.finish(false);
       else if (done) this.finish(true);

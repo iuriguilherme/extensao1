@@ -160,7 +160,7 @@ export const PARTS: Part[] = [
   {
     id: 'psu_250', name: 'Fonte 250 W', slot: 'psu', gender: 'f', price: 35, draw: 0,
     requiresLesson: 'power',
-    description: 'Transforma a corrente alternada da tomada na corrente contínua que as peças usam. Até 250 W.',
+    description: 'Transforma a corrente AC da tomada na corrente DC que as peças usam. Até 250 W.',
     stats: { watts: 250 },
   },
   {

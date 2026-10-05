@@ -77,16 +77,16 @@ export const LESSONS: Lesson[] = [
     requires: ['computer-basics'],
     reward: 40,
     pages: [
-      'A tomada fornece corrente alternada (CA), mas as peças do computador funcionam com corrente contínua (CC) de baixa tensão. A FONTE DE ALIMENTAÇÃO faz essa conversão.',
+      'A tomada fornece corrente alternada (AC), mas as peças do computador funcionam com corrente contínua (DC) de baixa tensão. A FONTE DE ALIMENTAÇÃO faz essa conversão.',
       'Toda peça consome energia, e esse consumo é medido em WATTS (W). Normalmente, o processador é a peça que mais gasta.',
       'Toda fonte tem uma potência máxima. Se as peças juntas passam disso, o PC fica instável ou nem liga. Sempre some o consumo de tudo e deixe uma folga.',
     ],
     quiz: [
       {
         question: 'Para que serve a fonte?',
-        options: ['Guardar arquivos', 'Converter a CA da tomada em CC para as peças', 'Resfriar o processador', 'Conectar à internet'],
+        options: ['Guardar arquivos', 'Converter a corrente AC da tomada em DC para as peças', 'Resfriar o processador', 'Conectar à internet'],
         answer: 1,
-        explain: 'A fonte transforma a CA da tomada nas tensões CC que os componentes usam.',
+        explain: 'A fonte transforma a corrente AC da tomada na corrente DC que os componentes usam.',
       },
       {
         question: 'Suas peças consomem 320 W. Qual fonte dá conta?',
@@ -145,7 +145,7 @@ export const LESSONS: Lesson[] = [
       'A memória RAM (memória de acesso aleatório) guarda o que o processador está usando no momento: os programas abertos e os dados deles ficam nela, porque ela é muito mais rápida que os discos.',
       'A RAM é VOLÁTIL: se a energia cai, tudo o que estava nela se perde. É por isso que você salva os arquivos no armazenamento.',
       'A RAM tem gerações, como DDR4 e DDR5, e uma não substitui a outra: um pente DDR5 não encaixa num slot DDR4.',
-      'Com mais RAM, dá para deixar mais coisas abertas ao mesmo tempo. Neste jogo, mais RAM quer dizer que você pode errar mais vezes antes de a invasão cair.',
+      'Com mais RAM, dá para deixar mais coisas abertas ao mesmo tempo. Neste jogo, mais RAM quer dizer que você pode errar mais vezes antes de perder o acesso.',
     ],
     quiz: [
       {

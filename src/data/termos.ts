@@ -38,6 +38,8 @@ export const TERMOS: Termo[] = [
   { conceito: 'router', termo: 'roteador', genero: 'm', mantido: false },
   { conceito: 'switch', termo: 'switch', genero: 'm', mantido: true },
   { conceito: 'power draw', termo: 'consumo', genero: 'm', mantido: false },
+  { conceito: 'AC (alternating current)', termo: 'AC', genero: 'f', mantido: true, nota: '"corrente AC"; na primeira menção, "corrente alternada (AC)".' },
+  { conceito: 'DC (direct current)', termo: 'DC', genero: 'f', mantido: true, nota: '"corrente DC"; na primeira menção, "corrente contínua (DC)".' },
   { conceito: 'boot', termo: 'boot', genero: 'm', mantido: true, nota: '"O PC não dá boot."' },
 
   // ─── Redes ──────────────────────────────────────────────────────────────
