@@ -85,7 +85,9 @@ export class NetMapScene extends Phaser.Scene {
     const w = 440;
     // Height is set at the end, once the content is laid out.
     const panel = this.info.rect(x, y, w, 244, COLORS.panel, STATUS_COLOR[status]);
-    fitText(this.info.text(x + 14, y + 10, `${node.name}  (${node.ip})`, textStyle(18, STATUS_COLOR[status])), w - 28);
+    // Every target is a lab machine; only the player's own PC is real.
+    const tag = status === 'home' ? null : this.info.text(x + w - 14, y + 14, 'SIMULADO', textStyle(12, COLORS.muted)).setOrigin(1, 0);
+    fitText(this.info.text(x + 14, y + 10, `${node.name}  (${node.ip})`, textStyle(18, STATUS_COLOR[status])), w - 28 - (tag ? tag.width + 10 : 0));
 
     if (status === 'home') {
       this.info.text(x + 14, y + 42, 'Este é o seu PC. Invada os vizinhos para descobrir o resto da rede.', textStyle(14));
@@ -104,7 +106,7 @@ export class NetMapScene extends Phaser.Scene {
     const checks = checkRequirements(state, node);
     checks.forEach((c) => {
       fitText(this.info.text(x + 14, cy, `${c.met ? '✓' : '✗'} ${c.label}`, textStyle(13, c.met ? COLORS.accent : COLORS.danger)), w - 28);
-      cy += 18;
+      cy += 16;
     });
 
     const breached = status === 'breached';
@@ -125,7 +127,7 @@ export class NetMapScene extends Phaser.Scene {
 
     const reward = breached ? Math.floor(node.reward * REPLAY_RATIO) : node.reward;
     const ok = canConnect(state, node);
-    const by = Math.max(cy + 8, y + 192);
+    const by = Math.max(cy + 4, y + 192);
     const b = this.info.button(x + w - 190, by, 176, 42, breached ? `Invadir de novo ${money(reward)}` : `Invadir ${money(reward)}`, () => {
       this.scene.start('Minigame', {
         nodeId: node.id,
@@ -136,6 +138,6 @@ export class NetMapScene extends Phaser.Scene {
       });
     }, { disabled: !ok, color: COLORS.warn, size: 16 });
     if (!ok) b.label.setColor(hex(COLORS.muted));
-    panel.setSize(w, by + 52 - y);
+    panel.setSize(w, by + 48 - y);
   }
 }
