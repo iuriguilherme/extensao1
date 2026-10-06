@@ -1,0 +1,294 @@
+/**
+ * Generated cities: a tree of subnets joined by routers, rebuilt on demand
+ * from (level, seed) and never saved. Every city is a correct IPv4 plan inside
+ * one /16 of 10.0.0.0/8, laid out in depth columns for the city map.
+ */
+
+import type { MinigameId, NetNode, NodeRequirements } from '../data/nodes';
+import { getNode, FINAL_NODE_ID } from '../data/nodes';
+import { formatIp } from './ip';
+import { MAX_LEVEL } from './minigames';
+import { createRng, pick, randInt, type Rng } from './random';
+
+/** Depth, branching and prefix spread stop growing at this level. */
+export const STRUCTURE_MAX_LEVEL = 12;
+/** A depth never holds more subnets than this, so a column fits the canvas. */
+export const MAX_SUBNETS_PER_DEPTH = 3;
+
+/** Column layout of the city map (the map scrolls sideways past 1280 px). */
+export const CITY_COLUMN_X = 60;
+export const CITY_COLUMN_WIDTH = 270;
+const BOX_WIDTH = 200;
+const BOX_HEIGHT = 160;
+const AREA_TOP = 64;
+const AREA_BOTTOM = 676;
+const ROW_FIRST = 48;
+const ROW_STEP = 48;
+
+export interface CitySubnet {
+  /** Index in `City.subnets`; 0 is the player's own subnet at depth 0. */
+  id: number;
+  network: string;
+  prefix: number;
+  depth: number;
+  parentId: number | null;
+  /** The router node in the parent subnet that leads here (null at depth 0). */
+  routerId: string | null;
+  /** That router's address inside this subnet (null at depth 0). */
+  routerChildIp: string | null;
+  /** Box drawn on the city map, in map coordinates. */
+  box: { x: number; y: number; width: number; height: number };
+}
+
+export type CityNodeRole = 'host' | 'router' | 'core';
+
+/** A NetNode placed in a city subnet. `ip` is the address in its own subnet. */
+export interface CityNode extends NetNode {
+  subnetId: number;
+  role: CityNodeRole;
+  /** For routers, the single subnet behind them; null otherwise. */
+  childSubnetId: number | null;
+}
+
+export interface City {
+  level: number;
+  seed: number;
+  /** The /16 every subnet is carved from, e.g. `10.37.0.0`. */
+  network: string;
+  subnets: CitySubnet[];
+  nodes: CityNode[];
+  coreId: string;
+}
+
+export function generateCity(level: number, seed: number): City {
+  const rng = createRng((Math.imul(seed >>> 0, 0x9e3779b1) ^ Math.imul(level, 0x85ebca6b)) >>> 0);
+  const growth = Math.min(Math.max(level, 1), STRUCTURE_MAX_LEVEL);
+
+  const tree = buildTree(rng, growth);
+  const base = (10 * 2 ** 24 + randInt(rng, 1, 254) * 2 ** 16) >>> 0;
+  const prefixes = tree.map(() => pickPrefix(rng, growth));
+  const networks = carve(rng, base, prefixes);
+
+  const subnets: CitySubnet[] = tree.map((t, id) => ({
+    id,
+    network: formatIp(networks[id]),
+    prefix: prefixes[id],
+    depth: t.depth,
+    parentId: t.parentId,
+    routerId: null,
+    routerChildIp: null,
+    box: { x: 0, y: 0, width: BOX_WIDTH, height: BOX_HEIGHT },
+  }));
+
+  // Hosts and routers per subnet. The incoming router takes the first usable
+  // address of the child subnet, the default-gateway convention.
+  const taken = subnets.map((s) => new Set<number>(s.parentId === null ? [] : [1]));
+  const freeAddress = (subnet: CitySubnet): string => {
+    const span = 2 ** (32 - subnet.prefix);
+    let offset: number;
+    do offset = randInt(rng, 1, span - 2);
+    while (taken[subnet.id].has(offset));
+    taken[subnet.id].add(offset);
+    return formatIp(networks[subnet.id] + offset);
+  };
+
+  const deepest = Math.max(...subnets.map((s) => s.depth));
+  const coreSubnet = pick(rng, subnets.filter((s) => s.depth === deepest));
+  const names = new Map<string, number>();
+  const nodes: CityNode[] = [];
+
+  for (const subnet of subnets) {
+    const hostCount = randInt(rng, 1, growth >= 6 ? 3 : 2);
+    const coreIndex = subnet === coreSubnet ? randInt(rng, 0, hostCount - 1) : -1;
+    for (let k = 0; k < hostCount; k++) {
+      const role: CityNodeRole = k === coreIndex ? 'core' : 'host';
+      const area = pick(rng, AREAS);
+      nodes.push(makeNode(`s${subnet.id}-h${k + 1}`, role, area, subnet, freeAddress(subnet), level, growth, names));
+    }
+    for (const child of subnets.filter((s) => s.parentId === subnet.id)) {
+      const router = makeNode(`r${child.id}`, 'router', 'subnet', subnet, freeAddress(subnet), level, growth, names);
+      router.childSubnetId = child.id;
+      nodes.push(router);
+      child.routerId = router.id;
+      child.routerChildIp = formatIp(networks[child.id] + 1);
+    }
+  }
+
+  linkNodes(nodes);
+  layout(subnets, nodes);
+  const core = nodes.find((n) => n.role === 'core')!;
+  return { level, seed, network: formatIp(base), subnets, nodes, coreId: core.id };
+}
+
+/** The node with this id in the city; throws when it does not exist. */
+export function cityNode(city: City, id: string): CityNode {
+  const node = city.nodes.find((n) => n.id === id);
+  if (!node) throw new Error(`Unknown city node: ${id}`);
+  return node;
+}
+
+/** The subnet a city node lives in. */
+export function subnetOf(city: City, nodeId: string): CitySubnet {
+  return city.subnets[cityNode(city, nodeId).subnetId];
+}
+
+/**
+ * City node difficulty: 1-3 at low levels, rising with level and depth, but
+ * never past what the area's mini-game supports (only binary and subnet go
+ * above 3).
+ */
+export function cityDifficulty(area: MinigameId, growth: number, depth: number): number {
+  const computed = 1 + Math.floor((growth - 1 + depth) / 4);
+  return Math.min(computed, MAX_LEVEL[area]);
+}
+
+const AREAS: readonly MinigameId[] = ['binary', 'subnet', 'ports', 'http', 'dns'];
+
+interface TreeEntry {
+  depth: number;
+  parentId: number | null;
+}
+
+/** Subnets in breadth-first order, children grouped under their parents. */
+function buildTree(rng: Rng, growth: number): TreeEntry[] {
+  const maxDepth = 1 + Math.floor((growth - 1) / 2);
+  const maxWidth = Math.min(MAX_SUBNETS_PER_DEPTH, 1 + Math.floor(growth / 4));
+  const tree: TreeEntry[] = [{ depth: 0, parentId: null }];
+  let previous = [0];
+  for (let depth = 1; depth <= maxDepth; depth++) {
+    const count = randInt(rng, 1, maxWidth);
+    const parents = Array.from({ length: count }, () => pick(rng, previous)).sort((a, b) => a - b);
+    previous = parents.map((parentId) => tree.push({ depth, parentId }) - 1);
+  }
+  return tree;
+}
+
+/** Only /24 at level 1; the spread widens to /21-/28 by the growth cap. */
+function pickPrefix(rng: Rng, growth: number): number {
+  const spread = Math.min(4, Math.floor(growth / 3));
+  return randInt(rng, Math.max(21, 24 - spread), Math.min(28, 24 + spread));
+}
+
+/**
+ * Aligned, non-overlapping blocks inside the /16. Largest blocks go first, so
+ * the free space always splits into aligned slots of the current size and a
+ * slot is always found (the largest city uses well under the /16).
+ */
+function carve(rng: Rng, base: number, prefixes: number[]): number[] {
+  const UNIT = 16; // smallest block, a /28
+  const used = new Uint8Array(2 ** 16 / UNIT);
+  const order = prefixes.map((_, i) => i).sort((a, b) => prefixes[a] - prefixes[b] || a - b);
+  const networks: number[] = new Array(prefixes.length);
+  for (const i of order) {
+    const units = 2 ** (32 - prefixes[i]) / UNIT;
+    const free: number[] = [];
+    for (let start = 0; start < used.length; start += units) {
+      if (used[start] === 0) free.push(start);
+    }
+    const start = pick(rng, free);
+    used.fill(1, start, start + units);
+    networks[i] = (base + start * UNIT) >>> 0;
+  }
+  return networks;
+}
+
+const NAMES: Record<MinigameId | 'router' | 'core', string> = {
+  binary: 'Estação',
+  subnet: 'Servidor DHCP',
+  ports: 'Firewall',
+  http: 'Servidor Web',
+  dns: 'Servidor DNS',
+  router: 'Roteador',
+  core: 'Núcleo da Cidade',
+};
+
+const FLAVORS: Record<MinigameId | 'router' | 'core', string> = {
+  binary: 'Uma estação de trabalho comum. Tudo o que ela guarda está em binário.',
+  subnet: 'Entrega os endereços desta rede. Faça as contas da sub-rede para entrar.',
+  ports: 'Filtra o tráfego desta rede pelas portas. Saiba qual serviço usa cada uma.',
+  http: 'Hospeda os sites internos. Leia as respostas dele para achar a brecha.',
+  dns: 'Resolve os nomes da rede interna. Domine os tipos de registro.',
+  router: 'Liga esta sub-rede à próxima. Depois de invadir, escreva a rota até lá.',
+  core: 'O centro da rede da cidade. Invada aqui para concluir o exercício.',
+};
+
+function makeNode(
+  id: string, role: CityNodeRole, area: MinigameId, subnet: CitySubnet, ip: string,
+  level: number, growth: number, names: Map<string, number>,
+): CityNode {
+  const kind = role === 'host' ? area : role;
+  let name = NAMES[kind];
+  if (role !== 'core') {
+    const n = (names.get(kind) ?? 0) + 1;
+    names.set(kind, n);
+    name = `${name} ${n}`;
+  }
+  const depth = subnet.depth + (role === 'core' ? 1 : 0);
+  const baseReward = 100 + 40 * level + 60 * subnet.depth;
+  return {
+    id, name, ip, x: 0, y: 0,
+    minigame: area,
+    difficulty: cityDifficulty(area, growth, depth),
+    links: [],
+    requires: requirements(growth, depth),
+    reward: role === 'core' ? baseReward * 3 : baseReward,
+    flavor: FLAVORS[kind],
+    subnetId: subnet.id,
+    role,
+    childSubnetId: null,
+  };
+}
+
+/** Scales toward the Data Center Core's requirements and never exceeds them. */
+function requirements(growth: number, depth: number): NodeRequirements {
+  const cap = getNode(FINAL_NODE_ID).requires;
+  const share = Math.min(1, (growth + depth) / (STRUCTURE_MAX_LEVEL + 7));
+  const ram = cap.ramGB! * share;
+  return {
+    cpuPower: Math.max(1, Math.floor(cap.cpuPower! * share)),
+    ramGB: Math.min(cap.ramGB!, 2 ** Math.max(2, Math.floor(Math.log2(ram)))),
+    storageGB: Math.max(50, Math.floor((cap.storageGB! * share) / 50) * 50),
+    linkMbps: share < 0.35 ? 100 : share < 0.8 ? 1000 : cap.linkMbps!,
+  };
+}
+
+/** Hosts on a subnet see each other; a router also links to its child subnet. */
+function linkNodes(nodes: CityNode[]): void {
+  const link = (a: CityNode, b: CityNode) => {
+    if (!a.links.includes(b.id)) a.links.push(b.id);
+    if (!b.links.includes(a.id)) b.links.push(a.id);
+  };
+  for (const a of nodes) {
+    for (const b of nodes) {
+      if (a !== b && a.subnetId === b.subnetId) link(a, b);
+    }
+    if (a.childSubnetId !== null) {
+      for (const b of nodes) if (b.subnetId === a.childSubnetId) link(a, b);
+    }
+  }
+}
+
+/** Depth columns of subnet boxes; hosts on the left, routers on the right. */
+function layout(subnets: CitySubnet[], nodes: CityNode[]): void {
+  const byDepth = new Map<number, CitySubnet[]>();
+  for (const s of subnets) byDepth.set(s.depth, [...(byDepth.get(s.depth) ?? []), s]);
+  for (const [depth, column] of byDepth) {
+    const band = (AREA_BOTTOM - AREA_TOP) / column.length;
+    column.forEach((s, i) => {
+      s.box.x = CITY_COLUMN_X + depth * CITY_COLUMN_WIDTH;
+      s.box.y = Math.round(AREA_TOP + i * band + (band - BOX_HEIGHT) / 2);
+    });
+  }
+  for (const s of subnets) {
+    const members = nodes.filter((n) => n.subnetId === s.id);
+    const hosts = members.filter((n) => n.role !== 'router');
+    const routers = members.filter((n) => n.role === 'router');
+    hosts.forEach((n, row) => place(n, s, 0.25, row));
+    routers.forEach((n, row) => place(n, s, 0.75, row));
+  }
+}
+
+function place(node: CityNode, subnet: CitySubnet, across: number, row: number): void {
+  node.x = Math.round(subnet.box.x + subnet.box.width * across);
+  node.y = subnet.box.y + ROW_FIRST + row * ROW_STEP;
+}

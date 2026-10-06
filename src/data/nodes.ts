@@ -41,8 +41,8 @@ export interface NetNode {
   x: number;
   y: number;
   minigame: MinigameId;
-  /** 1 (easy) – 3 (hard). Affects rounds and question variety. */
-  difficulty: 1 | 2 | 3;
+  /** Affects rounds and question variety. Campaign nodes use 1-3; city nodes may go higher in areas with MAX_LEVEL above 3. */
+  difficulty: number;
   links: string[];
   requires: NodeRequirements;
   reward: number;
