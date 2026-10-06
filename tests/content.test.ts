@@ -131,7 +131,7 @@ function runtimeTexts(): string[] {
     for (let d = 1; d <= MAX_LEVEL[id]; d++) {
       for (let seed = 1; seed <= 30; seed++) {
         for (const r of buildRounds(id, d, createRng(seed))) {
-          out.push(r.prompt, r.explain);
+          out.push(r.prompt, ...Object.values(r.explain));
           if (r.kind === 'choice') out.push(...r.options);
         }
       }

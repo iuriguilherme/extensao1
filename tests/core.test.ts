@@ -3,6 +3,7 @@ import { computeSpecs, mistakesAllowed, roundSeconds } from '../src/core/hardwar
 import {
   broadcastAddress, formatIp, maskToPrefix, networkAddress, parseIp, usableHosts, validateNetConfig, type LanInfo,
 } from '../src/core/ip';
+import { LENSES } from '../src/core/explanations';
 import { buildRounds, CONCEPTS, MAX_LEVEL, roundCount, STATUSES, type ConceptId } from '../src/core/minigames';
 import { createRng } from '../src/core/random';
 import {
@@ -191,6 +192,39 @@ describe('minigames', () => {
       const seen = new Set<string>();
       for (let seed = 1; seed <= 30; seed++) for (const r of buildRounds(area, fromLevel, createRng(seed))) seen.add(r.concept);
       expect(seen, concept).toContain(concept);
+    }
+  });
+
+  it('every round explains itself through three different lenses that fit the result panel', () => {
+    for (const id of ids) {
+      for (const d of levels(id)) {
+        for (let seed = 1; seed <= 30; seed++) {
+          for (const r of buildRounds(id, d, createRng(seed))) {
+            const texts = LENSES.map((lens) => r.explain[lens]);
+            for (const t of texts) {
+              expect(t.length, `${r.concept}: ${t}`).toBeGreaterThan(0);
+              expect(t.length, `${r.concept}: ${t}`).toBeLessThanOrEqual(220);
+            }
+            expect(new Set(texts).size, r.concept).toBe(3);
+          }
+        }
+      }
+    }
+  });
+
+  it('explanations use the numbers of the round that was missed', () => {
+    for (let seed = 1; seed <= 30; seed++) {
+      for (const r of buildRounds('binary', 3, createRng(seed), 'binary.toDecimal')) {
+        if (r.concept !== 'binary.toDecimal') continue;
+        const bin = /[01]{8}/.exec(r.prompt)![0];
+        for (const lens of LENSES) expect(r.explain[lens]).toContain(bin);
+      }
+      for (const r of buildRounds('subnet', 2, createRng(seed), 'subnet.broadcast')) {
+        if (r.kind !== 'choice' || r.concept !== 'subnet.broadcast') continue;
+        const bcast = r.options[r.answer];
+        expect(bcast).toMatch(/^(\d{1,3}\.){3}\d{1,3}$/);
+        for (const lens of LENSES) expect(r.explain[lens]).toContain(bcast);
+      }
     }
   });
 

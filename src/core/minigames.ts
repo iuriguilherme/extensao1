@@ -8,6 +8,11 @@
  */
 
 import type { MinigameId } from '../data/nodes';
+import {
+  explainBroadcast, explainCombinations, explainFirewall, explainMethod, explainNetworkAddress, explainRecordType,
+  explainResolve, explainSameNetwork, explainServicePort, explainStatusClass, explainStatusCode, explainToBinary,
+  explainToDecimal, explainTransport, explainUsableHosts, type Explanations,
+} from './explanations';
 import { broadcastAddress, formatIp, networkAddress, prefixToMask, usableHosts } from './ip';
 import { pick, randInt, shuffle, type Rng } from './random';
 
@@ -46,7 +51,7 @@ export interface ChoiceRound {
   detail?: string;
   options: string[];
   answer: number;
-  explain: string;
+  explain: Explanations;
 }
 
 export interface BitsRound {
@@ -55,7 +60,7 @@ export interface BitsRound {
   prompt: string;
   bits: number;
   target: number;
-  explain: string;
+  explain: Explanations;
 }
 
 export type Round = ChoiceRound | BitsRound;
@@ -117,7 +122,7 @@ const GENERATORS: Record<MinigameId, (rng: Rng, d: Difficulty, focus?: ConceptId
 };
 
 /** Builds a choice round from a correct answer and distractor candidates. */
-function choice(rng: Rng, concept: ConceptId, prompt: string, correct: string, distractors: string[], explain: string, detail?: string): ChoiceRound {
+function choice(rng: Rng, concept: ConceptId, prompt: string, correct: string, distractors: string[], explain: Explanations, detail?: string): ChoiceRound {
   const wrong = shuffle(rng, [...new Set(distractors.filter((d) => d !== correct))]).slice(0, 3);
   const options = shuffle(rng, [correct, ...wrong]);
   return { kind: 'choice', concept, prompt, detail, options, answer: options.indexOf(correct), explain };
@@ -147,7 +152,7 @@ function binaryRound(rng: Rng, d: Difficulty, focus?: ConceptId): Round {
       prompt: `Ligue os bits até formar ${target}`,
       bits,
       target,
-      explain: `${target} = ${toBinary(target, bits)} (${placeBreakdown(target, bits)})`,
+      explain: explainToBinary(target, bits, toBinary(target, bits)),
     };
   }
   if (type === 1) {
@@ -159,7 +164,7 @@ function binaryRound(rng: Rng, d: Difficulty, focus?: ConceptId): Round {
       `Quanto vale ${toBinary(value, bits)} em decimal?`,
       String(value),
       near.map(String),
-      `${toBinary(value, bits)} = ${placeBreakdown(value, bits)} = ${value}`,
+      explainToDecimal(value, bits, toBinary(value, bits)),
     );
   }
   const n = randInt(rng, 2, 16);
@@ -169,14 +174,8 @@ function binaryRound(rng: Rng, d: Difficulty, focus?: ConceptId): Round {
     `Com ${n} bits, dá para representar quantos valores diferentes?`,
     String(2 ** n),
     [String(2 ** n - 1), String(n * 2), String(2 ** (n + 1)), String(n ** 2), String(2 ** (n - 1))],
-    `Cada bit a mais dobra as combinações: 2^${n} = ${2 ** n}.`,
+    explainCombinations(n),
   );
-}
-
-function placeBreakdown(value: number, bits: number): string {
-  const terms: number[] = [];
-  for (let i = bits - 1; i >= 0; i--) if (value & (1 << i)) terms.push(1 << i);
-  return terms.join(' + ');
 }
 
 // ─── Subnets ──────────────────────────────────────────────────────────────
@@ -228,7 +227,7 @@ function subnetRound(rng: Rng, d: Difficulty, focus?: ConceptId): Round {
       `Qual destes hosts está na mesma rede que ${cidr}?`,
       formatIp(inside),
       outside.map(formatIp),
-      `${cidr} fica na rede ${formatIp(net)}/${prefix}, que vai de ${formatIp(net)} a ${formatIp(broadcastAddress(ip, prefix))}.`,
+      explainSameNetwork(cidr, formatIp(net), formatIp(broadcastAddress(ip, prefix)), prefix),
     );
   }
   if (type === 1) {
@@ -239,7 +238,7 @@ function subnetRound(rng: Rng, d: Difficulty, focus?: ConceptId): Round {
       `Qual é o endereço de rede de ${cidr}?`,
       formatIp(net),
       [formatIp(ip), formatIp(broadcastAddress(ip, prefix)), formatIp((net + 1) >>> 0), formatIp(networkAddress(ip, prefix - 8 < 0 ? 0 : prefix - 8))],
-      `Aplique a máscara de sub-rede ${formatIp(prefixToMask(prefix))}: os bits de rede continuam iguais e os de host viram 0 → ${formatIp(net)}.`,
+      explainNetworkAddress(cidr, formatIp(prefixToMask(prefix)), formatIp(net), prefix),
     );
   }
   if (type === 2) {
@@ -251,7 +250,7 @@ function subnetRound(rng: Rng, d: Difficulty, focus?: ConceptId): Round {
       `Quantos hosts válidos cabem numa rede /${p}?`,
       String(hosts),
       [String(hosts + 2), String(hosts + 1), String(2 ** (32 - p - 1)), String(32 - p), String(hosts * 2)],
-      `Numa rede /${p} sobram ${32 - p} bits de host: 2^${32 - p} = ${2 ** (32 - p)}. Tirando o endereço de rede e o de broadcast, ficam ${hosts}.`,
+      explainUsableHosts(p, hosts),
     );
   }
   const bcast = broadcastAddress(ip, prefix);
@@ -262,7 +261,7 @@ function subnetRound(rng: Rng, d: Difficulty, focus?: ConceptId): Round {
     `Qual é o endereço de broadcast de ${cidr}?`,
     formatIp(bcast),
     [formatIp(net), formatIp((bcast - 1) >>> 0), formatIp(broadcastAddress(ip, Math.max(8, prefix - 8))), formatIp((bcast + 1) >>> 0)],
-    `Com todos os bits de host em 1, dá ${formatIp(bcast)}: o último endereço da rede ${formatIp(net)}/${prefix}.`,
+    explainBroadcast(cidr, formatIp(net), formatIp(bcast), prefix),
   );
 }
 
@@ -300,11 +299,11 @@ function portsRound(rng: Rng, d: Difficulty, focus?: ConceptId): Round {
 
   if (type === 0) {
     return choice(rng, 'ports.servicePort', `Qual é a porta padrão do serviço ${svc.name}?`, String(svc.port), others.map((s) => String(s.port)),
-      `O serviço ${svc.name} escuta na porta ${svc.proto} ${svc.port}.`);
+      explainServicePort(svc.name, svc.port, svc.proto));
   }
   if (type === 1) {
     return choice(rng, 'ports.servicePort', `A porta ${svc.port} está aberta. Que serviço deve estar rodando nela?`, svc.name, others.map((s) => s.name),
-      `A porta padrão do serviço ${svc.name} é ${svc.port}/${svc.proto}.`);
+      explainServicePort(svc.name, svc.port, svc.proto));
   }
   if (type === 2) {
     const allowed = shuffle(rng, pool).slice(0, 2);
@@ -316,7 +315,7 @@ function portsRound(rng: Rng, d: Difficulty, focus?: ConceptId): Round {
       'Com estas regras no firewall, qual conexão passa?',
       `${target.name} na porta ${target.port}`,
       blocked.map((s) => `${s.name} na porta ${s.port}`),
-      `O firewall só libera as portas ${allowed.map((s) => s.port).join(' e ')}, e o serviço ${target.name} usa a porta ${target.port}.`,
+      explainFirewall(allowed.map((s) => s.port), target.name, target.port),
       [...allowed.map((s) => `ALLOW ${s.proto} ${s.port}`), 'DENY  ALL'].join('\n'),
     );
   }
@@ -326,9 +325,7 @@ function portsRound(rng: Rng, d: Difficulty, focus?: ConceptId): Round {
     `Qual protocolo de transporte o serviço ${svc.name} costuma usar?`,
     svc.proto,
     [svc.proto === 'TCP' ? 'UDP' : 'TCP', 'ICMP', 'ARP'],
-    svc.proto === 'TCP'
-      ? `O serviço ${svc.name} precisa que tudo chegue completo e na ordem certa: TCP.`
-      : `O serviço ${svc.name} troca mensagens curtas e precisa de rapidez, não de garantia de entrega: UDP.`,
+    explainTransport(svc.name, svc.proto),
   );
 }
 
@@ -369,21 +366,21 @@ function httpRound(rng: Rng, d: Difficulty, focus?: ConceptId): Round {
 
   if (type === 0) {
     return choice(rng, 'http.statusCode', `O servidor respondeu ${status.code}. O que isso significa?`, status.meaning, others.map((s) => s.meaning),
-      `${status.code} ${status.meaning}. Exemplo: ${status.scenario}.`);
+      explainStatusCode(status.code, status.meaning, status.scenario));
   }
   if (type === 1) {
     return choice(rng, 'http.statusCode', `Que código o servidor devolve nesta situação: "${status.scenario}"?`, String(status.code), others.map((s) => String(s.code)),
-      `${status.code} ${status.meaning}.`);
+      explainStatusCode(status.code, status.meaning, status.scenario));
   }
   if (type === 2) {
     const m = pick(rng, METHODS);
     return choice(rng, 'http.method', `Qual método HTTP você deve usar para ${m.use.toLowerCase()}?`, m.method, METHODS.map((x) => x.method),
-      `${m.method}: ${m.use}.`);
+      explainMethod(m.method, m.use));
   }
   const klass = Math.floor(status.code / 100);
   const classes = ['Sucesso', 'Redirecionamento', 'Erro do cliente', 'Erro do servidor'];
   return choice(rng, 'http.statusClass', `Em qual classe se encaixa o código ${status.code}?`, classes[klass - 2], classes,
-    `Os códigos ${klass}xx são de ${classes[klass - 2].toLowerCase()}.`);
+    explainStatusClass(status.code, classes[klass - 2]));
 }
 
 // ─── DNS ──────────────────────────────────────────────────────────────────
@@ -409,10 +406,10 @@ function dnsRound(rng: Rng, d: Difficulty, focus?: ConceptId): Round {
   const type = roundType(rng, focus, { 'dns.recordType': [0, 1], 'dns.resolve': [2] }, 2);
 
   if (type === 0) {
-    return choice(rng, 'dns.recordType', `Qual registro DNS faz isto: "${rec.purpose}"?`, rec.type, others.map((r) => r.type), `${rec.type}: ${rec.purpose}.`);
+    return choice(rng, 'dns.recordType', `Qual registro DNS faz isto: "${rec.purpose}"?`, rec.type, others.map((r) => r.type), explainRecordType(rec.type, rec.purpose));
   }
   if (type === 1) {
-    return choice(rng, 'dns.recordType', `Para que serve o registro ${rec.type}?`, rec.purpose, others.map((r) => r.purpose), `${rec.type}: ${rec.purpose}.`);
+    return choice(rng, 'dns.recordType', `Para que serve o registro ${rec.type}?`, rec.purpose, others.map((r) => r.purpose), explainRecordType(rec.type, rec.purpose));
   }
   // Resolve a name using a small zone file (CNAME chains from difficulty 2).
   const domain = pick(rng, ['example.com', 'corp.test', 'uni.example', 'shop.test']);
@@ -432,11 +429,7 @@ function dnsRound(rng: Rng, d: Difficulty, focus?: ConceptId): Round {
     askMail ? `O e-mail para @${domain} deve ser entregue em qual endereço IP?` : `O nome www.${domain} resolve para qual endereço IP?`,
     answer,
     ips,
-    askMail
-      ? `O registro MX aponta para mail.${domain}, e o registro A desse nome é ${ips[2]}.`
-      : useChain
-        ? `www é um apelido (CNAME) de web.${domain}, que tem registro A ${ips[1]}.`
-        : `O registro A de www.${domain} aponta direto para ${ips[0]}.`,
+    explainResolve(domain, askMail ? 'mail' : useChain ? 'chain' : 'direct', answer),
     shuffle(rng, lines).join('\n'),
   );
 }

@@ -71,7 +71,7 @@ export class MinigameScene extends Phaser.Scene {
     if (this.remaining <= 0) {
       this.revealAnswer();
       const round = this.rounds[this.index];
-      this.resolve(false, round.explain, true);
+      this.resolve(false, round.explain.steps, true);
     }
   }
 
@@ -109,7 +109,7 @@ export class MinigameScene extends Phaser.Scene {
         if (!this.running) return;
         mark(i, i === round.answer ? COLORS.accent : COLORS.danger);
         if (i !== round.answer) mark(round.answer, COLORS.accent);
-        this.resolve(i === round.answer, round.explain);
+        this.resolve(i === round.answer, round.explain.steps);
       }, { size: 20, color: COLORS.info }));
     const mark = (i: number, color: number) => {
       buttons[i].label.setText(`${color === COLORS.accent ? '✓' : '✗'} ${round.options[i]}`).setColor(hex(color));
@@ -138,7 +138,7 @@ export class MinigameScene extends Phaser.Scene {
         b.label.setText(on ? '1' : '0');
         b.label.setColor(hex(on ? COLORS.accent : COLORS.info));
         refresh();
-        if (value === round.target) this.resolve(true, round.explain);
+        if (value === round.target) this.resolve(true, round.explain.steps);
       }, { size: 40, color: COLORS.info });
     }
     this.layer.text(WIDTH / 2, 470, 'Dica: comece pela maior casa que ainda cabe no número.', textStyle(15, COLORS.muted)).setOrigin(0.5);
