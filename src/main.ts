@@ -1,10 +1,13 @@
 import Phaser from 'phaser';
+import { CityListScene } from './scenes/CityListScene';
+import { CityMapScene } from './scenes/CityMapScene';
 import { HubScene } from './scenes/HubScene';
 import { JobBoardScene } from './scenes/JobBoardScene';
 import { LessonScene } from './scenes/LessonScene';
 import { MinigameScene } from './scenes/MinigameScene';
 import { NetMapScene } from './scenes/NetMapScene';
 import { NetSetupScene } from './scenes/NetSetupScene';
+import { RouteScene } from './scenes/RouteScene';
 import { ShopScene } from './scenes/ShopScene';
 import { StudyScene } from './scenes/StudyScene';
 import { TitleScene } from './scenes/TitleScene';
@@ -21,5 +24,6 @@ new Phaser.Game({
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
-  scene: [TitleScene, HubScene, StudyScene, LessonScene, ShopScene, WorkbenchScene, NetSetupScene, NetMapScene, MinigameScene, JobBoardScene],
+  scene: [TitleScene, HubScene, StudyScene, LessonScene, ShopScene, WorkbenchScene, NetSetupScene, NetMapScene, MinigameScene, JobBoardScene,
+    CityListScene, CityMapScene, RouteScene],
 });
