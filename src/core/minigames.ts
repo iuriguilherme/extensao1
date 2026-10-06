@@ -70,6 +70,17 @@ export type Difficulty = number;
 /** Ports, HTTP and DNS content is tagged 1-3, so only binary and subnets go higher. */
 export const MAX_LEVEL: Record<MinigameId, number> = { binary: 7, subnet: 5, ports: 3, http: 3, dns: 3 };
 
+/**
+ * A city node's addresses, as unsigned 32-bit numbers (the form `ip.ts` uses).
+ * Subnet rounds ask about `network`/`prefix`; 8-bit binary rounds convert an
+ * octet of `host`.
+ */
+export interface RoundContext {
+  network: number;
+  prefix: number;
+  host: number;
+}
+
 export function roundCount(difficulty: Difficulty): number {
   return [5, 7, 9][Math.min(difficulty, 3) - 1];
 }
@@ -77,9 +88,11 @@ export function roundCount(difficulty: Difficulty): number {
 /**
  * Builds the rounds of one mini-game. With a focus concept (review jobs), at
  * least two thirds of the rounds ask that concept; once its unique prompts run
- * out, it repeats a prompt with reshuffled options.
+ * out, it repeats a prompt with reshuffled options. With a context (city
+ * nodes), subnet and 8-bit binary rounds use the node's addresses; other areas
+ * ignore it. Without one, rounds are exactly what they were before contexts.
  */
-export function buildRounds(id: MinigameId, difficulty: Difficulty, rng: Rng, focus?: ConceptId): Round[] {
+export function buildRounds(id: MinigameId, difficulty: Difficulty, rng: Rng, focus?: ConceptId, context?: RoundContext): Round[] {
   const level = Math.min(difficulty, MAX_LEVEL[id]);
   const generator = GENERATORS[id];
   const total = roundCount(level);
@@ -90,7 +103,7 @@ export function buildRounds(id: MinigameId, difficulty: Difficulty, rng: Rng, fo
     const target = rounds.length + count;
     let repeats = 0;
     while (rounds.length < target) {
-      const round = generator(rng, level, only);
+      const round = generator(rng, level, only, context);
       const key = round.prompt + (round.kind === 'choice' ? round.detail ?? '' : round.target);
       if (seen.has(key) && repeats++ < 200) continue;
       seen.add(key);
@@ -113,7 +126,7 @@ function roundType(rng: Rng, focus: ConceptId | undefined, types: Partial<Record
   return forced ? pick(rng, forced) : randInt(rng, 0, maxType);
 }
 
-const GENERATORS: Record<MinigameId, (rng: Rng, d: Difficulty, focus?: ConceptId) => Round> = {
+const GENERATORS: Record<MinigameId, (rng: Rng, d: Difficulty, focus?: ConceptId, context?: RoundContext) => Round> = {
   binary: binaryRound,
   subnet: subnetRound,
   ports: portsRound,
@@ -139,13 +152,26 @@ function binaryBits(d: Difficulty): number {
   return d <= 3 ? [4, 6, 8][d - 1] : 8 + 2 * (d - 3);
 }
 
-function binaryRound(rng: Rng, d: Difficulty, focus?: ConceptId): Round {
+/**
+ * The value an 8-bit round converts: a nonzero octet of the context host other
+ * than the first (the leading 10), or a random one when there is none. The
+ * random draw is the same call as without a context.
+ */
+function binaryValue(rng: Rng, bits: number, max: number, context?: RoundContext): number {
+  if (context && bits === 8) {
+    const octets = [16, 8, 0].map((shift) => (context.host >>> shift) & 255).filter((o) => o > 0);
+    if (octets.length > 0) return pick(rng, octets);
+  }
+  return randInt(rng, 1, max);
+}
+
+function binaryRound(rng: Rng, d: Difficulty, focus?: ConceptId, context?: RoundContext): Round {
   const bits = binaryBits(d);
   const max = 2 ** bits - 1;
   const type = roundType(rng, focus, { 'binary.toBinary': [0], 'binary.toDecimal': [1], 'binary.combinations': [2] }, d === 1 ? 1 : 2);
 
   if (type === 0) {
-    const target = randInt(rng, 1, max);
+    const target = binaryValue(rng, bits, max, context);
     return {
       kind: 'bits',
       concept: 'binary.toBinary',
@@ -156,7 +182,7 @@ function binaryRound(rng: Rng, d: Difficulty, focus?: ConceptId): Round {
     };
   }
   if (type === 1) {
-    const value = randInt(rng, 1, max);
+    const value = binaryValue(rng, bits, max, context);
     const near = [value + 1, value - 1, value ^ 1, value ^ 2, value * 2, value >> 1, value + 8].filter((v) => v > 0 && v <= max * 2);
     return choice(
       rng,
@@ -200,9 +226,14 @@ const SUBNET_PREFIXES = [
   [9, 10, 11, 12, 13, 14, 15],
 ];
 
-function subnetRound(rng: Rng, d: Difficulty, focus?: ConceptId): Round {
-  const prefix = pick(rng, SUBNET_PREFIXES[d - 1]);
-  const ip = randomPrivateIp(rng, prefix);
+/** A fresh host inside the context subnet, never its network or broadcast address. */
+function contextHost(rng: Rng, context: RoundContext): number {
+  return (networkAddress(context.network, context.prefix) + randInt(rng, 1, 2 ** (32 - context.prefix) - 2)) >>> 0;
+}
+
+function subnetRound(rng: Rng, d: Difficulty, focus?: ConceptId, context?: RoundContext): Round {
+  const prefix = context ? context.prefix : pick(rng, SUBNET_PREFIXES[d - 1]);
+  const ip = context ? contextHost(rng, context) : randomPrivateIp(rng, prefix);
   const type = roundType(
     rng, focus,
     { 'subnet.sameNetwork': [0], 'subnet.networkAddress': [1], 'subnet.usableHosts': [2], 'subnet.broadcast': [3] },
