@@ -43,4 +43,4 @@ Things that span files:
 
 ## Planning docs
 
-`docs/plans/` holds feature plans (requirements, decisions, implementation units) and `docs/ideation/` the ideation that produced them. `README.md` describes gameplay in English and predates the PT-BR conversion.
+`docs/plans/` holds feature plans (requirements, decisions, implementation units) and `docs/ideation/` the ideation that produced them. `docs/solutions/` holds documented learnings (conventions, past problems), organized by category with YAML frontmatter (`module`, `tags`, `problem_type`); relevant when writing player text or working in a documented area. `README.md` describes gameplay in English and predates the PT-BR conversion.

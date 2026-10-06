@@ -14,9 +14,18 @@ The glossary decides wording, not phrasing: a sentence that uses only glossary t
 An IT word the game deliberately leaves in English because Brazilian technicians say it in English (for example switch, firewall, boot, AC and DC); protocol acronyms such as DNS and TCP stay as-is too.
 *Avoid:* untranslated word
 
-A Kept term is a choice recorded in the Glossary, not an omission; any other English word in player text is a defect. Uppercase protocol notation (HTTP methods, firewall rule keywords, status phrases such as "404 Not Found") is accepted only in that exact notation form.
+A Kept term is a choice recorded in the Glossary, not an omission; any other English word in player text is a defect. The reverse is a defect too: replacing a word the field says in English with a Portuguese coinage or dictionary translation that Brazilian technicians do not use. When in doubt, the word technicians actually say wins. Uppercase protocol notation (HTTP methods, firewall rule keywords, status phrases such as "404 Not Found") is accepted only in that exact notation form.
 
 ### Calque
 Portuguese text that copies the structure, idioms or word choices of an English source instead of saying the idea the way a native speaker would, so it is grammatical yet unnatural or meaningless.
 
 Calques are not detectable by automated checks, because every word is Portuguese; only a native reader catches them.
+
+## Network
+
+### Swarm
+The set of breached network nodes currently connected to the player's network, whose processing, memory and storage add to the player's own computer.
+*Avoid:* enxame
+
+A node joins the Swarm only by occupying a free port on the player's router, on a switch in the NOC, or on another connected node that has ports, and it counts only while the player's own computer is online. How much processing and memory the Swarm adds is limited by the Swarm's bandwidth, the traffic its nodes' links can carry through the uplinks they connect to; storage is not. Breaching a node and connecting it are separate: a breached node with no free port waits disconnected. The word is a Kept term.
+
