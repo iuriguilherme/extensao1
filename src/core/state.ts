@@ -1,9 +1,11 @@
 import { ETHICS_LESSON_ID, getLesson, LESSONS } from '../data/lessons';
-import { NODES, HOME_NODE_ID, FINAL_NODE_ID, getNode, type NetNode } from '../data/nodes';
+import { NODES, HOME_NODE_ID, FINAL_NODE_ID, getNode, type MinigameId, type NetNode } from '../data/nodes';
 import { getPart, type Part, type Slot } from '../data/parts';
+import type { Lens } from './explanations';
 import { agree, decimal, linkSpeed, money } from './fmt';
 import { computeSpecs, type Installed, type Specs } from './hardware';
 import type { NetConfig } from './ip';
+import type { ConceptId } from './minigames';
 import { installSwitch, rehomeForRouter, totalSpecs } from './swarm';
 
 export interface GameState {
@@ -19,6 +21,28 @@ export interface GameState {
   noc: NocEntry[];
   /** Connected nodes (the swarm): node id -> id of the port provider it is plugged into. */
   swarm: Record<string, string>;
+  /** Miss history per concept (reteach.ts); a concept appears after its first miss. */
+  concepts: Partial<Record<ConceptId, ConceptRecord>>;
+  /** Times each lens was showing at the last miss before a concept was learned again. */
+  lensCredits: Record<Lens, number>;
+  /** Side-job level per area, raised by finishing fresh jobs with few mistakes. */
+  areaLevels: Record<MinigameId, number>;
+  /** Finished mini-games so far; orders weak concepts by how long they have waited. */
+  runCount: number;
+}
+
+export interface ConceptRecord {
+  weak: boolean;
+  /** Later finished mini-games answered correctly since the last miss. */
+  recoveries: number;
+  /** Level of the mini-game where the concept was last missed. */
+  missLevel: number;
+  /** runCount when the concept last became weak. */
+  weakSince: number;
+  /** Lens shown at the last miss; credited when the concept is learned again. */
+  lastMissLens: Lens;
+  /** Lenses already shown on misses in the current rotation. */
+  seen: Lens[];
 }
 
 export interface NocEntry {
@@ -42,6 +66,10 @@ export function newGame(): GameState {
     breached: [],
     noc: [],
     swarm: {},
+    concepts: {},
+    lensCredits: { steps: 0, analogy: 0, realWorld: 0 },
+    areaLevels: { binary: 1, subnet: 1, ports: 1, http: 1, dns: 1 },
+    runCount: 0,
   };
 }
 
