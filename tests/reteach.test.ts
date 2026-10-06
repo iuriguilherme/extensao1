@@ -136,7 +136,7 @@ describe('side-job board', () => {
     const s = withLessons(...ALL_AREA_LESSONS);
     missInOrder(s, ['dns.resolve', 'binary.toDecimal', 'http.method', 'subnet.broadcast']);
     const board = jobBoard(s);
-    expect(board.map((j) => j.concept ?? j.kind)).toEqual(['dns.resolve', 'binary.toDecimal', 'fresh']);
+    expect(board.map((j) => (j.kind === 'review' ? j.concept : j.kind))).toEqual(['dns.resolve', 'binary.toDecimal', 'fresh']);
   });
 
   it('fills the board with fresh jobs in the three lowest-level areas', () => {
@@ -152,7 +152,7 @@ describe('side-job board', () => {
   it('never offers a weak concept from an area whose lesson is not done', () => {
     const s = withLessons('binary');
     missInOrder(s, ['dns.resolve']);
-    expect(jobBoard(s).some((j) => j.concept === 'dns.resolve')).toBe(false);
+    expect(jobBoard(s).some((j) => j.kind === 'review' && j.concept === 'dns.resolve')).toBe(false);
   });
 
   it('runs a review job at the level where its concept was missed', () => {

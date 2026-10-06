@@ -16,7 +16,8 @@ import { COLORS, fitText, header, hex, Layer, textStyle, WIDTH } from '../ui/wid
 export interface MinigameData {
   minigame: MinigameId;
   difficulty: Difficulty;
-  reward: number;
+  /** Shown by the Net Map; the payout comes from breach() or completeJob(). */
+  reward?: number;
   title: string;
   /** Set when attacking a network node. */
   nodeId?: string;
@@ -58,7 +59,8 @@ export class MinigameScene extends Phaser.Scene {
     const specs = totalSpecs(game());
     this.seconds = roundSeconds(specs.cpuPower);
     this.allowed = mistakesAllowed(specs.ramGB) + (data.nodeId ? 0 : 1);
-    this.rounds = buildRounds(data.minigame, data.difficulty, createRng(Date.now()), data.job?.concept);
+    const focus = data.job?.kind === 'review' ? data.job.concept : undefined;
+    this.rounds = buildRounds(data.minigame, data.difficulty, createRng(Date.now()), focus);
     this.index = 0;
     this.mistakes = 0;
     this.correctConcepts = [];
@@ -170,8 +172,7 @@ export class MinigameScene extends Phaser.Scene {
       // Each repeat miss of a concept gets a lens the student has not seen yet.
       const lens = recordMiss(game(), round.concept, this.params.difficulty);
       save();
-      explain = `
-${LENS_LABELS[lens]}: ${round.explain[lens]}`;
+      explain = `\n${LENS_LABELS[lens]}: ${round.explain[lens]}`;
     }
     this.updateStatus();
 
@@ -209,7 +210,7 @@ ${LENS_LABELS[lens]}: ${round.explain[lens]}`;
 
     // Only a first breach reveals the node and plugs it in; a replay just pays.
     const firstBreach = nodeId !== undefined && !state.breached.includes(nodeId);
-    let reward = this.params.reward;
+    let reward = 0;
     let details = '';
     let joined = true;
     if (nodeId) {

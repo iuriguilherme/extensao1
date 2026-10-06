@@ -39,14 +39,13 @@ export class JobBoardScene extends Phaser.Scene {
   private jobCard(job: Job, x: number, y: number) {
     const w = WIDTH - 280;
     const h = 130;
-    const review = job.kind === 'review';
-    const color = review ? COLORS.warn : COLORS.accent;
+    const color = job.kind === 'review' ? COLORS.warn : COLORS.accent;
     const bg = this.add.rectangle(x, y, w, h, COLORS.panel).setOrigin(0).setStrokeStyle(2, color);
 
-    const tag = review ? 'REVISÃO' : 'NOVO';
+    const tag = job.kind === 'review' ? 'REVISÃO' : 'NOVO';
     fitText(this.add.text(x + 20, y + 16, `${tag} · ${MINIGAME_AREAS[job.area]} · nível ${job.level}`, textStyle(20, color)), w - 220);
-    const detail = review
-      ? `Treine: ${CONCEPTS[job.concept!].label}. Você errou isso recentemente.`
+    const detail = job.kind === 'review'
+      ? `Treine: ${CONCEPTS[job.concept].label}. Você errou isso recentemente.`
       : job.level < MAX_LEVEL[job.area]
         ? `Termine com no máximo 1 erro para liberar o nível ${job.level + 1}.`
         : 'Você já está no nível máximo desta área.';
@@ -57,10 +56,10 @@ export class JobBoardScene extends Phaser.Scene {
     bg.on('pointerover', () => bg.setFillStyle(COLORS.accentDim, 0.35));
     bg.on('pointerout', () => bg.setFillStyle(COLORS.panel));
     bg.on('pointerdown', () => {
-      const title = review
-        ? `Revisão: ${CONCEPTS[job.concept!].label}`
+      const title = job.kind === 'review'
+        ? `Revisão: ${CONCEPTS[job.concept].label}`
         : `Trabalho extra: ${MINIGAME_AREAS[job.area]}, nível ${job.level}`;
-      const data: MinigameData = { minigame: job.area, difficulty: job.level, reward: jobPay(job.level), title, job };
+      const data: MinigameData = { minigame: job.area, difficulty: job.level, title, job };
       this.scene.start('Minigame', data);
     });
   }

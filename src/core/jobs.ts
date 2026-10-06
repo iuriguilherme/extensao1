@@ -8,14 +8,10 @@ import { AREA_LESSON, MINIGAME_AREAS, type MinigameId } from '../data/nodes';
 import { CONCEPTS, MAX_LEVEL, type ConceptId } from './minigames';
 import { earn, hasLesson, type GameState } from './state';
 
-export interface Job {
-  /** review: practice a weak concept; fresh: a job at the area's current level. */
-  kind: 'review' | 'fresh';
-  area: MinigameId;
-  level: number;
-  /** Set on review jobs. */
-  concept?: ConceptId;
-}
+/** review: practice a weak concept; fresh: a job at the area's current level. */
+export type Job =
+  | { kind: 'review'; area: MinigameId; level: number; concept: ConceptId }
+  | { kind: 'fresh'; area: MinigameId; level: number };
 
 const BOARD_SIZE = 3;
 const MAX_REVIEW_JOBS = 2;
@@ -29,7 +25,7 @@ export function jobPay(level: number): number {
   return Math.round((25 * 1.5 ** (level - 1)) / 5) * 5;
 }
 
-export function unlockedAreas(state: GameState): MinigameId[] {
+function unlockedAreas(state: GameState): MinigameId[] {
   return AREAS.filter((area) => hasLesson(state, AREA_LESSON[area]));
 }
 
