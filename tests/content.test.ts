@@ -15,7 +15,9 @@ import { computeSpecs } from '../src/core/hardware';
 import { validateNetConfig, type LanInfo, type NetConfig } from '../src/core/ip';
 import { buildRounds, CONCEPTS, MAX_LEVEL, STATUSES } from '../src/core/minigames';
 import { LENS_LABELS } from '../src/core/explanations';
+import { generateCity } from '../src/core/city';
 import { createRng } from '../src/core/random';
+import { routeChoices, validateRoute } from '../src/core/routing';
 import {
   buy, canBuy, checkRequirements, completeLesson, install, newGame, objective, sell, setNetConfig, uninstall,
 } from '../src/core/state';
@@ -89,6 +91,17 @@ function runtimeTexts(): string[] {
     out.push(...computeSpecs(build).issues.map((i) => i.message));
   }
   for (const bad of BAD_CONFIGS) out.push(...validateNetConfig({ ...GOOD, ...bad }, LAN).map((e) => e.message));
+
+  // City node names and flavor, and every routing error the form's options can trigger.
+  for (const city of [generateCity(1, 1), generateCity(12, 7)]) {
+    for (const n of city.nodes) out.push(n.name, n.flavor);
+    for (const router of city.nodes.filter((n) => n.role === 'router')) {
+      const choices = routeChoices(city, router.id);
+      for (const destination of choices.destination) for (const prefix of choices.prefix) for (const nextHop of choices.nextHop) {
+        out.push(...validateRoute({ destination, prefix, nextHop }, city, router.id).map((e) => e.message));
+      }
+    }
+  }
 
   // Walk the progression, collecting objectives, purchase reasons and results.
   const s = newGame();
