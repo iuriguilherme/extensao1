@@ -31,7 +31,9 @@ function unlockedAreas(state: GameState): MinigameId[] {
 
 /**
  * Up to two review jobs, for the weak concepts that have waited longest, then
- * fresh jobs (at least one, one per area) in the lowest-level areas.
+ * fresh jobs (at least one, one per area) in the lowest-level areas. Areas at
+ * their maximum level come last, so they never crowd out areas that can still
+ * level up; they still fill any slot left over.
  */
 export function jobBoard(state: GameState): Job[] {
   const areas = unlockedAreas(state);
@@ -42,8 +44,9 @@ export function jobBoard(state: GameState): Job[] {
     .map(([concept, record]) => ({ kind: 'review', area: CONCEPTS[concept].area, level: record.missLevel, concept }));
 
   const freshCount = Math.max(1, BOARD_SIZE - reviews.length);
+  const maxed = (area: MinigameId) => state.areaLevels[area] >= MAX_LEVEL[area];
   const fresh: Job[] = [...areas]
-    .sort((a, b) => state.areaLevels[a] - state.areaLevels[b])
+    .sort((a, b) => Number(maxed(a)) - Number(maxed(b)) || state.areaLevels[a] - state.areaLevels[b])
     .slice(0, freshCount)
     .map((area) => ({ kind: 'fresh', area, level: state.areaLevels[area] }));
 

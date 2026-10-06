@@ -149,6 +149,16 @@ describe('side-job board', () => {
     ]);
   });
 
+  it('offers areas that can still level up before areas at their maximum', () => {
+    const s = withLessons(...ALL_AREA_LESSONS);
+    s.areaLevels = { binary: 4, subnet: 4, ports: 3, http: 3, dns: 3 };
+    expect(jobBoard(s)).toEqual([
+      { kind: 'fresh', area: 'binary', level: 4 },
+      { kind: 'fresh', area: 'subnet', level: 4 },
+      { kind: 'fresh', area: 'ports', level: 3 },
+    ]);
+  });
+
   it('never offers a weak concept from an area whose lesson is not done', () => {
     const s = withLessons('binary');
     missInOrder(s, ['dns.resolve']);
