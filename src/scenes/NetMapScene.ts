@@ -90,7 +90,7 @@ export class NetMapScene extends Phaser.Scene {
     fitText(this.info.text(x + 14, y + 10, `${node.name}  (${node.ip})`, textStyle(18, STATUS_COLOR[status])), w - 28 - (tag ? tag.width + 10 : 0));
 
     if (status === 'home') {
-      this.info.text(x + 14, y + 42, 'Este é o seu PC. Invada os vizinhos para descobrir o resto da rede.', textStyle(14));
+      this.info.text(x + 14, y + 42, 'Este é o seu PC, a única máquina de verdade aqui. Invada as vizinhas no laboratório para descobrir o resto da rede.', textStyle(14, COLORS.text, { wordWrap: { width: w - 28 } }));
       return;
     }
 

@@ -2,7 +2,6 @@ import Phaser from 'phaser';
 import { mistakesAllowed, roundSeconds } from '../core/hardware';
 import { hasLesson, isOnline, phaseOf, specsOf } from '../core/state';
 import { connectedNodes, swarmReport, totalSpecs } from '../core/swarm';
-import { FINAL_NODE_ID, getNode } from '../data/nodes';
 import { game, resetGame } from '../core/store';
 import { getPart, SLOT_LABELS } from '../data/parts';
 import { alignColumns, decimal, linkSpeed, money, plural } from '../core/fmt';
@@ -56,7 +55,7 @@ export class HubScene extends Phaser.Scene {
       } else {
         lines.push('eth0: nenhuma placa de rede encontrada');
       }
-      if (phase === 'won') lines.push('', `*** ${getNode(FINAL_NODE_ID).name.toUpperCase()} INVADIDO — VOCÊ VENCEU ***`);
+      if (phase === 'won') lines.push('', '*** EXERCÍCIO FINAL DO LABORATÓRIO CONCLUÍDO ***');
     }
     fitText(this.add.text(64, 112, lines.join('\n'), textStyle(17, specs.boots ? COLORS.accent : COLORS.danger, {
       lineSpacing: 6, wordWrap: { width: 670 },
