@@ -3,7 +3,7 @@ import { computeSpecs, mistakesAllowed, roundSeconds } from '../src/core/hardwar
 import {
   broadcastAddress, formatIp, maskToPrefix, networkAddress, parseIp, usableHosts, validateNetConfig, type LanInfo,
 } from '../src/core/ip';
-import { buildRounds, roundCount, STATUSES, type Difficulty } from '../src/core/minigames';
+import { buildRounds, CONCEPTS, MAX_LEVEL, roundCount, STATUSES, type ConceptId } from '../src/core/minigames';
 import { createRng } from '../src/core/random';
 import {
   breach, buy, canBuy, canConnect, checkRequirements, completeLesson, install, isLessonOpen, isOnline, newGame, nodeStatus, objective, phaseOf, sell, setNetConfig,
@@ -123,13 +123,16 @@ describe('ip', () => {
 
 describe('minigames', () => {
   const ids: MinigameId[] = ['binary', 'subnet', 'ports', 'http', 'dns'];
+  const levels = (id: MinigameId) => Array.from({ length: MAX_LEVEL[id] }, (_, i) => i + 1);
+
   for (const id of ids) {
-    for (const d of [1, 2, 3] as Difficulty[]) {
-      it(`${id} difficulty ${d} produces valid rounds`, () => {
+    for (const d of levels(id)) {
+      it(`${id} level ${d} produces valid rounds`, () => {
         for (let seed = 1; seed <= 30; seed++) {
           const rounds = buildRounds(id, d, createRng(seed));
           expect(rounds.length).toBe(roundCount(d));
           for (const r of rounds) {
+            expect(CONCEPTS[r.concept].area).toBe(id);
             if (r.kind === 'choice') {
               expect(r.options.length).toBeGreaterThanOrEqual(2);
               expect(new Set(r.options).size).toBe(r.options.length);
@@ -144,6 +147,65 @@ describe('minigames', () => {
       });
     }
   }
+
+  it('levels 1-3 keep 5, 7 and 9 rounds, and higher levels stay at 9', () => {
+    expect([1, 2, 3, 4, 5, 7].map(roundCount)).toEqual([5, 7, 9, 9, 9, 9]);
+  });
+
+  it('only binary and subnets go above level 3', () => {
+    expect(MAX_LEVEL).toEqual({ binary: 7, subnet: 5, ports: 3, http: 3, dns: 3 });
+  });
+
+  it('binary bits grow by 2 per level above 3, up to 16', () => {
+    const bitsAt = (level: number) => {
+      const sizes = new Set<number>();
+      for (let seed = 1; seed <= 30; seed++) {
+        for (const r of buildRounds('binary', level, createRng(seed))) if (r.kind === 'bits') sizes.add(r.bits);
+      }
+      return [...sizes];
+    };
+    expect(bitsAt(4)).toEqual([10]);
+    expect(bitsAt(7)).toEqual([16]);
+  });
+
+  it('subnet level 5 networks stay inside private ranges', () => {
+    const inBlock = (net: number, base: string, prefix: number) => networkAddress(net, prefix) === parseIp(base);
+    let checked = 0;
+    for (let seed = 1; seed <= 30; seed++) {
+      for (const r of buildRounds('subnet', 5, createRng(seed))) {
+        const cidr = /(\d+\.\d+\.\d+\.\d+)\/(\d+)/.exec(r.prompt);
+        if (!cidr) continue;
+        const prefix = Number(cidr[2]);
+        expect(prefix).toBeGreaterThanOrEqual(9);
+        expect(prefix).toBeLessThanOrEqual(15);
+        const net = networkAddress(parseIp(cidr[1])!, prefix);
+        expect(inBlock(net, '10.0.0.0', 8) || inBlock(net, '172.16.0.0', 12)).toBe(true);
+        checked++;
+      }
+    }
+    expect(checked).toBeGreaterThan(0);
+  });
+
+  it('every concept shows up from its first level', () => {
+    for (const [concept, { area, fromLevel }] of Object.entries(CONCEPTS)) {
+      const seen = new Set<string>();
+      for (let seed = 1; seed <= 30; seed++) for (const r of buildRounds(area, fromLevel, createRng(seed))) seen.add(r.concept);
+      expect(seen, concept).toContain(concept);
+    }
+  });
+
+  it('a focused build spends at least two thirds of its rounds on the concept, at every level', () => {
+    for (const [concept, { area, fromLevel }] of Object.entries(CONCEPTS) as [ConceptId, (typeof CONCEPTS)[ConceptId]][]) {
+      for (let level = fromLevel; level <= MAX_LEVEL[area]; level++) {
+        for (let seed = 1; seed <= 10; seed++) {
+          const rounds = buildRounds(area, level, createRng(seed), concept);
+          expect(rounds.length, `${concept} level ${level}`).toBe(roundCount(level));
+          const focused = rounds.filter((r) => r.concept === concept).length;
+          expect(focused, `${concept} level ${level}`).toBeGreaterThanOrEqual(Math.ceil((roundCount(level) * 2) / 3));
+        }
+      }
+    }
+  });
 });
 
 describe('minigame notation', () => {

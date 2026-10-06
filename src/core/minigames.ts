@@ -11,8 +11,36 @@ import type { MinigameId } from '../data/nodes';
 import { broadcastAddress, formatIp, networkAddress, prefixToMask, usableHosts } from './ip';
 import { pick, randInt, shuffle, type Rng } from './random';
 
+/** One idea a round can test. Misses are tracked per concept. */
+export type ConceptId =
+  | 'binary.toBinary' | 'binary.toDecimal' | 'binary.combinations'
+  | 'subnet.sameNetwork' | 'subnet.networkAddress' | 'subnet.usableHosts' | 'subnet.broadcast'
+  | 'ports.servicePort' | 'ports.firewall' | 'ports.transport'
+  | 'http.statusCode' | 'http.method' | 'http.statusClass'
+  | 'dns.recordType' | 'dns.resolve';
+
+/** The area each concept belongs to, and the lowest level whose rounds can ask it. */
+export const CONCEPTS: Record<ConceptId, { area: MinigameId; fromLevel: number }> = {
+  'binary.toBinary': { area: 'binary', fromLevel: 1 },
+  'binary.toDecimal': { area: 'binary', fromLevel: 1 },
+  'binary.combinations': { area: 'binary', fromLevel: 2 },
+  'subnet.sameNetwork': { area: 'subnet', fromLevel: 1 },
+  'subnet.networkAddress': { area: 'subnet', fromLevel: 1 },
+  'subnet.usableHosts': { area: 'subnet', fromLevel: 2 },
+  'subnet.broadcast': { area: 'subnet', fromLevel: 2 },
+  'ports.servicePort': { area: 'ports', fromLevel: 1 },
+  'ports.firewall': { area: 'ports', fromLevel: 2 },
+  'ports.transport': { area: 'ports', fromLevel: 3 },
+  'http.statusCode': { area: 'http', fromLevel: 1 },
+  'http.method': { area: 'http', fromLevel: 1 },
+  'http.statusClass': { area: 'http', fromLevel: 1 },
+  'dns.recordType': { area: 'dns', fromLevel: 1 },
+  'dns.resolve': { area: 'dns', fromLevel: 1 },
+};
+
 export interface ChoiceRound {
   kind: 'choice';
+  concept: ConceptId;
   prompt: string;
   /** Optional monospace block shown under the prompt (zone file, packet…). */
   detail?: string;
@@ -23,6 +51,7 @@ export interface ChoiceRound {
 
 export interface BitsRound {
   kind: 'bits';
+  concept: ConceptId;
   prompt: string;
   bits: number;
   target: number;
@@ -30,28 +59,56 @@ export interface BitsRound {
 }
 
 export type Round = ChoiceRound | BitsRound;
-export type Difficulty = 1 | 2 | 3;
+/** Level 1 and up; each area stops at its MAX_LEVEL. Map nodes use 1-3. */
+export type Difficulty = number;
+
+/** Ports, HTTP and DNS content is tagged 1-3, so only binary and subnets go higher. */
+export const MAX_LEVEL: Record<MinigameId, number> = { binary: 7, subnet: 5, ports: 3, http: 3, dns: 3 };
 
 export function roundCount(difficulty: Difficulty): number {
-  return [5, 7, 9][difficulty - 1];
+  return [5, 7, 9][Math.min(difficulty, 3) - 1];
 }
 
-export function buildRounds(id: MinigameId, difficulty: Difficulty, rng: Rng): Round[] {
+/**
+ * Builds the rounds of one mini-game. With a focus concept (review jobs), at
+ * least two thirds of the rounds ask that concept; once its unique prompts run
+ * out, it repeats a prompt with reshuffled options.
+ */
+export function buildRounds(id: MinigameId, difficulty: Difficulty, rng: Rng, focus?: ConceptId): Round[] {
+  const level = Math.min(difficulty, MAX_LEVEL[id]);
   const generator = GENERATORS[id];
+  const total = roundCount(level);
   const rounds: Round[] = [];
   const seen = new Set<string>();
-  let guard = 0;
-  while (rounds.length < roundCount(difficulty) && guard++ < 200) {
-    const round = generator(rng, difficulty);
-    const key = round.prompt + (round.kind === 'choice' ? round.detail ?? '' : round.target);
-    if (seen.has(key)) continue;
-    seen.add(key);
-    rounds.push(round);
+
+  const fill = (count: number, only?: ConceptId) => {
+    const target = rounds.length + count;
+    let repeats = 0;
+    while (rounds.length < target) {
+      const round = generator(rng, level, only);
+      const key = round.prompt + (round.kind === 'choice' ? round.detail ?? '' : round.target);
+      if (seen.has(key) && repeats++ < 200) continue;
+      seen.add(key);
+      rounds.push(round);
+    }
+  };
+
+  if (!focus) {
+    fill(total);
+    return rounds;
   }
-  return rounds;
+  fill(Math.ceil((total * 2) / 3), focus);
+  fill(total - rounds.length);
+  return shuffle(rng, rounds);
 }
 
-const GENERATORS: Record<MinigameId, (rng: Rng, d: Difficulty) => Round> = {
+/** Picks a round type: the focus concept's own type(s), or any type the level allows. */
+function roundType(rng: Rng, focus: ConceptId | undefined, types: Partial<Record<ConceptId, number[]>>, maxType: number): number {
+  const forced = focus && types[focus];
+  return forced ? pick(rng, forced) : randInt(rng, 0, maxType);
+}
+
+const GENERATORS: Record<MinigameId, (rng: Rng, d: Difficulty, focus?: ConceptId) => Round> = {
   binary: binaryRound,
   subnet: subnetRound,
   ports: portsRound,
@@ -60,10 +117,10 @@ const GENERATORS: Record<MinigameId, (rng: Rng, d: Difficulty) => Round> = {
 };
 
 /** Builds a choice round from a correct answer and distractor candidates. */
-function choice(rng: Rng, prompt: string, correct: string, distractors: string[], explain: string, detail?: string): ChoiceRound {
+function choice(rng: Rng, concept: ConceptId, prompt: string, correct: string, distractors: string[], explain: string, detail?: string): ChoiceRound {
   const wrong = shuffle(rng, [...new Set(distractors.filter((d) => d !== correct))]).slice(0, 3);
   const options = shuffle(rng, [correct, ...wrong]);
-  return { kind: 'choice', prompt, detail, options, answer: options.indexOf(correct), explain };
+  return { kind: 'choice', concept, prompt, detail, options, answer: options.indexOf(correct), explain };
 }
 
 export function toBinary(value: number, bits: number): string {
@@ -72,15 +129,21 @@ export function toBinary(value: number, bits: number): string {
 
 // ─── Binary ───────────────────────────────────────────────────────────────
 
-function binaryRound(rng: Rng, d: Difficulty): Round {
-  const bits = [4, 6, 8][d - 1];
+/** 4, 6 and 8 bits on levels 1-3, then 2 more per level up to 16. */
+function binaryBits(d: Difficulty): number {
+  return d <= 3 ? [4, 6, 8][d - 1] : 8 + 2 * (d - 3);
+}
+
+function binaryRound(rng: Rng, d: Difficulty, focus?: ConceptId): Round {
+  const bits = binaryBits(d);
   const max = 2 ** bits - 1;
-  const type = randInt(rng, 0, d === 1 ? 1 : 2);
+  const type = roundType(rng, focus, { 'binary.toBinary': [0], 'binary.toDecimal': [1], 'binary.combinations': [2] }, d === 1 ? 1 : 2);
 
   if (type === 0) {
     const target = randInt(rng, 1, max);
     return {
       kind: 'bits',
+      concept: 'binary.toBinary',
       prompt: `Ligue os bits até formar ${target}`,
       bits,
       target,
@@ -92,6 +155,7 @@ function binaryRound(rng: Rng, d: Difficulty): Round {
     const near = [value + 1, value - 1, value ^ 1, value ^ 2, value * 2, value >> 1, value + 8].filter((v) => v > 0 && v <= max * 2);
     return choice(
       rng,
+      'binary.toDecimal',
       `Quanto vale ${toBinary(value, bits)} em decimal?`,
       String(value),
       near.map(String),
@@ -101,6 +165,7 @@ function binaryRound(rng: Rng, d: Difficulty): Round {
   const n = randInt(rng, 2, 16);
   return choice(
     rng,
+    'binary.combinations',
     `Com ${n} bits, dá para representar quantos valores diferentes?`,
     String(2 ** n),
     [String(2 ** n - 1), String(n * 2), String(2 ** (n + 1)), String(n ** 2), String(2 ** (n - 1))],
@@ -116,17 +181,34 @@ function placeBreakdown(value: number, bits: number): string {
 
 // ─── Subnets ──────────────────────────────────────────────────────────────
 
-function randomPrivateIp(rng: Rng): number {
-  const block = randInt(rng, 0, 2);
+/**
+ * A host in a private range. A prefix shorter than /16 would carry 192.168 or
+ * 172.16-31 networks out of their private block, so short prefixes only use
+ * 10.0.0.0/8 (and 172.16.0.0/12 from /12 on).
+ */
+function randomPrivateIp(rng: Rng, prefix: number): number {
+  const blocks = prefix >= 16 ? 2 : prefix >= 12 ? 1 : 0;
+  const block = randInt(rng, 0, blocks);
   const [a, b] = block === 0 ? [10, randInt(rng, 0, 255)] : block === 1 ? [172, randInt(rng, 16, 31)] : [192, 168];
   return ((a << 24) | (b << 16) | (randInt(rng, 0, 255) << 8) | randInt(rng, 1, 254)) >>> 0;
 }
 
-function subnetRound(rng: Rng, d: Difficulty): Round {
-  const prefixes = d === 1 ? [24] : d === 2 ? [16, 24, 25, 26] : [20, 22, 26, 27, 28];
-  const prefix = pick(rng, prefixes);
-  const ip = randomPrivateIp(rng);
-  const type = randInt(rng, 0, d === 1 ? 1 : 3);
+const SUBNET_PREFIXES = [
+  [24],
+  [16, 24, 25, 26],
+  [20, 22, 26, 27, 28],
+  [17, 18, 19, 21, 23, 29, 30],
+  [9, 10, 11, 12, 13, 14, 15],
+];
+
+function subnetRound(rng: Rng, d: Difficulty, focus?: ConceptId): Round {
+  const prefix = pick(rng, SUBNET_PREFIXES[d - 1]);
+  const ip = randomPrivateIp(rng, prefix);
+  const type = roundType(
+    rng, focus,
+    { 'subnet.sameNetwork': [0], 'subnet.networkAddress': [1], 'subnet.usableHosts': [2], 'subnet.broadcast': [3] },
+    d === 1 ? 1 : 3,
+  );
   const cidr = `${formatIp(ip)}/${prefix}`;
   const blockSize = 2 ** (32 - prefix);
 
@@ -142,6 +224,7 @@ function subnetRound(rng: Rng, d: Difficulty): Round {
     ].filter((v) => networkAddress(v, prefix) !== net);
     return choice(
       rng,
+      'subnet.sameNetwork',
       `Qual destes hosts está na mesma rede que ${cidr}?`,
       formatIp(inside),
       outside.map(formatIp),
@@ -152,6 +235,7 @@ function subnetRound(rng: Rng, d: Difficulty): Round {
     const net = networkAddress(ip, prefix);
     return choice(
       rng,
+      'subnet.networkAddress',
       `Qual é o endereço de rede de ${cidr}?`,
       formatIp(net),
       [formatIp(ip), formatIp(broadcastAddress(ip, prefix)), formatIp((net + 1) >>> 0), formatIp(networkAddress(ip, prefix - 8 < 0 ? 0 : prefix - 8))],
@@ -159,10 +243,11 @@ function subnetRound(rng: Rng, d: Difficulty): Round {
     );
   }
   if (type === 2) {
-    const p = randInt(rng, 22, 30);
+    const p = randInt(rng, d <= 3 ? 22 : 16, 30);
     const hosts = usableHosts(p);
     return choice(
       rng,
+      'subnet.usableHosts',
       `Quantos hosts válidos cabem numa rede /${p}?`,
       String(hosts),
       [String(hosts + 2), String(hosts + 1), String(2 ** (32 - p - 1)), String(32 - p), String(hosts * 2)],
@@ -173,6 +258,7 @@ function subnetRound(rng: Rng, d: Difficulty): Round {
   const net = networkAddress(ip, prefix);
   return choice(
     rng,
+    'subnet.broadcast',
     `Qual é o endereço de broadcast de ${cidr}?`,
     formatIp(bcast),
     [formatIp(net), formatIp((bcast - 1) >>> 0), formatIp(broadcastAddress(ip, Math.max(8, prefix - 8))), formatIp((bcast + 1) >>> 0)],
@@ -182,7 +268,7 @@ function subnetRound(rng: Rng, d: Difficulty): Round {
 
 // ─── Ports ────────────────────────────────────────────────────────────────
 
-interface Service { name: string; port: number; proto: 'TCP' | 'UDP'; level: Difficulty }
+interface Service { name: string; port: number; proto: 'TCP' | 'UDP'; level: 1 | 2 | 3 }
 
 export const SERVICES: Service[] = [
   { name: 'HTTP', port: 80, proto: 'TCP', level: 1 },
@@ -202,18 +288,22 @@ export const SERVICES: Service[] = [
   { name: 'NTP (horário)', port: 123, proto: 'UDP', level: 3 },
 ];
 
-function portsRound(rng: Rng, d: Difficulty): Round {
+function portsRound(rng: Rng, d: Difficulty, focus?: ConceptId): Round {
   const pool = SERVICES.filter((s) => s.level <= d);
   const svc = pick(rng, pool);
   const others = pool.filter((s) => s !== svc);
-  const type = randInt(rng, 0, d === 1 ? 1 : d === 2 ? 2 : 3);
+  const type = roundType(
+    rng, focus,
+    { 'ports.servicePort': [0, 1], 'ports.firewall': [2], 'ports.transport': [3] },
+    d === 1 ? 1 : d === 2 ? 2 : 3,
+  );
 
   if (type === 0) {
-    return choice(rng, `Qual é a porta padrão do serviço ${svc.name}?`, String(svc.port), others.map((s) => String(s.port)),
+    return choice(rng, 'ports.servicePort', `Qual é a porta padrão do serviço ${svc.name}?`, String(svc.port), others.map((s) => String(s.port)),
       `O serviço ${svc.name} escuta na porta ${svc.proto} ${svc.port}.`);
   }
   if (type === 1) {
-    return choice(rng, `A porta ${svc.port} está aberta. Que serviço deve estar rodando nela?`, svc.name, others.map((s) => s.name),
+    return choice(rng, 'ports.servicePort', `A porta ${svc.port} está aberta. Que serviço deve estar rodando nela?`, svc.name, others.map((s) => s.name),
       `A porta padrão do serviço ${svc.name} é ${svc.port}/${svc.proto}.`);
   }
   if (type === 2) {
@@ -222,6 +312,7 @@ function portsRound(rng: Rng, d: Difficulty): Round {
     const target = pick(rng, allowed);
     return choice(
       rng,
+      'ports.firewall',
       'Com estas regras no firewall, qual conexão passa?',
       `${target.name} na porta ${target.port}`,
       blocked.map((s) => `${s.name} na porta ${s.port}`),
@@ -231,6 +322,7 @@ function portsRound(rng: Rng, d: Difficulty): Round {
   }
   return choice(
     rng,
+    'ports.transport',
     `Qual protocolo de transporte o serviço ${svc.name} costuma usar?`,
     svc.proto,
     [svc.proto === 'TCP' ? 'UDP' : 'TCP', 'ICMP', 'ARP'],
@@ -242,7 +334,7 @@ function portsRound(rng: Rng, d: Difficulty): Round {
 
 // ─── HTTP ─────────────────────────────────────────────────────────────────
 
-interface Status { code: number; meaning: string; scenario: string; level: Difficulty }
+interface Status { code: number; meaning: string; scenario: string; level: 1 | 2 | 3 }
 
 export const STATUSES: Status[] = [
   { code: 200, meaning: 'OK', scenario: 'A página carregou normalmente', level: 1 },
@@ -269,34 +361,34 @@ const METHODS = [
   { method: 'DELETE', use: 'Apagar um recurso' },
 ];
 
-function httpRound(rng: Rng, d: Difficulty): Round {
+function httpRound(rng: Rng, d: Difficulty, focus?: ConceptId): Round {
   const pool = STATUSES.filter((s) => s.level <= d);
   const status = pick(rng, pool);
   const others = pool.filter((s) => s !== status);
-  const type = randInt(rng, 0, 3);
+  const type = roundType(rng, focus, { 'http.statusCode': [0, 1], 'http.method': [2], 'http.statusClass': [3] }, 3);
 
   if (type === 0) {
-    return choice(rng, `O servidor respondeu ${status.code}. O que isso significa?`, status.meaning, others.map((s) => s.meaning),
+    return choice(rng, 'http.statusCode', `O servidor respondeu ${status.code}. O que isso significa?`, status.meaning, others.map((s) => s.meaning),
       `${status.code} ${status.meaning}. Exemplo: ${status.scenario}.`);
   }
   if (type === 1) {
-    return choice(rng, `Que código o servidor devolve nesta situação: "${status.scenario}"?`, String(status.code), others.map((s) => String(s.code)),
+    return choice(rng, 'http.statusCode', `Que código o servidor devolve nesta situação: "${status.scenario}"?`, String(status.code), others.map((s) => String(s.code)),
       `${status.code} ${status.meaning}.`);
   }
   if (type === 2) {
     const m = pick(rng, METHODS);
-    return choice(rng, `Qual método HTTP você deve usar para ${m.use.toLowerCase()}?`, m.method, METHODS.map((x) => x.method),
+    return choice(rng, 'http.method', `Qual método HTTP você deve usar para ${m.use.toLowerCase()}?`, m.method, METHODS.map((x) => x.method),
       `${m.method}: ${m.use}.`);
   }
   const klass = Math.floor(status.code / 100);
   const classes = ['Sucesso', 'Redirecionamento', 'Erro do cliente', 'Erro do servidor'];
-  return choice(rng, `Em qual classe se encaixa o código ${status.code}?`, classes[klass - 2], classes,
+  return choice(rng, 'http.statusClass', `Em qual classe se encaixa o código ${status.code}?`, classes[klass - 2], classes,
     `Os códigos ${klass}xx são de ${classes[klass - 2].toLowerCase()}.`);
 }
 
 // ─── DNS ──────────────────────────────────────────────────────────────────
 
-interface RecordType { type: string; purpose: string; level: Difficulty }
+interface RecordType { type: string; purpose: string; level: 1 | 2 | 3 }
 
 export const RECORD_TYPES: RecordType[] = [
   { type: 'A', purpose: 'Aponta um nome para um endereço IPv4', level: 1 },
@@ -310,17 +402,17 @@ export const RECORD_TYPES: RecordType[] = [
   { type: 'SRV', purpose: 'Diz em qual host e em qual porta um serviço está rodando', level: 3 },
 ];
 
-function dnsRound(rng: Rng, d: Difficulty): Round {
+function dnsRound(rng: Rng, d: Difficulty, focus?: ConceptId): Round {
   const pool = RECORD_TYPES.filter((r) => r.level <= d);
   const rec = pick(rng, pool);
   const others = pool.filter((r) => r !== rec);
-  const type = randInt(rng, 0, 2);
+  const type = roundType(rng, focus, { 'dns.recordType': [0, 1], 'dns.resolve': [2] }, 2);
 
   if (type === 0) {
-    return choice(rng, `Qual registro DNS faz isto: "${rec.purpose}"?`, rec.type, others.map((r) => r.type), `${rec.type}: ${rec.purpose}.`);
+    return choice(rng, 'dns.recordType', `Qual registro DNS faz isto: "${rec.purpose}"?`, rec.type, others.map((r) => r.type), `${rec.type}: ${rec.purpose}.`);
   }
   if (type === 1) {
-    return choice(rng, `Para que serve o registro ${rec.type}?`, rec.purpose, others.map((r) => r.purpose), `${rec.type}: ${rec.purpose}.`);
+    return choice(rng, 'dns.recordType', `Para que serve o registro ${rec.type}?`, rec.purpose, others.map((r) => r.purpose), `${rec.type}: ${rec.purpose}.`);
   }
   // Resolve a name using a small zone file (CNAME chains from difficulty 2).
   const domain = pick(rng, ['example.com', 'corp.test', 'uni.example', 'shop.test']);
@@ -336,6 +428,7 @@ function dnsRound(rng: Rng, d: Difficulty): Round {
   const answer = askMail ? ips[2] : useChain ? ips[1] : ips[0];
   return choice(
     rng,
+    'dns.resolve',
     askMail ? `O e-mail para @${domain} deve ser entregue em qual endereço IP?` : `O nome www.${domain} resolve para qual endereço IP?`,
     answer,
     ips,

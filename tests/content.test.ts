@@ -13,7 +13,7 @@ import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 import { computeSpecs } from '../src/core/hardware';
 import { validateNetConfig, type LanInfo, type NetConfig } from '../src/core/ip';
-import { buildRounds, STATUSES, type Difficulty } from '../src/core/minigames';
+import { buildRounds, MAX_LEVEL, STATUSES } from '../src/core/minigames';
 import { createRng } from '../src/core/random';
 import {
   buy, canBuy, checkRequirements, completeLesson, install, newGame, objective, sell, setNetConfig, uninstall,
@@ -128,7 +128,7 @@ function runtimeTexts(): string[] {
 
   const ids: MinigameId[] = ['binary', 'subnet', 'ports', 'http', 'dns'];
   for (const id of ids) {
-    for (const d of [1, 2, 3] as Difficulty[]) {
+    for (let d = 1; d <= MAX_LEVEL[id]; d++) {
       for (let seed = 1; seed <= 30; seed++) {
         for (const r of buildRounds(id, d, createRng(seed))) {
           out.push(r.prompt, r.explain);
