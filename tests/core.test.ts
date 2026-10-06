@@ -6,13 +6,13 @@ import {
 import { buildRounds, roundCount, STATUSES, type Difficulty } from '../src/core/minigames';
 import { createRng } from '../src/core/random';
 import {
-  breach, buy, canBuy, canConnect, checkRequirements, completeLesson, install, isOnline, newGame, nodeStatus, phaseOf, sell, setNetConfig,
+  breach, buy, canBuy, canConnect, checkRequirements, completeLesson, install, isLessonOpen, isOnline, newGame, nodeStatus, phaseOf, sell, setNetConfig,
   ownedCount, specsOf, STARTING_MONEY, uninstall, type GameState,
 } from '../src/core/state';
 import {
   dependents, freePorts, joinSwarm, leaveSwarm, pickProvider, removeSwitch, swarmReport, totalSpecs,
 } from '../src/core/swarm';
-import { LESSONS, TRACK_LABELS, getLesson } from '../src/data/lessons';
+import { ETHICS_LESSON_ID, LESSONS, TRACK_LABELS, getLesson } from '../src/data/lessons';
 import { NODES, getNode, type MinigameId } from '../src/data/nodes';
 import { NODE_KINDS, NODE_KIND_LABELS, buildContribution, nodeBuild, resolveBuild } from '../src/data/nodeBuilds';
 import { CASE_SLOTS, PARTS, SLOTS, SLOT_GENDER, SLOT_LABELS, describeStats, getPart } from '../src/data/parts';
@@ -171,6 +171,16 @@ describe('content integrity', () => {
 
   it('quiz answers point at real options', () => {
     for (const l of LESSONS) for (const q of l.quiz) expect(q.options[q.answer]).toBeDefined();
+  });
+
+  it('the ethics lesson opens right after Networks 101, first in its track', () => {
+    const s = newGame();
+    expect(isLessonOpen(s, ETHICS_LESSON_ID)).toBe(false);
+    for (const id of ['computer-basics', 'power', 'cpu', 'memory', 'storage', 'network-basics']) completeLesson(s, id);
+    expect(isLessonOpen(s, ETHICS_LESSON_ID)).toBe(true);
+    const lesson = getLesson(ETHICS_LESSON_ID);
+    expect(LESSONS.filter((l) => l.track === lesson.track)[0].id).toBe(ETHICS_LESSON_ID);
+    expect(lesson.quiz.length).toBeGreaterThanOrEqual(3);
   });
 
   it('every part, slot and track has what PT-BR text needs', () => {

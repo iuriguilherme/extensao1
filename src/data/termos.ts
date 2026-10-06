@@ -64,6 +64,16 @@ export const TERMOS: Termo[] = [
   { conceito: 'NOC (network operations center)', termo: 'NOC', genero: 'm', mantido: true, nota: 'Na primeira menção, "NOC (centro de operações de rede)".' },
   { conceito: 'swarm', termo: 'swarm', genero: 'm', mantido: true, nota: 'Os nós invadidos que estão conectados e somam poder ao seu PC. Fica em inglês: "enxame" não é o termo usado na área.' },
 
+  // ─── Segurança ──────────────────────────────────────────────────────────
+  { conceito: 'cyber range', termo: 'laboratório de segurança', genero: 'm', mantido: false, nota: 'A rede do jogo: isolada, só para treino, com máquinas simuladas.' },
+  { conceito: 'penetration test', termo: 'pentest', genero: 'm', mantido: true, nota: 'Também "teste de invasão".' },
+  { conceito: 'pentester', termo: 'pentester', genero: 'm', mantido: true },
+  { conceito: 'scope (of a test)', termo: 'escopo', genero: 'm', mantido: false },
+  { conceito: 'responsible disclosure', termo: 'divulgação responsável', genero: 'f', mantido: false },
+  { conceito: 'bug bounty', termo: 'bug bounty', genero: 'm', mantido: true },
+  { conceito: 'SOC (security operations center)', termo: 'SOC', genero: 'm', mantido: true, nota: '"analista de SOC"; o centro de operações de segurança.' },
+  { conceito: 'CTF (capture the flag)', termo: 'CTF', genero: 'm', mantido: true, nota: '"competição de CTF".' },
+
   // ─── Jogo ───────────────────────────────────────────────────────────────
   { conceito: 'lesson', termo: 'aula', genero: 'f', mantido: false },
   { conceito: 'quiz', termo: 'quiz', genero: 'm', mantido: true },

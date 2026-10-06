@@ -352,6 +352,47 @@ export const LESSONS: Lesson[] = [
 
   // ─── Field knowledge (needed for specific targets on the network) ─────
   {
+    // Required before any breach (see checkRequirements in core/state.ts).
+    id: 'ethics',
+    title: 'Invasão, ética e a lei',
+    track: 'field',
+    requires: ['network-basics'],
+    reward: 100,
+    pages: [
+      'Tudo o que você invade neste jogo fica no LABORATÓRIO DE SEGURANÇA da escola: uma rede isolada, montada só para treinar, em que todas as máquinas são simuladas. Aqui pode. Fora daqui, a história muda.',
+      'No Brasil, entrar sem autorização no computador, no celular ou no servidor de outra pessoa para pegar, alterar ou apagar dados é CRIME. Está no artigo 154-A do Código Penal, criado pela Lei 12.737/2012, a "Lei Carolina Dieckmann". Desde a Lei 14.155/2021, a pena é de 1 a 4 anos de reclusão, mais multa. E não adianta dizer que o aparelho estava sem senha: a lei vale do mesmo jeito.',
+      'O que separa um profissional de segurança de um criminoso é a AUTORIZAÇÃO. Num teste de invasão de verdade, o pentest, o dono do sistema dá permissão por escrito e combina o ESCOPO: quais máquinas podem ser testadas, de que forma e até quando. Saiu do escopo, deixou de ser teste.',
+      'Achou uma falha num site ou sistema de verdade, mesmo sem querer? Não use a falha e não saia espalhando. Avise quem cuida do sistema e dê tempo para corrigirem: isso é a DIVULGAÇÃO RESPONSÁVEL. Muitas empresas têm programas de bug bounty, que pagam quem reporta falhas desse jeito.',
+      'Dá para fazer carreira com isso: o pentester testa sistemas com autorização, e o analista de SOC acompanha os ataques num centro de operações de segurança. Para treinar, existem as competições de CTF, com desafios montados para serem invadidos. E se você seguir para o curso de ADS (Análise e Desenvolvimento de Sistemas), segurança da informação tem disciplina própria no último semestre.',
+    ],
+    quiz: [
+      {
+        question: 'Entrar no celular de um colega sem permissão para ler as mensagens dele é:',
+        options: ['Permitido, se o celular estava sem senha', 'Crime previsto no Código Penal', 'Tudo bem, desde que seja brincadeira', 'Problema só se ele descobrir'],
+        answer: 1,
+        explain: 'É crime pelo artigo 154-A do Código Penal (Lei 12.737/2012), com ou sem senha no aparelho.',
+      },
+      {
+        question: 'O que torna um teste de invasão legal?',
+        options: ['Usar ferramentas profissionais', 'Não apagar nenhum arquivo', 'Permissão por escrito do dono, dentro do escopo combinado', 'Avisar o dono depois de terminar'],
+        answer: 2,
+        explain: 'Sem autorização prévia do dono, não é teste: é invasão. E a autorização só vale dentro do escopo combinado.',
+      },
+      {
+        question: 'Você achou uma falha no site da sua escola. O que fazer?',
+        options: ['Explorar a falha para ver até onde ela vai', 'Postar nas redes sociais para alertar todo mundo', 'Avisar quem cuida do site e não usar a falha', 'Guardar a falha para usar depois'],
+        answer: 2,
+        explain: 'Isso é divulgação responsável: quem cuida do site fica sabendo e corrige antes que alguém use a falha para o mal.',
+      },
+      {
+        question: 'Por que, neste jogo, você pode invadir as máquinas da rede?',
+        options: ['Porque elas têm senhas fracas', 'Porque são máquinas simuladas num laboratório de treino', 'Porque ninguém está olhando', 'Porque é tudo de mentira, então vale tudo'],
+        answer: 1,
+        explain: 'A rede do jogo é um laboratório de segurança: as máquinas existem para serem invadidas. Numa rede de verdade, sem autorização, seria crime.',
+      },
+    ],
+  },
+  {
     id: 'ports',
     title: 'Portas e firewalls',
     track: 'field',
@@ -421,6 +462,9 @@ export const LESSONS: Lesson[] = [
 
 
 const LESSON_INDEX = new Map(LESSONS.map((l) => [l.id, l]));
+
+/** The law-and-ethics lesson every node except home requires before a breach. */
+export const ETHICS_LESSON_ID = 'ethics';
 
 export function getLesson(id: string): Lesson {
   const lesson = LESSON_INDEX.get(id);
