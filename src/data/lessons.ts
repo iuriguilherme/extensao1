@@ -337,10 +337,10 @@ export const LESSONS: Lesson[] = [
         explain: 'O destino é a rede inteira: o endereço de rede junto com o prefixo.',
       },
       {
-        question: 'Um roteador usa 10.4.1.1 na sua rede e 10.4.2.1 na rede do outro lado. Para chegar a 10.4.2.0/24, qual é o próximo salto?',
+        question: 'Seu PC está na rede 10.4.1.0/24, ligado a um roteador que usa o endereço 10.4.1.1 nessa rede e 10.4.2.1 na rede do outro lado. Para o seu PC chegar a 10.4.2.0/24, qual é o próximo salto?',
         options: ['10.4.2.1', '10.4.1.1', '10.4.2.0', '10.4.2.255'],
         answer: 1,
-        explain: 'O próximo salto é o endereço do roteador na rede que você já alcança: 10.4.1.1.',
+        explain: 'O próximo salto é o endereço do roteador na rede do seu PC: 10.4.1.1. O 10.4.2.1 fica do outro lado do roteador, e o seu PC não alcança esse endereço direto.',
       },
       {
         question: 'Um roteador tem a interface 172.16.8.1/22 na rede que você quer alcançar. Qual é o destino da rota?',
