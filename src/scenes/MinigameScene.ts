@@ -1,13 +1,12 @@
 import Phaser from 'phaser';
-import { cityNode, generateCity, type City } from '../core/city';
+import { cityNode, roundContext, type City } from '../core/city';
 import { mistakesAllowed, roundSeconds } from '../core/hardware';
 import { LENS_LABELS } from '../core/explanations';
 import { completeJob, type Job } from '../core/jobs';
-import { parseIp } from '../core/ip';
-import { buildRounds, toBinary, type BitsRound, type ChoiceRound, type ConceptId, type Difficulty, type Round, type RoundContext } from '../core/minigames';
+import { buildRounds, toBinary, type BitsRound, type ChoiceRound, type ConceptId, type Difficulty, type Round } from '../core/minigames';
 import { createRng } from '../core/random';
 import { commitRun, recordMiss } from '../core/reteach';
-import { breach, breachCityNode } from '../core/state';
+import { breach, breachCityNode, loadCity } from '../core/state';
 import { joinSwarm, totalSpecs } from '../core/swarm';
 import { game, save } from '../core/store';
 import { nodePartNames } from '../data/nodeBuilds';
@@ -69,16 +68,9 @@ export class MinigameScene extends Phaser.Scene {
     this.seconds = roundSeconds(specs.cpuPower);
     this.allowed = mistakesAllowed(specs.ramGB) + (data.nodeId || data.city ? 0 : 1);
     const focus = data.job?.kind === 'review' ? data.job.concept : undefined;
-    this.city = null;
-    let context: RoundContext | undefined;
-    if (data.city) {
-      // City rounds use the addresses of the node's own subnet.
-      const progress = game().cities[data.city.index];
-      this.city = generateCity(progress.level, progress.seed);
-      const node = cityNode(this.city, data.city.nodeId);
-      const subnet = this.city.subnets[node.subnetId];
-      context = { network: parseIp(subnet.network)!, prefix: subnet.prefix, host: parseIp(node.ip)! };
-    }
+    this.city = data.city ? loadCity(game(), data.city.index) : null;
+    // City rounds use the addresses of the node's own subnet.
+    const context = this.city && data.city ? roundContext(this.city, data.city.nodeId) : undefined;
     this.rounds = buildRounds(data.minigame, data.difficulty, createRng(Date.now()), focus, context);
     this.index = 0;
     this.mistakes = 0;

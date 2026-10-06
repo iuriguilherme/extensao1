@@ -505,7 +505,7 @@ const LESSON_INDEX = new Map(LESSONS.map((l) => [l.id, l]));
 
 /** The law-and-ethics lesson every node except home requires before a breach. */
 export const ETHICS_LESSON_ID = 'ethics';
-/** Opens the generated cities after the campaign (seeded cities plan, R22). */
+/** Passing it opens the generated cities after the campaign. */
 export const ROUTING_LESSON_ID = 'routing';
 
 export function getLesson(id: string): Lesson {

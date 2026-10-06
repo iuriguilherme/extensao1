@@ -1,7 +1,7 @@
 import { ETHICS_LESSON_ID, getLesson, LESSONS, ROUTING_LESSON_ID } from '../data/lessons';
 import { NODES, HOME_NODE_ID, FINAL_NODE_ID, getNode, type MinigameId, type NetNode } from '../data/nodes';
 import { getPart, type Part, type Slot } from '../data/parts';
-import { cityNode, type City, type CityNode } from './city';
+import { cityNode, generateCity, type City, type CityNode, type CitySubnet } from './city';
 import { MAX_CITY_LEVEL } from './cityCode';
 import type { Lens } from './explanations';
 import { agree, decimal, linkSpeed, money } from './fmt';
@@ -238,12 +238,21 @@ export function nextCityLevel(state: GameState): number {
 
 export type CityNodeStatus = 'breached' | 'reachable' | 'hidden';
 
+/** Rebuilds a started city from its level and seed (cities are never saved whole). */
+export function loadCity(state: GameState, index: number): City {
+  const progress = state.cities[index];
+  return generateCity(progress.level, progress.seed);
+}
+
 /** The home subnet is always open; any other subnet opens with a correct route. */
+export function isSubnetOpen(progress: CityProgress, subnet: CitySubnet): boolean {
+  return subnet.depth === 0 || progress.opened.includes(subnet.id);
+}
+
 export function cityNodeStatus(state: GameState, index: number, city: City, node: CityNode): CityNodeStatus {
   const progress = state.cities[index];
   if (progress.breached.includes(node.id)) return 'breached';
-  const subnet = city.subnets[node.subnetId];
-  return subnet.depth === 0 || progress.opened.includes(subnet.id) ? 'reachable' : 'hidden';
+  return isSubnetOpen(progress, city.subnets[node.subnetId]) ? 'reachable' : 'hidden';
 }
 
 export function canConnectCityNode(state: GameState, index: number, city: City, node: CityNode): boolean {

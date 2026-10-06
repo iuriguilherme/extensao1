@@ -1,9 +1,9 @@
 import Phaser from 'phaser';
-import { cityNode, generateCity, type City, type CityNode, type CitySubnet } from '../core/city';
+import { CITY_COLUMN_WIDTH, cityNode, type City, type CityNode, type CitySubnet } from '../core/city';
 import { encodeCityCode } from '../core/cityCode';
 import { money } from '../core/fmt';
 import {
-  canConnectCityNode, checkRequirements, cityNodeStatus, nextCityLevel, REPLAY_RATIO, type CityNodeStatus, type CityProgress,
+  canConnectCityNode, checkRequirements, cityNodeStatus, isSubnetOpen, loadCity, nextCityLevel, REPLAY_RATIO, type CityNodeStatus, type CityProgress,
 } from '../core/state';
 import { game } from '../core/store';
 import { MINIGAME_AREAS } from '../data/nodes';
@@ -64,7 +64,7 @@ export class CityMapScene extends Phaser.Scene {
     this.mapObjects = new Set();
     this.drag = null;
     const progress = this.progress();
-    this.city = generateCity(progress.level, progress.seed);
+    this.city = loadCity(game(), data.index);
 
     // The map camera renders first and the main camera (UI) on top of it, so
     // the info panel covers the diagram and takes clicks before it does. The
@@ -81,8 +81,8 @@ export class CityMapScene extends Phaser.Scene {
 
     this.drawLegend();
     this.drawDiagram();
-    this.left = button(this, 1150, 60, 50, 24, '<', () => this.scrollTo(this.mapCam.scrollX - 270, true), { size: 16 });
-    this.right = button(this, 1210, 60, 50, 24, '>', () => this.scrollTo(this.mapCam.scrollX + 270, true), { size: 16 });
+    this.left = button(this, 1150, 60, 50, 24, '<', () => this.scrollTo(this.mapCam.scrollX - CITY_COLUMN_WIDTH, true), { size: 16 });
+    this.right = button(this, 1210, 60, 50, 24, '>', () => this.scrollTo(this.mapCam.scrollX + CITY_COLUMN_WIDTH, true), { size: 16 });
     this.setupDrag();
     this.scrollTo(0, false);
 
@@ -98,7 +98,7 @@ export class CityMapScene extends Phaser.Scene {
   }
 
   private isOpen(subnet: CitySubnet): boolean {
-    return subnet.depth === 0 || this.progress().opened.includes(subnet.id);
+    return isSubnetOpen(this.progress(), subnet);
   }
 
   /** Adds a diagram object, drawn only by the map camera. */
@@ -212,7 +212,7 @@ export class CityMapScene extends Phaser.Scene {
     const { x, y, width, height } = subnet.box;
     this.scrollTo(x + width / 2 - WIDTH / 2, true);
     const flash = this.m(this.add.rectangle(x, y, width, height + BOX_LABEL_ROOM).setOrigin(0).setStrokeStyle(3, COLORS.accent));
-    this.tweens.add({ targets: flash, alpha: 0, duration: 600, yoyo: true, repeat: 2, onComplete: () => flash.destroy() });
+    this.tweens.add({ targets: flash, alpha: 0, duration: 600, yoyo: true, repeat: 2, onComplete: () => { this.mapObjects.delete(flash); flash.destroy(); } });
   }
 
   private showInfo(node: CityNode) {

@@ -6,8 +6,8 @@
 
 import type { MinigameId, NetNode, NodeRequirements } from '../data/nodes';
 import { getNode, FINAL_NODE_ID } from '../data/nodes';
-import { formatIp } from './ip';
-import { MAX_LEVEL } from './minigames';
+import { formatIp, parseIp } from './ip';
+import { MAX_LEVEL, type RoundContext } from './minigames';
 import { createRng, pick, randInt, type Rng } from './random';
 
 /** Depth, branching and prefix spread stop growing at this level. */
@@ -127,9 +127,11 @@ export function cityNode(city: City, id: string): CityNode {
   return node;
 }
 
-/** The subnet a city node lives in. */
-export function subnetOf(city: City, nodeId: string): CitySubnet {
-  return city.subnets[cityNode(city, nodeId).subnetId];
+/** The addresses a city node's mini-game rounds are built from: its own subnet and IP. */
+export function roundContext(city: City, nodeId: string): RoundContext {
+  const node = cityNode(city, nodeId);
+  const subnet = city.subnets[node.subnetId];
+  return { network: parseIp(subnet.network)!, prefix: subnet.prefix, host: parseIp(node.ip)! };
 }
 
 /**
@@ -192,7 +194,10 @@ function carve(rng: Rng, base: number, prefixes: number[]): number[] {
   return networks;
 }
 
-const NAMES: Record<MinigameId | 'router' | 'core', string> = {
+/** What a city node is shown as: its area for hosts, or its role. */
+type CityKind = MinigameId | 'router' | 'core';
+
+const NAMES: Record<CityKind, string> = {
   binary: 'Estação',
   subnet: 'Servidor DHCP',
   ports: 'Firewall',
@@ -202,7 +207,7 @@ const NAMES: Record<MinigameId | 'router' | 'core', string> = {
   core: 'Núcleo da Cidade',
 };
 
-const FLAVORS: Record<MinigameId | 'router' | 'core', string> = {
+const FLAVORS: Record<CityKind, string> = {
   binary: 'Uma estação de trabalho comum. Tudo o que ela guarda está em binário.',
   subnet: 'Entrega os endereços desta rede. Faça as contas da sub-rede para entrar.',
   ports: 'Filtra o tráfego desta rede pelas portas. Saiba qual serviço usa cada uma.',
@@ -216,7 +221,7 @@ function makeNode(
   id: string, role: CityNodeRole, area: MinigameId, subnet: CitySubnet, ip: string,
   level: number, growth: number, names: Map<string, number>,
 ): CityNode {
-  const kind = role === 'host' ? area : role;
+  const kind: CityKind = role === 'host' ? area : role;
   let name = NAMES[kind];
   if (role !== 'core') {
     const n = (names.get(kind) ?? 0) + 1;

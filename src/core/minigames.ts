@@ -90,7 +90,8 @@ export function roundCount(difficulty: Difficulty): number {
  * least two thirds of the rounds ask that concept; once its unique prompts run
  * out, it repeats a prompt with reshuffled options. With a context (city
  * nodes), subnet and 8-bit binary rounds use the node's addresses; other areas
- * ignore it. Without one, rounds are exactly what they were before contexts.
+ * ignore it. Without a context, the rng draws are those of the context-free
+ * generators, so existing levels and seeds keep their rounds.
  */
 export function buildRounds(id: MinigameId, difficulty: Difficulty, rng: Rng, focus?: ConceptId, context?: RoundContext): Round[] {
   const level = Math.min(difficulty, MAX_LEVEL[id]);

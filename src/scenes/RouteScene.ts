@@ -1,8 +1,8 @@
 import Phaser from 'phaser';
-import { cityNode, generateCity, type City, type CityNode } from '../core/city';
+import { cityNode, type City, type CityNode } from '../core/city';
 import { alignColumns, plural } from '../core/fmt';
 import { routeChoices, type RouteChoices, type RouteEntry } from '../core/routing';
-import { submitRoute } from '../core/state';
+import { loadCity, submitRoute } from '../core/state';
 import { game, save } from '../core/store';
 import { button, COLORS, fitText, header, Layer, objectiveBar, panel, textStyle, WIDTH } from '../ui/widgets';
 import type { CityMapData } from './CityMapScene';
@@ -40,8 +40,7 @@ export class RouteScene extends Phaser.Scene {
 
   create(data: RouteData) {
     this.params = data;
-    const progress = game().cities[data.index];
-    this.city = generateCity(progress.level, progress.seed);
+    this.city = loadCity(game(), data.index);
     this.router = cityNode(this.city, data.routerId);
     this.choices = routeChoices(this.city, data.routerId);
     this.selection = { destination: 0, prefix: 0, nextHop: 0 };
