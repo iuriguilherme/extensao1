@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { HubScene } from './scenes/HubScene';
+import { JobBoardScene } from './scenes/JobBoardScene';
 import { LessonScene } from './scenes/LessonScene';
 import { MinigameScene } from './scenes/MinigameScene';
 import { NetMapScene } from './scenes/NetMapScene';
@@ -20,5 +21,5 @@ new Phaser.Game({
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
-  scene: [TitleScene, HubScene, StudyScene, LessonScene, ShopScene, WorkbenchScene, NetSetupScene, NetMapScene, MinigameScene],
+  scene: [TitleScene, HubScene, StudyScene, LessonScene, ShopScene, WorkbenchScene, NetSetupScene, NetMapScene, MinigameScene, JobBoardScene],
 });

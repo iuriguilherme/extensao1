@@ -13,7 +13,8 @@ import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 import { computeSpecs } from '../src/core/hardware';
 import { validateNetConfig, type LanInfo, type NetConfig } from '../src/core/ip';
-import { buildRounds, MAX_LEVEL, STATUSES } from '../src/core/minigames';
+import { buildRounds, CONCEPTS, MAX_LEVEL, STATUSES } from '../src/core/minigames';
+import { LENS_LABELS } from '../src/core/explanations';
 import { createRng } from '../src/core/random';
 import {
   buy, canBuy, checkRequirements, completeLesson, install, newGame, objective, sell, setNetConfig, uninstall,
@@ -126,6 +127,7 @@ function runtimeTexts(): string[] {
   s.breached.push('core');
   out.push(objective(s));
 
+  out.push(...Object.values(CONCEPTS).map((c) => c.label), ...Object.values(LENS_LABELS));
   const ids: MinigameId[] = ['binary', 'subnet', 'ports', 'http', 'dns'];
   for (const id of ids) {
     for (let d = 1; d <= MAX_LEVEL[id]; d++) {

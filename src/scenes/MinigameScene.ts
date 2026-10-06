@@ -1,8 +1,11 @@
 import Phaser from 'phaser';
 import { mistakesAllowed, roundSeconds } from '../core/hardware';
-import { buildRounds, toBinary, type BitsRound, type ChoiceRound, type Difficulty, type Round } from '../core/minigames';
+import { LENS_LABELS } from '../core/explanations';
+import { completeJob, type Job } from '../core/jobs';
+import { buildRounds, toBinary, type BitsRound, type ChoiceRound, type ConceptId, type Difficulty, type Round } from '../core/minigames';
 import { createRng } from '../core/random';
-import { breach, earn } from '../core/state';
+import { commitRun, recordMiss } from '../core/reteach';
+import { breach } from '../core/state';
 import { joinSwarm, totalSpecs } from '../core/swarm';
 import { game, save } from '../core/store';
 import { nodePartNames } from '../data/nodeBuilds';
@@ -15,8 +18,10 @@ export interface MinigameData {
   difficulty: Difficulty;
   reward: number;
   title: string;
-  /** Set when attacking a network node; otherwise it is a side job. */
+  /** Set when attacking a network node. */
   nodeId?: string;
+  /** Set for side jobs from the board. */
+  job?: Job;
 }
 
 /**
@@ -33,6 +38,9 @@ export class MinigameScene extends Phaser.Scene {
   private remaining = 0;
   private running = false;
   private revealAnswer: () => void = () => {};
+  /** Concepts answered right and wrong in this run, committed when it ends. */
+  private correctConcepts: ConceptId[] = [];
+  private missedConcepts: ConceptId[] = [];
 
   private layer!: Layer;
   private timerBar!: Phaser.GameObjects.Rectangle;
@@ -50,9 +58,11 @@ export class MinigameScene extends Phaser.Scene {
     const specs = totalSpecs(game());
     this.seconds = roundSeconds(specs.cpuPower);
     this.allowed = mistakesAllowed(specs.ramGB) + (data.nodeId ? 0 : 1);
-    this.rounds = buildRounds(data.minigame, data.difficulty, createRng(Date.now()));
+    this.rounds = buildRounds(data.minigame, data.difficulty, createRng(Date.now()), data.job?.concept);
     this.index = 0;
     this.mistakes = 0;
+    this.correctConcepts = [];
+    this.missedConcepts = [];
 
     this.add.text(20, 70, `${MINIGAME_AREAS[data.minigame]} · ${this.seconds} s por etapa (processador) · ${plural(this.allowed, 'erro permitido', 'erros permitidos')} (RAM)`, textStyle(14, COLORS.muted));
     this.status = this.add.text(WIDTH - 20, 70, '', textStyle(14, COLORS.info)).setOrigin(1, 0);
@@ -70,8 +80,7 @@ export class MinigameScene extends Phaser.Scene {
     this.timerBar.fillColor = ratio > 0.5 ? COLORS.accent : ratio > 0.25 ? COLORS.warn : COLORS.danger;
     if (this.remaining <= 0) {
       this.revealAnswer();
-      const round = this.rounds[this.index];
-      this.resolve(false, round.explain.steps, true);
+      this.resolve(false, true);
     }
   }
 
@@ -109,7 +118,7 @@ export class MinigameScene extends Phaser.Scene {
         if (!this.running) return;
         mark(i, i === round.answer ? COLORS.accent : COLORS.danger);
         if (i !== round.answer) mark(round.answer, COLORS.accent);
-        this.resolve(i === round.answer, round.explain.steps);
+        this.resolve(i === round.answer);
       }, { size: 20, color: COLORS.info }));
     const mark = (i: number, color: number) => {
       buttons[i].label.setText(`${color === COLORS.accent ? '✓' : '✗'} ${round.options[i]}`).setColor(hex(color));
@@ -122,31 +131,48 @@ export class MinigameScene extends Phaser.Scene {
     let value = 0;
     const size = 90;
     const gap = 16;
-    const startX = (WIDTH - (round.bits * (size + gap) - gap)) / 2;
-    const readout = this.layer.text(WIDTH / 2, 420, '', textStyle(28, COLORS.warn)).setOrigin(0.5);
+    // Above 8 bits the switches wrap into two equal rows, highest place values on top.
+    const rows = round.bits > 8 ? 2 : 1;
+    const perRow = Math.ceil(round.bits / rows);
+    const startX = (WIDTH - (perRow * (size + gap) - gap)) / 2;
+    const below = rows === 1 ? 420 : 490;
+    const readout = this.layer.text(WIDTH / 2, below, '', textStyle(28, COLORS.warn)).setOrigin(0.5);
     const refresh = () => readout.setText(`${toBinary(value, round.bits)}  =  ${value}   (alvo ${round.target})`);
     refresh();
 
     for (let i = 0; i < round.bits; i++) {
       const bit = round.bits - 1 - i;
-      const x = startX + i * (size + gap);
-      this.layer.text(x + size / 2, 220, String(1 << bit), textStyle(18, COLORS.muted)).setOrigin(0.5);
-      const b = this.layer.button(x, 250, size, size, '0', () => {
+      const x = startX + (i % perRow) * (size + gap);
+      const top = rows === 1 ? 250 : 225 + Math.floor(i / perRow) * 130;
+      this.layer.text(x + size / 2, top - 30, String(1 << bit), textStyle(18, COLORS.muted)).setOrigin(0.5);
+      const b = this.layer.button(x, top, size, size, '0', () => {
         if (!this.running) return;
         value ^= 1 << bit;
         const on = (value & (1 << bit)) !== 0;
         b.label.setText(on ? '1' : '0');
         b.label.setColor(hex(on ? COLORS.accent : COLORS.info));
         refresh();
-        if (value === round.target) this.resolve(true, round.explain.steps);
+        if (value === round.target) this.resolve(true);
       }, { size: 40, color: COLORS.info });
     }
-    this.layer.text(WIDTH / 2, 470, 'Dica: comece pela maior casa que ainda cabe no número.', textStyle(15, COLORS.muted)).setOrigin(0.5);
+    this.layer.text(WIDTH / 2, below + 45, 'Dica: comece pela maior casa que ainda cabe no número.', textStyle(15, COLORS.muted)).setOrigin(0.5);
   }
 
-  private resolve(correct: boolean, explain: string, timedOut = false) {
+  private resolve(correct: boolean, timedOut = false) {
     this.running = false;
-    if (!correct) this.mistakes++;
+    const round = this.rounds[this.index];
+    let explain = round.explain.steps;
+    if (correct) {
+      this.correctConcepts.push(round.concept);
+    } else {
+      this.mistakes++;
+      this.missedConcepts.push(round.concept);
+      // Each repeat miss of a concept gets a lens the student has not seen yet.
+      const lens = recordMiss(game(), round.concept, this.params.difficulty);
+      save();
+      explain = `
+${LENS_LABELS[lens]}: ${round.explain[lens]}`;
+    }
     this.updateStatus();
 
     const crashed = this.mistakes > this.allowed;
@@ -171,6 +197,9 @@ export class MinigameScene extends Phaser.Scene {
     this.timerBar.width = 0;
     const state = game();
     const nodeId = this.params.nodeId;
+    commitRun(state, this.correctConcepts, this.missedConcepts);
+    const job = this.params.job ? completeJob(state, this.params.job, this.mistakes, success) : undefined;
+    save();
     if (!success) {
       const message = 'CONEXÃO PERDIDA\n\nVocê errou demais e foi desconectado.\nEstude mais o assunto ou melhore o PC: mais RAM aguenta\nmais erros, e um processador melhor dá mais tempo.';
       this.add.text(WIDTH / 2, 320, message, textStyle(30, COLORS.danger, { align: 'center', lineSpacing: 8 })).setOrigin(0.5);
@@ -195,8 +224,11 @@ export class MinigameScene extends Phaser.Scene {
           'Novos caminhos apareceram no Mapa da Rede.',
         ].filter(Boolean).join('\n');
       }
-    } else {
-      earn(state, reward);
+    } else if (job) {
+      reward = job.pay;
+      if (job.leveledUp) {
+        details = `Nível ${this.params.difficulty + 1} liberado em ${MINIGAME_AREAS[this.params.minigame]}!`;
+      }
     }
     save();
 
@@ -211,6 +243,6 @@ export class MinigameScene extends Phaser.Scene {
 
   private leave() {
     this.running = false;
-    this.scene.start(this.params.nodeId ? 'NetMap' : 'Hub');
+    this.scene.start(this.params.nodeId ? 'NetMap' : 'Jobs');
   }
 }

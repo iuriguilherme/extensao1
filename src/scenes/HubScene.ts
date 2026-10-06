@@ -4,7 +4,7 @@ import { hasLesson, isOnline, phaseOf, specsOf } from '../core/state';
 import { connectedNodes, swarmReport, totalSpecs } from '../core/swarm';
 import { game, resetGame } from '../core/store';
 import { getPart, SLOT_LABELS } from '../data/parts';
-import { alignColumns, decimal, linkSpeed, money, plural } from '../core/fmt';
+import { alignColumns, decimal, linkSpeed, plural } from '../core/fmt';
 import { button, COLORS, fitText, header, HEIGHT, objectiveBar, panel, textStyle, WIDTH } from '../ui/widgets';
 
 /** The player's desk: a monitor showing the PC's state and the main menu. */
@@ -81,10 +81,7 @@ export class HubScene extends Phaser.Scene {
       this.add.text(x + 4, y + 62, item.hint, textStyle(13, COLORS.muted));
     });
 
-    const sideJobReward = 25;
-    button(this, x, 560, 210, 44, `Trabalho extra (${money(sideJobReward)})`, () => {
-      this.scene.start('Minigame', { minigame: 'binary', difficulty: 1, reward: sideJobReward, title: 'Trabalho extra: consertar o roteador do vizinho' });
-    }, { size: 16, color: COLORS.info });
+    button(this, x, 560, 210, 44, 'Trabalhos extras', () => this.scene.start('Jobs'), { size: 16, color: COLORS.info });
     button(this, x + 230, 560, 210, 44, 'Apagar progresso', () => {
       if (window.confirm('Apagar todo o progresso e começar do zero?')) {
         resetGame();

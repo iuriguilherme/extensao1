@@ -24,23 +24,23 @@ export type ConceptId =
   | 'http.statusCode' | 'http.method' | 'http.statusClass'
   | 'dns.recordType' | 'dns.resolve';
 
-/** The area each concept belongs to, and the lowest level whose rounds can ask it. */
-export const CONCEPTS: Record<ConceptId, { area: MinigameId; fromLevel: number }> = {
-  'binary.toBinary': { area: 'binary', fromLevel: 1 },
-  'binary.toDecimal': { area: 'binary', fromLevel: 1 },
-  'binary.combinations': { area: 'binary', fromLevel: 2 },
-  'subnet.sameNetwork': { area: 'subnet', fromLevel: 1 },
-  'subnet.networkAddress': { area: 'subnet', fromLevel: 1 },
-  'subnet.usableHosts': { area: 'subnet', fromLevel: 2 },
-  'subnet.broadcast': { area: 'subnet', fromLevel: 2 },
-  'ports.servicePort': { area: 'ports', fromLevel: 1 },
-  'ports.firewall': { area: 'ports', fromLevel: 2 },
-  'ports.transport': { area: 'ports', fromLevel: 3 },
-  'http.statusCode': { area: 'http', fromLevel: 1 },
-  'http.method': { area: 'http', fromLevel: 1 },
-  'http.statusClass': { area: 'http', fromLevel: 1 },
-  'dns.recordType': { area: 'dns', fromLevel: 1 },
-  'dns.resolve': { area: 'dns', fromLevel: 1 },
+/** Each concept's area, the lowest level whose rounds can ask it, and its name on the side-job board. */
+export const CONCEPTS: Record<ConceptId, { area: MinigameId; fromLevel: number; label: string }> = {
+  'binary.toBinary': { area: 'binary', fromLevel: 1, label: 'Decimal para binário' },
+  'binary.toDecimal': { area: 'binary', fromLevel: 1, label: 'Binário para decimal' },
+  'binary.combinations': { area: 'binary', fromLevel: 2, label: 'Quantos valores cabem em n bits' },
+  'subnet.sameNetwork': { area: 'subnet', fromLevel: 1, label: 'Hosts da mesma rede' },
+  'subnet.networkAddress': { area: 'subnet', fromLevel: 1, label: 'Endereço de rede' },
+  'subnet.usableHosts': { area: 'subnet', fromLevel: 2, label: 'Hosts válidos numa rede' },
+  'subnet.broadcast': { area: 'subnet', fromLevel: 2, label: 'Endereço de broadcast' },
+  'ports.servicePort': { area: 'ports', fromLevel: 1, label: 'A porta de cada serviço' },
+  'ports.firewall': { area: 'ports', fromLevel: 2, label: 'Regras de firewall' },
+  'ports.transport': { area: 'ports', fromLevel: 3, label: 'TCP ou UDP' },
+  'http.statusCode': { area: 'http', fromLevel: 1, label: 'Códigos de resposta HTTP' },
+  'http.method': { area: 'http', fromLevel: 1, label: 'Métodos HTTP' },
+  'http.statusClass': { area: 'http', fromLevel: 1, label: 'Classes de código HTTP' },
+  'dns.recordType': { area: 'dns', fromLevel: 1, label: 'Tipos de registro DNS' },
+  'dns.resolve': { area: 'dns', fromLevel: 1, label: 'Resolver nomes no DNS' },
 };
 
 export interface ChoiceRound {
