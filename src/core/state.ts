@@ -1,4 +1,4 @@
-import { getLesson, LESSONS } from '../data/lessons';
+import { ETHICS_LESSON_ID, getLesson, LESSONS } from '../data/lessons';
 import { NODES, HOME_NODE_ID, FINAL_NODE_ID, getNode, type NetNode } from '../data/nodes';
 import { getPart, type Part, type Slot } from '../data/parts';
 import { agree, decimal, linkSpeed, money } from './fmt';
@@ -100,6 +100,7 @@ export function objective(state: GameState): string {
       return 'Abra a Configuração de Rede e defina o seu endereço IP.';
     }
     case 'explore':
+      if (!hasLesson(state, ETHICS_LESSON_ID)) return `Você está online! Antes da primeira invasão, faça a aula "${getLesson(ETHICS_LESSON_ID).title}".`;
       return `Você está online! Abra o Mapa da Rede e vá invadindo nó por nó até chegar ao ${getNode(FINAL_NODE_ID).name}.`;
     case 'won':
       return `Você invadiu o ${getNode(FINAL_NODE_ID).name}! Agora você é root de verdade. Pode continuar explorando à vontade.`;
@@ -130,6 +131,10 @@ export function checkRequirements(state: GameState, node: NetNode): RequirementC
   const swarmNote = (total: number, mine: number) => (total > mine ? ', contando o swarm' : '');
   const r = node.requires;
   const checks: RequirementCheck[] = [];
+  // Every breach waits for the ethics lesson, so nodes never list it themselves.
+  if (node.id !== HOME_NODE_ID) {
+    checks.push({ label: `Aula: ${getLesson(ETHICS_LESSON_ID).title}`, met: hasLesson(state, ETHICS_LESSON_ID) });
+  }
   if (r.lesson) checks.push({ label: `Aula: ${getLesson(r.lesson).title}`, met: hasLesson(state, r.lesson) });
   if (r.cpuPower) {
     checks.push({

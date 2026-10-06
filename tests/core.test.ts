@@ -6,7 +6,7 @@ import {
 import { buildRounds, roundCount, STATUSES, type Difficulty } from '../src/core/minigames';
 import { createRng } from '../src/core/random';
 import {
-  breach, buy, canBuy, canConnect, checkRequirements, completeLesson, install, isLessonOpen, isOnline, newGame, nodeStatus, phaseOf, sell, setNetConfig,
+  breach, buy, canBuy, canConnect, checkRequirements, completeLesson, install, isLessonOpen, isOnline, newGame, nodeStatus, objective, phaseOf, sell, setNetConfig,
   ownedCount, specsOf, STARTING_MONEY, uninstall, type GameState,
 } from '../src/core/state';
 import {
@@ -604,12 +604,69 @@ describe('progression', () => {
     const isp = getNode('isp');
     expect(nodeStatus(s, isp)).toBe('reachable');
     expect(nodeStatus(s, getNode('resolver'))).toBe('hidden');
+    expect(canConnect(s, isp)).toBe(false);
+    completeLesson(s, ETHICS_LESSON_ID);
     expect(canConnect(s, isp)).toBe(true);
     const money = s.money;
     expect(breach(s, 'isp')).toBe(isp.reward);
     expect(s.money).toBe(money + isp.reward);
     expect(nodeStatus(s, getNode('resolver'))).toBe('reachable');
     expect(breach(s, 'isp')).toBeLessThan(isp.reward);
+  });
+
+  it('the ISP waits for the ethics lesson, which is listed first (AE1)', () => {
+    const s = onlineRig();
+    s.lessonsCompleted = ['ip-addressing'];
+    const isp = getNode('isp');
+    const first = checkRequirements(s, isp)[0];
+    expect(first.label).toContain(getLesson(ETHICS_LESSON_ID).title);
+    expect(first.met).toBe(false);
+    expect(canConnect(s, isp)).toBe(false);
+    completeLesson(s, ETHICS_LESSON_ID);
+    expect(canConnect(s, isp)).toBe(true);
+  });
+
+  it('every node but home waits for the ethics lesson and nothing else (R10)', () => {
+    const others = LESSONS.map((l) => l.id).filter((id) => id !== ETHICS_LESSON_ID);
+    for (const node of NODES.filter((n) => n.id !== 'home')) {
+      const s = newGame();
+      s.installed = {
+        motherboard: 'mb_x5', cpu: 'cpu_s2_16c', ram: 'ram_64_ddr5', storage: 'nvme_2tb', psu: 'psu_450',
+        nic: 'nic_10g', router: 'router_10g',
+      };
+      s.netConfig = { ...NET };
+      s.lessonsCompleted = [...others];
+      s.breached = node.links.filter((id) => id !== 'home');
+      expect(canConnect(s, node), node.id).toBe(false);
+      completeLesson(s, ETHICS_LESSON_ID);
+      expect(canConnect(s, node), node.id).toBe(true);
+    }
+  });
+
+  it('old saves keep breached nodes but wait for the lesson to breach again (AE2)', () => {
+    const s = onlineRig();
+    s.lessonsCompleted = LESSONS.map((l) => l.id).filter((id) => id !== ETHICS_LESSON_ID);
+    s.breached = ['isp', 'resolver', 'museum'];
+    for (const id of s.breached) expect(nodeStatus(s, getNode(id))).toBe('breached');
+    expect(canConnect(s, getNode('isp'))).toBe(false);
+    expect(nodeStatus(s, getNode('blog'))).toBe('reachable');
+    expect(canConnect(s, getNode('blog'))).toBe(false);
+    completeLesson(s, ETHICS_LESSON_ID);
+    expect(canConnect(s, getNode('isp'))).toBe(true);
+    expect(s.breached).toEqual(['isp', 'resolver', 'museum']);
+  });
+
+  it('home has no lesson check', () => {
+    expect(checkRequirements(newGame(), getNode('home'))).toEqual([]);
+  });
+
+  it('the explore hint points at the ethics lesson until it is passed', () => {
+    const s = onlineRig();
+    const title = getLesson(ETHICS_LESSON_ID).title;
+    expect(phaseOf(s)).toBe('explore');
+    expect(objective(s)).toContain(title);
+    completeLesson(s, ETHICS_LESSON_ID);
+    expect(objective(s)).not.toContain(title);
   });
 
   it('lesson rewards pay once and swaps return parts to inventory', () => {
