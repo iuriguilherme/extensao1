@@ -1,17 +1,20 @@
 import Phaser from 'phaser';
+import { cityNode, generateCity, type City } from '../core/city';
 import { mistakesAllowed, roundSeconds } from '../core/hardware';
 import { LENS_LABELS } from '../core/explanations';
 import { completeJob, type Job } from '../core/jobs';
-import { buildRounds, toBinary, type BitsRound, type ChoiceRound, type ConceptId, type Difficulty, type Round } from '../core/minigames';
+import { parseIp } from '../core/ip';
+import { buildRounds, toBinary, type BitsRound, type ChoiceRound, type ConceptId, type Difficulty, type Round, type RoundContext } from '../core/minigames';
 import { createRng } from '../core/random';
 import { commitRun, recordMiss } from '../core/reteach';
-import { breach } from '../core/state';
+import { breach, breachCityNode } from '../core/state';
 import { joinSwarm, totalSpecs } from '../core/swarm';
 import { game, save } from '../core/store';
 import { nodePartNames } from '../data/nodeBuilds';
 import { MINIGAME_AREAS, getNode, type MinigameId } from '../data/nodes';
 import { listJoin, money, plural } from '../core/fmt';
 import { COLORS, fitText, header, hex, Layer, textStyle, WIDTH } from '../ui/widgets';
+import type { CityMapData } from './CityMapScene';
 
 export interface MinigameData {
   minigame: MinigameId;
@@ -23,6 +26,8 @@ export interface MinigameData {
   nodeId?: string;
   /** Set for side jobs from the board. */
   job?: Job;
+  /** Set when attacking a node of a generated city. */
+  city?: { index: number; nodeId: string };
 }
 
 /**
@@ -31,6 +36,8 @@ export interface MinigameData {
  */
 export class MinigameScene extends Phaser.Scene {
   private params!: MinigameData;
+  /** The generated city being attacked, rebuilt from the save; null otherwise. */
+  private city: City | null = null;
   private rounds: Round[] = [];
   private index = 0;
   private mistakes = 0;
@@ -42,6 +49,8 @@ export class MinigameScene extends Phaser.Scene {
   /** Concepts answered right and wrong in this run, committed when it ends. */
   private correctConcepts: ConceptId[] = [];
   private missedConcepts: ConceptId[] = [];
+  /** Set when this run breached a city's core for the first time. */
+  private finishedNow = false;
 
   private layer!: Layer;
   private timerBar!: Phaser.GameObjects.Rectangle;
@@ -58,13 +67,24 @@ export class MinigameScene extends Phaser.Scene {
 
     const specs = totalSpecs(game());
     this.seconds = roundSeconds(specs.cpuPower);
-    this.allowed = mistakesAllowed(specs.ramGB) + (data.nodeId ? 0 : 1);
+    this.allowed = mistakesAllowed(specs.ramGB) + (data.nodeId || data.city ? 0 : 1);
     const focus = data.job?.kind === 'review' ? data.job.concept : undefined;
-    this.rounds = buildRounds(data.minigame, data.difficulty, createRng(Date.now()), focus);
+    this.city = null;
+    let context: RoundContext | undefined;
+    if (data.city) {
+      // City rounds use the addresses of the node's own subnet.
+      const progress = game().cities[data.city.index];
+      this.city = generateCity(progress.level, progress.seed);
+      const node = cityNode(this.city, data.city.nodeId);
+      const subnet = this.city.subnets[node.subnetId];
+      context = { network: parseIp(subnet.network)!, prefix: subnet.prefix, host: parseIp(node.ip)! };
+    }
+    this.rounds = buildRounds(data.minigame, data.difficulty, createRng(Date.now()), focus, context);
     this.index = 0;
     this.mistakes = 0;
     this.correctConcepts = [];
     this.missedConcepts = [];
+    this.finishedNow = false;
 
     this.add.text(20, 70, `${MINIGAME_AREAS[data.minigame]} · ${this.seconds} s por etapa (processador) · ${plural(this.allowed, 'erro permitido', 'erros permitidos')} (RAM)`, textStyle(14, COLORS.muted));
     this.status = this.add.text(WIDTH - 20, 70, '', textStyle(14, COLORS.info)).setOrigin(1, 0);
@@ -213,7 +233,17 @@ export class MinigameScene extends Phaser.Scene {
     let reward = 0;
     let details = '';
     let joined = true;
-    if (nodeId) {
+    if (this.params.city && this.city) {
+      const { index, nodeId: cityNodeId } = this.params.city;
+      const progress = state.cities[index];
+      const firstCityBreach = !progress.breached.includes(cityNodeId);
+      const wasFinished = progress.finished;
+      reward = breachCityNode(state, index, this.city, cityNodeId);
+      this.finishedNow = !wasFinished && progress.finished;
+      const node = cityNode(this.city, cityNodeId);
+      if (this.finishedNow) details = 'Você invadiu o núcleo: a cidade está concluída!';
+      else if (firstCityBreach && node.role === 'router') details = 'Agora escreva a rota até a rede que fica atrás deste roteador.';
+    } else if (nodeId) {
       reward = breach(state, nodeId);
       if (firstBreach) {
         const parts = nodePartNames(getNode(nodeId));
@@ -244,6 +274,17 @@ export class MinigameScene extends Phaser.Scene {
 
   private leave() {
     this.running = false;
+    const city = this.params.city;
+    if (city) {
+      const back: CityMapData = {
+        index: city.index,
+        focus: cityNode(this.city!, city.nodeId).subnetId,
+        // The core banner replaces the node's panel.
+        ...(this.finishedNow ? { finishedNow: true } : { select: city.nodeId }),
+      };
+      this.scene.start('CityMap', back);
+      return;
+    }
     this.scene.start(this.params.nodeId ? 'NetMap' : 'Jobs');
   }
 }
