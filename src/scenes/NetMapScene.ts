@@ -68,7 +68,7 @@ export class NetMapScene extends Phaser.Scene {
       lx += t.width + 40;
     }
     this.add.circle(lx + 6, 656, 6, COLORS.info).setStrokeStyle(2, COLORS.bg);
-    this.add.text(lx + 18, 656, 'no enxame', textStyle(13, COLORS.info)).setOrigin(0, 0.5);
+    this.add.text(lx + 18, 656, 'no swarm', textStyle(13, COLORS.info)).setOrigin(0, 0.5);
     this.add.text(24, 76, 'Clique em um nó para ver os detalhes.', textStyle(13, COLORS.muted));
 
     if (!isOnline(state)) {
@@ -117,8 +117,8 @@ export class NetMapScene extends Phaser.Scene {
       }
       const provider = state.swarm[node.id];
       const swarmLine = provider
-        ? `No enxame, conectado via ${providerLabel(state, provider)}.`
-        : 'Fora do enxame. Para conectar este nó, use a aba NOC da Bancada.';
+        ? `No swarm, conectado via ${providerLabel(state, provider)}.`
+        : 'Fora do swarm. Para conectar este nó, use a aba NOC da Bancada.';
       const line = fitText(this.info.text(x + 14, cy, swarmLine, textStyle(13, provider ? COLORS.info : COLORS.warn, { wordWrap: { width: w - 28 } })), w - 28, 36);
       cy += line.height + 6;
     }

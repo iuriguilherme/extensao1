@@ -230,7 +230,7 @@ export const PARTS: Part[] = [
   {
     id: 'sw_8_fast', name: 'Switch 8 portas Fast Ethernet', slot: 'switch', gender: 'm', price: 40, draw: 0,
     requiresLesson: 'network-basics',
-    description: 'Mais 8 portas para ligar nós ao enxame. Só que tudo o que passa por ele sai por um uplink de 100 Mbps.',
+    description: 'Mais 8 portas para ligar nós ao swarm. Só que tudo o que passa por ele sai por um uplink de 100 Mbps.',
     stats: { ports: 8, uplinkMbps: 100 },
   },
   {

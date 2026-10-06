@@ -75,7 +75,7 @@ export class WorkbenchScene extends Phaser.Scene {
 
   private draw() {
     this.layer.clear();
-    const tabs: [Tab, string][] = [['case', 'Gabinete'], ['noc', 'NOC e enxame']];
+    const tabs: [Tab, string][] = [['case', 'Gabinete'], ['noc', 'NOC e swarm']];
     tabs.forEach(([tab, label], i) => {
       this.layer.button(300 + i * 170, 10, 160, 36, label, () => {
         this.tab = tab;
@@ -151,7 +151,7 @@ export class WorkbenchScene extends Phaser.Scene {
     // Summary
     this.layer.text(20, 66, 'NOC (CENTRO DE OPERAÇÕES DE REDE)', textStyle(16, COLORS.muted));
     const lines = [
-      `Portas: ${connected.length} em uso, ${plural(free, 'livre', 'livres')}   ·   Largura de banda do enxame: ${linkSpeed(report.bandwidthMbps)}`,
+      `Portas: ${connected.length} em uso, ${plural(free, 'livre', 'livres')}   ·   Largura de banda do swarm: ${linkSpeed(report.bandwidthMbps)}`,
       `Processamento aproveitado: ${decimal(report.usable.cpuPower)} de ${decimal(report.raw.cpuPower)}   ·   RAM aproveitada: ${report.usable.ramGB} GB de ${report.raw.ramGB} GB   ·   Armazenamento: ${report.usable.storageGB} GB`,
     ];
     const summary = this.layer.text(20, 90, lines.join('\n'), textStyle(14, COLORS.info, { lineSpacing: 4, wordWrap: { width: 1240 } }));
@@ -164,13 +164,13 @@ export class WorkbenchScene extends Phaser.Scene {
         : !specs.networkReady
           ? 'seu PC está sem placa de rede ou sem roteador'
           : 'a rede do seu PC ainda não foi configurada';
-      note = `Enxame suspenso: ${reason}. Os nós continuam conectados, mas só voltam a somar processamento e RAM quando seu PC voltar para a internet.`;
+      note = `Swarm suspenso: ${reason}. Os nós continuam conectados, mas só voltam a somar processamento e RAM quando seu PC voltar para a internet.`;
       noteColor = COLORS.danger;
     } else if (report.limited) {
-      note = `A largura de banda do enxame é o tráfego entre o NOC e os nós, não a sua internet. Com ${linkSpeed(report.bandwidthMbps)}, não passa dado suficiente para aproveitar tudo: parte do processamento e da RAM dos nós fica parada esperando a rede. Troque por switches com uplink mais rápido ou conecte nós com link melhor.`;
+      note = `A largura de banda do swarm é o tráfego entre o NOC e os nós, não a sua internet. Com ${linkSpeed(report.bandwidthMbps)}, não passa dado suficiente para aproveitar tudo: parte do processamento e da RAM dos nós fica parada esperando a rede. Troque por switches com uplink mais rápido ou conecte nós com link melhor.`;
       noteColor = COLORS.warn;
     } else {
-      note = 'A largura de banda do enxame é o tráfego entre o NOC e os nós, não a sua internet. Cada switch, roteador ou nó com portas só repassa até a velocidade do próprio uplink.';
+      note = 'A largura de banda do swarm é o tráfego entre o NOC e os nós, não a sua internet. Cada switch, roteador ou nó com portas só repassa até a velocidade do próprio uplink.';
       noteColor = COLORS.muted;
     }
     const noteText = this.layer.text(20, y, note, textStyle(14, noteColor, { lineSpacing: 3, wordWrap: { width: 1240 } }));
@@ -215,7 +215,7 @@ export class WorkbenchScene extends Phaser.Scene {
       for (const id of attached) {
         rows.push({
           draw: (ry) => {
-            const detail = online ? contributionText(nodeStats(id)) : 'não soma nada enquanto o enxame está suspenso';
+            const detail = online ? contributionText(nodeStats(id)) : 'não soma nada enquanto o swarm está suspenso';
             fitText(this.layer.text(40, ry + 6, `${getNode(id).name} (${kindLabel(id)}) · ${detail}`,
               textStyle(14, online ? COLORS.text : COLORS.muted)), textW);
             this.layer.button(LIST_W - 100, ry + 2, 110, ROW_H - 8, 'Desconectar', () => this.actSwarm(leaveSwarm(state, id)), { size: 13, color: COLORS.warn });
@@ -227,7 +227,7 @@ export class WorkbenchScene extends Phaser.Scene {
     const waiting = state.breached.filter((id) => id !== HOME_NODE_ID && !state.swarm[id] && getNode(id).hardware);
     if (state.breached.every((id) => id === HOME_NODE_ID)) {
       rows.push({
-        draw: (ry) => fitText(this.layer.text(20, ry + 6, 'Nenhum nó invadido ainda. Invada nós no mapa da rede para montar o enxame.',
+        draw: (ry) => fitText(this.layer.text(20, ry + 6, 'Nenhum nó invadido ainda. Invada nós no mapa da rede para montar o swarm.',
           textStyle(14, COLORS.muted)), LIST_W),
       });
     } else if (waiting.length) {
@@ -263,7 +263,7 @@ export class WorkbenchScene extends Phaser.Scene {
     const w = 1260 - SIDE_X;
     this.layer.text(SIDE_X, top, 'SWITCHES GUARDADOS', textStyle(15, COLORS.muted));
     fitText(this.layer.text(SIDE_X, top + 24,
-      'Cada switch instalado no NOC soma portas para o enxame. Todos os nós ligados nele dividem o uplink dele.',
+      'Cada switch instalado no NOC soma portas para o swarm. Todos os nós ligados nele dividem o uplink dele.',
       textStyle(13, COLORS.info, { wordWrap: { width: w } })), w, 54);
     const owned = state.inventory.filter((id) => getPart(id).slot === 'switch');
     const startY = top + 84;

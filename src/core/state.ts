@@ -127,7 +127,7 @@ export interface RequirementCheck {
 export function checkRequirements(state: GameState, node: NetNode): RequirementCheck[] {
   const specs = totalSpecs(state);
   const own = specsOf(state);
-  const swarmNote = (total: number, mine: number) => (total > mine ? ', contando o enxame' : '');
+  const swarmNote = (total: number, mine: number) => (total > mine ? ', contando o swarm' : '');
   const r = node.requires;
   const checks: RequirementCheck[] = [];
   if (r.lesson) checks.push({ label: `Aula: ${getLesson(r.lesson).title}`, met: hasLesson(state, r.lesson) });

@@ -216,26 +216,26 @@ const movedNote = (moved: number) => (moved > 0 ? ` ${plural(moved, 'nó mudou',
 export function joinSwarm(state: GameState, nodeId: string): SwarmResult {
   const name = nodeName(nodeId);
   if (!state.breached.includes(nodeId)) return result(false, 'not-breached', `Você ainda não invadiu o nó ${name}.`);
-  if (state.swarm[nodeId]) return result(false, 'already-connected', `O nó ${name} já faz parte do enxame.`);
+  if (state.swarm[nodeId]) return result(false, 'already-connected', `O nó ${name} já faz parte do swarm.`);
   const target = pickProvider(state, nodeId);
   if (!target) {
     return result(false, 'no-free-port', `Não sobrou porta livre para o nó ${name}: instale um switch no NOC ou desconecte outro nó.`);
   }
   state.swarm[nodeId] = target;
-  return result(true, 'joined', `O nó ${name} entrou no enxame, conectado via ${providerLabel(state, target)}.`);
+  return result(true, 'joined', `O nó ${name} entrou no swarm, conectado via ${providerLabel(state, target)}.`);
 }
 
 /** Disconnects a node; nodes plugged into it move elsewhere first, or nothing changes. */
 export function leaveSwarm(state: GameState, nodeId: string): SwarmResult {
   const name = nodeName(nodeId);
-  if (!state.swarm[nodeId]) return result(false, 'not-connected', `O nó ${name} não está no enxame.`);
+  if (!state.swarm[nodeId]) return result(false, 'not-connected', `O nó ${name} não está no swarm.`);
   const children = attachedTo(state, nodeId);
   const trial = cloneSwarm(state);
   delete trial.swarm[nodeId];
   const stuck = relocate(trial, children, dependents(state, nodeId));
   if (stuck.length) return result(false, 'blocked-dependents', blockedMessage(state, `desconectar o nó ${name}`, stuck));
   state.swarm = trial.swarm;
-  return result(true, 'left', `O nó ${name} saiu do enxame.${movedNote(children.length)}`);
+  return result(true, 'left', `O nó ${name} saiu do swarm.${movedNote(children.length)}`);
 }
 
 /** Moves a switch from the inventory into the NOC. */
@@ -249,7 +249,7 @@ export function installSwitch(state: GameState, partId: string): SwarmResult {
   let n = 1;
   while (used.has(`sw${n}`)) n++;
   state.noc.push({ id: `sw${n}`, partId });
-  return result(true, 'switch-installed', `${part.name} ${agree(part.gender, 'instalado', 'instalada')} no NOC: mais ${plural(part.stats.ports ?? 0, 'porta', 'portas')} para o enxame.`);
+  return result(true, 'switch-installed', `${part.name} ${agree(part.gender, 'instalado', 'instalada')} no NOC: mais ${plural(part.stats.ports ?? 0, 'porta', 'portas')} para o swarm.`);
 }
 
 /** Takes a switch out of the NOC; its nodes move to other ports first, or nothing changes. */
