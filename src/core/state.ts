@@ -1,11 +1,14 @@
-import { ETHICS_LESSON_ID, getLesson, LESSONS } from '../data/lessons';
+import { ETHICS_LESSON_ID, getLesson, LESSONS, ROUTING_LESSON_ID } from '../data/lessons';
 import { NODES, HOME_NODE_ID, FINAL_NODE_ID, getNode, type MinigameId, type NetNode } from '../data/nodes';
 import { getPart, type Part, type Slot } from '../data/parts';
+import { cityNode, type City, type CityNode } from './city';
+import { MAX_CITY_LEVEL } from './cityCode';
 import type { Lens } from './explanations';
 import { agree, decimal, linkSpeed, money } from './fmt';
 import { computeSpecs, type Installed, type Specs } from './hardware';
 import type { NetConfig } from './ip';
 import type { ConceptId } from './minigames';
+import { validateRoute, type RouteEntry, type RouteIssue } from './routing';
 import { installSwitch, rehomeForRouter, totalSpecs } from './swarm';
 
 export interface GameState {
@@ -29,6 +32,23 @@ export interface GameState {
   areaLevels: Record<MinigameId, number>;
   /** Finished mini-games so far; orders weak concepts by how long they have waited. */
   runCount: number;
+  /**
+   * Every generated city the player has started, kept apart from the campaign
+   * `breached` list. Cities are rebuilt from level and seed, so only ids and
+   * numbers are saved here.
+   */
+  cities: CityProgress[];
+}
+
+export interface CityProgress {
+  level: number;
+  seed: number;
+  /** Breached city node ids; unique only within this city. */
+  breached: string[];
+  /** Subnet ids opened by a correct route. */
+  opened: number[];
+  /** Set once the city's core is breached. */
+  finished: boolean;
 }
 
 export interface ConceptRecord {
@@ -70,6 +90,7 @@ export function newGame(): GameState {
     lensCredits: { steps: 0, analogy: 0, realWorld: 0 },
     areaLevels: { binary: 1, subnet: 1, ports: 1, http: 1, dns: 1 },
     runCount: 0,
+    cities: [],
   };
 }
 
@@ -204,6 +225,32 @@ export function allNodes(): NetNode[] {
   return NODES;
 }
 
+/** Cities open once the campaign is won and the routing lesson is passed. */
+export function canStartCities(state: GameState): boolean {
+  return phaseOf(state) === 'won' && hasLesson(state, ROUTING_LESSON_ID);
+}
+
+/** One level above the cities finished so far, code cities included. */
+export function nextCityLevel(state: GameState): number {
+  return Math.min(MAX_CITY_LEVEL, 1 + state.cities.filter((c) => c.finished).length);
+}
+
+export type CityNodeStatus = 'breached' | 'reachable' | 'hidden';
+
+/** The home subnet is always open; any other subnet opens with a correct route. */
+export function cityNodeStatus(state: GameState, index: number, city: City, node: CityNode): CityNodeStatus {
+  const progress = state.cities[index];
+  if (progress.breached.includes(node.id)) return 'breached';
+  const subnet = city.subnets[node.subnetId];
+  return subnet.depth === 0 || progress.opened.includes(subnet.id) ? 'reachable' : 'hidden';
+}
+
+export function canConnectCityNode(state: GameState, index: number, city: City, node: CityNode): boolean {
+  return isOnline(state)
+    && cityNodeStatus(state, index, city, node) !== 'hidden'
+    && checkRequirements(state, node).every((c) => c.met);
+}
+
 // ─── Mutations (return a result message, mutate state in place) ──────────
 
 export function buy(state: GameState, partId: string): string {
@@ -284,6 +331,42 @@ export function breach(state: GameState, nodeId: string): number {
   state.breached.push(nodeId);
   state.money += node.reward;
   return node.reward;
+}
+
+/** Opens a city (or finds it, when this level and seed was started before). Returns its index. */
+export function startCity(state: GameState, level: number, seed: number): number {
+  const existing = state.cities.findIndex((c) => c.level === level && c.seed === seed);
+  if (existing >= 0) return existing;
+  return state.cities.push({ level, seed, breached: [], opened: [], finished: false }) - 1;
+}
+
+/**
+ * Checks a routing entry for a breached router. With no problems, the subnet
+ * behind the router opens. Wrong entries change nothing and can be retried.
+ */
+export function submitRoute(state: GameState, index: number, city: City, routerId: string, entry: RouteEntry): RouteIssue[] {
+  const progress = state.cities[index];
+  if (!progress.breached.includes(routerId)) throw new Error(`Router not breached: ${routerId}`);
+  const issues = validateRoute(entry, city, routerId);
+  const child = cityNode(city, routerId).childSubnetId!;
+  if (issues.length === 0 && !progress.opened.includes(child)) progress.opened.push(child);
+  return issues;
+}
+
+/**
+ * Records a city breach and returns the cash paid: the full reward the first
+ * time, the replay share after. The core finishes the city. City breaches
+ * never touch the campaign list or the swarm.
+ */
+export function breachCityNode(state: GameState, index: number, city: City, nodeId: string): number {
+  const progress = state.cities[index];
+  const node = cityNode(city, nodeId);
+  let reward = node.reward;
+  if (progress.breached.includes(nodeId)) reward = Math.floor(node.reward * REPLAY_RATIO);
+  else progress.breached.push(nodeId);
+  if (nodeId === city.coreId) progress.finished = true;
+  state.money += reward;
+  return reward;
 }
 
 export function earn(state: GameState, amount: number): void {
