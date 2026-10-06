@@ -1,8 +1,9 @@
 import Phaser from 'phaser';
 import { mistakesAllowed, roundSeconds } from '../core/hardware';
-import { hasLesson, isOnline, phaseOf, specsOf } from '../core/state';
+import { canStartCities, hasLesson, isOnline, phaseOf, specsOf } from '../core/state';
 import { connectedNodes, swarmReport, totalSpecs } from '../core/swarm';
 import { game, resetGame } from '../core/store';
+import { getLesson, ROUTING_LESSON_ID } from '../data/lessons';
 import { getPart, SLOT_LABELS } from '../data/parts';
 import { alignColumns, decimal, linkSpeed, plural } from '../core/fmt';
 import { button, COLORS, fitText, header, HEIGHT, objectiveBar, panel, textStyle, WIDTH } from '../ui/widgets';
@@ -74,11 +75,13 @@ export class HubScene extends Phaser.Scene {
         hint: 'Precisa de placa de rede, roteador e das aulas de IP e DNS',
       },
       { label: 'Mapa da Rede', scene: 'NetMap', enabled: isOnline(state), hint: 'Precisa do PC conectado à internet' },
+      { label: 'Cidades', scene: 'Cities', enabled: canStartCities(state), hint: citiesHint(phase === 'won', hasLesson(state, ROUTING_LESSON_ID)) },
     ];
+    // Six rows fit between the header and the side-job row at y 560.
     items.forEach((item, i) => {
-      const y = 100 + i * 88;
-      button(this, x, y, w, 56, item.label, () => this.scene.start(item.scene), { disabled: !item.enabled, size: 22 });
-      this.add.text(x + 4, y + 62, item.hint, textStyle(13, COLORS.muted));
+      const y = 76 + i * 78;
+      button(this, x, y, w, 48, item.label, () => this.scene.start(item.scene), { disabled: !item.enabled, size: 22 });
+      fitText(this.add.text(x + 4, y + 53, item.hint, textStyle(13, COLORS.muted)), w - 8);
     });
 
     button(this, x, 560, 210, 44, 'Trabalhos extras', () => this.scene.start('Jobs'), { size: 16, color: COLORS.info });
@@ -91,4 +94,13 @@ export class HubScene extends Phaser.Scene {
 
     this.add.text(WIDTH - 16, HEIGHT - 60, 'o progresso é salvo automaticamente', textStyle(12, COLORS.muted)).setOrigin(1, 0.5);
   }
+}
+
+/** What the Cities item still needs, or what it offers once open. */
+function citiesHint(won: boolean, routing: boolean): string {
+  const lesson = `a aula "${getLesson(ROUTING_LESSON_ID).title}"`;
+  if (!won && !routing) return `Conclua o laboratório e faça ${lesson}`;
+  if (!won) return 'Conclua o exercício final do laboratório';
+  if (!routing) return `Faça ${lesson} para liberar`;
+  return 'Redes novas para treinar endereços e rotas';
 }

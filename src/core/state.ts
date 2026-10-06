@@ -152,7 +152,8 @@ export function objective(state: GameState): string {
       if (!hasLesson(state, ETHICS_LESSON_ID)) return `Você está online! Antes da primeira invasão, faça a aula "${getLesson(ETHICS_LESSON_ID).title}".`;
       return `Você está online! Abra o Mapa da Rede e vá invadindo as máquinas do laboratório, uma por uma, até chegar ao ${getNode(FINAL_NODE_ID).name}.`;
     case 'won':
-      return 'Você concluiu o último exercício do laboratório de segurança! Pode continuar treinando na rede à vontade.';
+      if (!hasLesson(state, ROUTING_LESSON_ID)) return `Você concluiu o último exercício do laboratório de segurança! Para treinar em cidades novas, faça a aula "${getLesson(ROUTING_LESSON_ID).title}".`;
+      return 'Você concluiu o laboratório de segurança! Abra Cidades para treinar em redes novas, cada uma com o próprio plano de endereços.';
   }
 }
 
