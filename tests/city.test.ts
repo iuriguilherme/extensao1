@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { generateCity, type City } from '../src/core/city';
+import { generateCity, roundContext, type City } from '../src/core/city';
 import { broadcastAddress, networkAddress, parseIp } from '../src/core/ip';
 import { MAX_LEVEL } from '../src/core/minigames';
 import { NODES, getNode } from '../src/data/nodes';
@@ -245,5 +245,38 @@ describe('city generator', () => {
   it('stops structural growth at level 12', () => {
     const depths = (level: number) => Math.max(...CITIES.filter((c) => c.level === level).map(maxDepth));
     expect(depths(99)).toBe(depths(12));
+  });
+});
+
+/** 32-bit FNV-1a over the UTF-16 code units of a string, as 8 hex digits. */
+function fnv1a(text: string): string {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 0x01000193);
+  return (h >>> 0).toString(16).padStart(8, '0');
+}
+
+/**
+ * Shared city codes and saved city progress (node ids, opened subnet ids) both
+ * rely on (level, seed) building the same city forever. If this hash changes,
+ * old codes now build other cities and saved progress points at other nodes.
+ */
+const PINNED_CITIES_HASH = '6b6195e8';
+
+describe('city stability', () => {
+  it('builds exactly the pinned cities for sample levels and seeds', () => {
+    const cities = [];
+    for (const level of [1, 2, 5, 12, 40, 99]) for (const seed of [0, 1, 4821, 319999]) cities.push(generateCity(level, seed));
+    expect(fnv1a(JSON.stringify(cities))).toBe(PINNED_CITIES_HASH);
+  });
+});
+
+describe('roundContext', () => {
+  it('is the node subnet and the node address', () => {
+    for (const city of [generateCity(1, 3), generateCity(12, 7)]) {
+      for (const node of city.nodes) {
+        const subnet = city.subnets[node.subnetId];
+        expect(roundContext(city, node.id)).toEqual({ network: parseIp(subnet.network), prefix: subnet.prefix, host: parseIp(node.ip) });
+      }
+    }
   });
 });

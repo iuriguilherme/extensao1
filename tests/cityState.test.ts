@@ -3,10 +3,10 @@ import { generateCity, type City, type CityNode } from '../src/core/city';
 import { MAX_CITY_LEVEL } from '../src/core/cityCode';
 import { correctRoute } from '../src/core/routing';
 import {
-  breach, breachCityNode, canConnectCityNode, canStartCities, cityNodeStatus, newGame, nextCityLevel, phaseOf,
+  breach, breachCityNode, canConnectCityNode, canStartCities, cityNodeStatus, newGame, nextCityLevel, objective, phaseOf,
   REPLAY_RATIO, startCity, submitRoute, type GameState,
 } from '../src/core/state';
-import { ETHICS_LESSON_ID, ROUTING_LESSON_ID } from '../src/data/lessons';
+import { ETHICS_LESSON_ID, getLesson, ROUTING_LESSON_ID } from '../src/data/lessons';
 import { FINAL_NODE_ID } from '../src/data/nodes';
 
 const NET = { ip: '192.168.0.42', mask: '255.255.255.0', gateway: '192.168.0.1', dns: '192.168.0.1' };
@@ -66,6 +66,16 @@ describe('city access', () => {
   it('after the win, cities need the routing lesson', () => {
     expect(canStartCities(wonState({ routing: false }))).toBe(false);
     expect(canStartCities(wonState())).toBe(true);
+  });
+});
+
+describe('objective after the win', () => {
+  it('points to the routing lesson, then to the cities', () => {
+    const title = getLesson(ROUTING_LESSON_ID).title;
+    expect(objective(wonState({ routing: false }))).toContain(title);
+    const ready = objective(wonState());
+    expect(ready).not.toContain(title);
+    expect(ready).toContain('Cidades');
   });
 });
 

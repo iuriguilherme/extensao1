@@ -98,20 +98,30 @@ describe('round context', () => {
     }
   });
 
-  it('converts a nonzero octet of the host, other than the first, at binary level 3', () => {
+  it('asks to build a nonzero octet of the host, other than the first, at binary level 3', () => {
     const ctx: RoundContext = { network: ip('10.4.2.0'), prefix: 24, host: ip('10.4.0.200') };
     let checked = 0;
     for (let seed = 1; seed <= 30; seed++) {
-      for (const focus of [undefined, 'binary.toBinary', 'binary.toDecimal'] as const) {
+      for (const focus of [undefined, 'binary.toBinary'] as const) {
         for (const r of buildRounds('binary', 3, createRng(seed), focus, ctx)) {
-          if (r.concept === 'binary.combinations') continue;
+          if (r.kind !== 'bits') continue;
           checked++;
-          const value = r.kind === 'bits' ? r.target : Number(r.kind === 'choice' ? r.options[r.answer] : NaN);
-          expect([4, 200]).toContain(value);
+          expect([4, 200]).toContain(r.target);
         }
       }
     }
     expect(checked).toBeGreaterThan(0);
+  });
+
+  it('never gives away a decimal answer that the node address shows', () => {
+    // The mini-game title shows the node's IP, so its octets cannot be answers.
+    const ctx: RoundContext = { network: ip('10.4.2.0'), prefix: 24, host: ip('10.4.0.200') };
+    for (let seed = 1; seed <= 30; seed++) {
+      for (const r of buildRounds('binary', 3, createRng(seed), 'binary.toDecimal', ctx)) {
+        if (r.concept !== 'binary.toDecimal' || r.kind !== 'choice') continue;
+        expect(r.options[r.answer]).not.toBe('200');
+      }
+    }
   });
 
   it('never asks for a zero bits target when an octet of the host is zero', () => {

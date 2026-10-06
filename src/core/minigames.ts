@@ -72,8 +72,8 @@ export const MAX_LEVEL: Record<MinigameId, number> = { binary: 7, subnet: 5, por
 
 /**
  * A city node's addresses, as unsigned 32-bit numbers (the form `ip.ts` uses).
- * Subnet rounds ask about `network`/`prefix`; 8-bit binary rounds convert an
- * octet of `host`.
+ * Subnet rounds ask about `network`/`prefix`; 8-bit decimal-to-binary rounds
+ * ask for an octet of `host`.
  */
 export interface RoundContext {
   network: number;
@@ -89,8 +89,8 @@ export function roundCount(difficulty: Difficulty): number {
  * Builds the rounds of one mini-game. With a focus concept (review jobs), at
  * least two thirds of the rounds ask that concept; once its unique prompts run
  * out, it repeats a prompt with reshuffled options. With a context (city
- * nodes), subnet and 8-bit binary rounds use the node's addresses; other areas
- * ignore it. Without a context, the rng draws are those of the context-free
+ * nodes), subnet and 8-bit decimal-to-binary rounds use the node's addresses;
+ * other rounds ignore it. Without a context, the rng draws are those of the context-free
  * generators, so existing levels and seeds keep their rounds.
  */
 export function buildRounds(id: MinigameId, difficulty: Difficulty, rng: Rng, focus?: ConceptId, context?: RoundContext): Round[] {
@@ -154,9 +154,9 @@ function binaryBits(d: Difficulty): number {
 }
 
 /**
- * The value an 8-bit round converts: a nonzero octet of the context host other
- * than the first (the leading 10), or a random one when there is none. The
- * random draw is the same call as without a context.
+ * The value an 8-bit decimal-to-binary round asks for: a nonzero octet of the
+ * context host other than the first (the leading 10), or a random one when
+ * there is none. The random draw is the same call as without a context.
  */
 function binaryValue(rng: Rng, bits: number, max: number, context?: RoundContext): number {
   if (context && bits === 8) {
@@ -183,7 +183,8 @@ function binaryRound(rng: Rng, d: Difficulty, focus?: ConceptId, context?: Round
     };
   }
   if (type === 1) {
-    const value = binaryValue(rng, bits, max, context);
+    // Never an octet of the host: the mini-game title shows its IP, which would give the answer away.
+    const value = randInt(rng, 1, max);
     const near = [value + 1, value - 1, value ^ 1, value ^ 2, value * 2, value >> 1, value + 8].filter((v) => v > 0 && v <= max * 2);
     return choice(
       rng,
