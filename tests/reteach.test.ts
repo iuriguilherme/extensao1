@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ConceptId } from '../src/core/minigames';
+import { completeJob, jobBoard, jobPay, type Job } from '../src/core/jobs';
 import { commitRun, favoredLens, recordMiss } from '../src/core/reteach';
 import { newGame, type GameState } from '../src/core/state';
 
@@ -103,5 +104,104 @@ describe('old saves', () => {
     expect(loaded.lensCredits).toEqual({ steps: 0, analogy: 0, realWorld: 0 });
     expect(loaded.areaLevels).toEqual({ binary: 1, subnet: 1, ports: 1, http: 1, dns: 1 });
     expect(loaded.runCount).toBe(0);
+  });
+});
+
+const ALL_AREA_LESSONS = ['binary', 'ip-addressing', 'ports', 'http', 'dns'];
+
+function withLessons(...ids: string[]): GameState {
+  const s = newGame();
+  s.lessonsCompleted.push('computer-basics', ...ids);
+  return s;
+}
+
+/** Makes concepts weak one finished mini-game apart, so they wait in this order. */
+function missInOrder(s: GameState, concepts: ConceptId[], level = 1) {
+  for (const c of concepts) {
+    recordMiss(s, c, level);
+    run(s, []);
+  }
+}
+
+describe('side-job board', () => {
+  it('is empty until an area lesson is done (AE5)', () => {
+    expect(jobBoard(withLessons())).toEqual([]);
+  });
+
+  it('offers one fresh job at level 1 with only the binary lesson', () => {
+    expect(jobBoard(withLessons('binary'))).toEqual([{ kind: 'fresh', area: 'binary', level: 1 }]);
+  });
+
+  it('shows the two concepts that became weak first, plus one fresh job', () => {
+    const s = withLessons(...ALL_AREA_LESSONS);
+    missInOrder(s, ['dns.resolve', 'binary.toDecimal', 'http.method', 'subnet.broadcast']);
+    const board = jobBoard(s);
+    expect(board.map((j) => j.concept ?? j.kind)).toEqual(['dns.resolve', 'binary.toDecimal', 'fresh']);
+  });
+
+  it('fills the board with fresh jobs in the three lowest-level areas', () => {
+    const s = withLessons(...ALL_AREA_LESSONS);
+    s.areaLevels = { binary: 3, subnet: 1, ports: 2, http: 1, dns: 1 };
+    expect(jobBoard(s)).toEqual([
+      { kind: 'fresh', area: 'subnet', level: 1 },
+      { kind: 'fresh', area: 'http', level: 1 },
+      { kind: 'fresh', area: 'dns', level: 1 },
+    ]);
+  });
+
+  it('never offers a weak concept from an area whose lesson is not done', () => {
+    const s = withLessons('binary');
+    missInOrder(s, ['dns.resolve']);
+    expect(jobBoard(s).some((j) => j.concept === 'dns.resolve')).toBe(false);
+  });
+
+  it('runs a review job at the level where its concept was missed', () => {
+    const s = withLessons('ip-addressing');
+    s.areaLevels.subnet = 4;
+    missInOrder(s, ['subnet.broadcast'], 2);
+    expect(jobBoard(s)[0]).toEqual({ kind: 'review', area: 'subnet', level: 2, concept: 'subnet.broadcast' });
+  });
+});
+
+describe('side-job levels and pay', () => {
+  const fresh = (area: Job['area'], level: number): Job => ({ kind: 'fresh', area, level });
+
+  it('raises the level only with at most 1 mistake (AE6)', () => {
+    const s = withLessons('ip-addressing');
+    s.areaLevels.subnet = 2;
+    expect(completeJob(s, fresh('subnet', 2), 2, true).leveledUp).toBe(false);
+    expect(s.areaLevels.subnet).toBe(2);
+    expect(completeJob(s, fresh('subnet', 2), 1, true).leveledUp).toBe(true);
+    expect(s.areaLevels.subnet).toBe(3);
+  });
+
+  it('does not raise the level from a review job below it (AE7)', () => {
+    const s = withLessons('binary');
+    s.areaLevels.binary = 4;
+    completeJob(s, { kind: 'review', area: 'binary', level: 2, concept: 'binary.toDecimal' }, 0, true);
+    expect(s.areaLevels.binary).toBe(4);
+  });
+
+  it('stops ports at level 3 (AE8)', () => {
+    const s = withLessons('ports');
+    s.areaLevels.ports = 3;
+    expect(completeJob(s, fresh('ports', 3), 0, true).leveledUp).toBe(false);
+    expect(s.areaLevels.ports).toBe(3);
+  });
+
+  it('pays nothing and raises nothing for a crashed job', () => {
+    const s = withLessons('binary');
+    const before = s.money;
+    expect(completeJob(s, fresh('binary', 1), 0, false)).toEqual({ pay: 0, leveledUp: false });
+    expect(s.money).toBe(before);
+    expect(s.areaLevels.binary).toBe(1);
+  });
+
+  it('pays about 1.5x more per level, the same for review and fresh jobs', () => {
+    expect([1, 2, 3, 4, 5, 6, 7].map(jobPay)).toEqual([25, 40, 55, 85, 125, 190, 285]);
+    const s = withLessons('binary');
+    const before = s.money;
+    completeJob(s, { kind: 'review', area: 'binary', level: 3, concept: 'binary.toBinary' }, 0, true);
+    expect(s.money - before).toBe(jobPay(3));
   });
 });

@@ -16,6 +16,15 @@ export const MINIGAME_AREAS: Record<MinigameId, string> = {
   dns: 'DNS',
 };
 
+/** The lesson that teaches each area; side jobs in an area open with it. */
+export const AREA_LESSON: Record<MinigameId, string> = {
+  binary: 'binary',
+  subnet: 'ip-addressing',
+  ports: 'ports',
+  http: 'http',
+  dns: 'dns',
+};
+
 export interface NodeRequirements {
   lesson?: string;
   cpuPower?: number;

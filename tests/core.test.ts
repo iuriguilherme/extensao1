@@ -14,7 +14,7 @@ import {
   dependents, freePorts, joinSwarm, leaveSwarm, pickProvider, removeSwitch, swarmReport, totalSpecs,
 } from '../src/core/swarm';
 import { ETHICS_LESSON_ID, LESSONS, TRACK_LABELS, getLesson } from '../src/data/lessons';
-import { NODES, getNode, type MinigameId } from '../src/data/nodes';
+import { AREA_LESSON, NODES, getNode, type MinigameId } from '../src/data/nodes';
 import { NODE_KINDS, NODE_KIND_LABELS, buildContribution, nodeBuild, resolveBuild } from '../src/data/nodeBuilds';
 import { CASE_SLOTS, PARTS, SLOTS, SLOT_GENDER, SLOT_LABELS, describeStats, getPart } from '../src/data/parts';
 
@@ -263,6 +263,7 @@ describe('content integrity', () => {
     for (const p of PARTS) expect(() => getLesson(p.requiresLesson)).not.toThrow();
     for (const n of NODES) if (n.requires.lesson) expect(() => getLesson(n.requires.lesson!)).not.toThrow();
     for (const l of LESSONS) for (const r of l.requires) expect(() => getLesson(r)).not.toThrow();
+    for (const id of Object.values(AREA_LESSON)) expect(() => getLesson(id)).not.toThrow();
   });
 
   it('quiz answers point at real options', () => {
