@@ -317,6 +317,46 @@ export const LESSONS: Lesson[] = [
     ],
   },
   {
+    id: 'routing',
+    title: 'Rotas e roteamento',
+    track: 'networking',
+    requires: ['ip-addressing'],
+    reward: 90,
+    pages: [
+      'Uma ROTA diz ao computador por onde mandar o tráfego para chegar a uma rede. Sem rota, o pacote não tem para onde ir.',
+      'Toda rota tem duas partes: o DESTINO, que é uma rede inteira, escrita com o endereço de rede e o prefixo (10.4.2.0/24), e o PRÓXIMO SALTO, que é o roteador que leva até lá.',
+      'O próximo salto tem que estar numa rede que você já alcança: é o endereço do roteador do seu lado. Se o roteador usa 10.4.1.1 na sua rede, a rota para 10.4.2.0/24 passa por 10.4.1.1.',
+      'O destino é sempre o endereço de rede, nunca o IP de um host nem o de broadcast. Se o roteador tem a interface 10.4.2.1/24 na rede do outro lado, aplique a máscara: o destino é 10.4.2.0/24.',
+      'O conjunto de rotas de um aparelho é a TABELA DE ROTEAMENTO. Cada pacote é comparado com as rotas da tabela, e o gateway padrão fica para quando nenhuma outra rota serve.',
+    ],
+    quiz: [
+      {
+        question: 'Numa rota, o que vai no destino?',
+        options: ['O IP de um host da rede', 'O endereço de rede com o prefixo, como 10.4.2.0/24', 'O endereço de broadcast da rede', 'O IP do seu próprio PC'],
+        answer: 1,
+        explain: 'O destino é a rede inteira: o endereço de rede junto com o prefixo.',
+      },
+      {
+        question: 'Um roteador usa 10.4.1.1 na sua rede e 10.4.2.1 na rede do outro lado. Para chegar a 10.4.2.0/24, qual é o próximo salto?',
+        options: ['10.4.2.1', '10.4.1.1', '10.4.2.0', '10.4.2.255'],
+        answer: 1,
+        explain: 'O próximo salto é o endereço do roteador na rede que você já alcança: 10.4.1.1.',
+      },
+      {
+        question: 'Um roteador tem a interface 172.16.8.1/22 na rede que você quer alcançar. Qual é o destino da rota?',
+        options: ['172.16.8.1/22', '172.16.8.0/22', '172.16.11.255/22', '172.16.0.0/22'],
+        answer: 1,
+        explain: 'Com a máscara /22, os bits de host de 172.16.8.1 viram zero e sobra a rede 172.16.8.0/22.',
+      },
+      {
+        question: 'O que é a tabela de roteamento?',
+        options: ['A lista de IPs livres da rede', 'O conjunto de rotas que o aparelho consulta para saber para onde mandar cada pacote', 'A lista de portas abertas no firewall', 'O cache de nomes do DNS'],
+        answer: 1,
+        explain: 'Cada pacote é comparado com as rotas da tabela; quando nenhuma serve, ele vai para o gateway padrão.',
+      },
+    ],
+  },
+  {
     id: 'dns',
     title: 'DNS',
     track: 'networking',
@@ -465,6 +505,8 @@ const LESSON_INDEX = new Map(LESSONS.map((l) => [l.id, l]));
 
 /** The law-and-ethics lesson every node except home requires before a breach. */
 export const ETHICS_LESSON_ID = 'ethics';
+/** Opens the generated cities after the campaign (seeded cities plan, R22). */
+export const ROUTING_LESSON_ID = 'routing';
 
 export function getLesson(id: string): Lesson {
   const lesson = LESSON_INDEX.get(id);

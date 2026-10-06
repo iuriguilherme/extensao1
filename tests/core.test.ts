@@ -13,7 +13,7 @@ import {
 import {
   dependents, freePorts, joinSwarm, leaveSwarm, pickProvider, removeSwitch, swarmReport, totalSpecs,
 } from '../src/core/swarm';
-import { ETHICS_LESSON_ID, LESSONS, TRACK_LABELS, getLesson } from '../src/data/lessons';
+import { ETHICS_LESSON_ID, LESSONS, ROUTING_LESSON_ID, TRACK_LABELS, getLesson } from '../src/data/lessons';
 import { AREA_LESSON, NODES, getNode, type MinigameId } from '../src/data/nodes';
 import { NODE_KINDS, NODE_KIND_LABELS, buildContribution, nodeBuild, resolveBuild } from '../src/data/nodeBuilds';
 import { CASE_SLOTS, PARTS, SLOTS, SLOT_GENDER, SLOT_LABELS, describeStats, getPart } from '../src/data/parts';
@@ -278,6 +278,15 @@ describe('content integrity', () => {
     const lesson = getLesson(ETHICS_LESSON_ID);
     expect(LESSONS.filter((l) => l.track === lesson.track)[0].id).toBe(ETHICS_LESSON_ID);
     expect(lesson.quiz.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('the routing lesson opens once IP addressing is passed', () => {
+    const s = newGame();
+    for (const id of ['computer-basics', 'power', 'cpu', 'memory', 'storage', 'binary', 'network-basics']) completeLesson(s, id);
+    expect(isLessonOpen(s, ROUTING_LESSON_ID)).toBe(false);
+    completeLesson(s, 'ip-addressing');
+    expect(isLessonOpen(s, ROUTING_LESSON_ID)).toBe(true);
+    expect(getLesson(ROUTING_LESSON_ID).track).toBe('networking');
   });
 
   it('every part, slot and track has what PT-BR text needs', () => {
