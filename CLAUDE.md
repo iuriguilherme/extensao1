@@ -16,6 +16,8 @@ npm run typecheck                             # tsc --noEmit (covers src and tes
 npm run build                                 # typecheck + production build into dist/
 ```
 
+Every push to `main` deploys to GitHub Pages via `.github/workflows/deploy.yml`, which runs the tests and then the build. `vite.config.ts` uses `base: './'` so the build works under the `/extensao1/` subpath. `.gitignore` ignores dotfiles, so new dot-directories that should be tracked need a `!` exception, the way `.github/` has one.
+
 There is no linter; `tsc` runs with `strict`, `noUnusedLocals` and `noUnusedParameters`.
 
 ## Architecture
