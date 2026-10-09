@@ -1,5 +1,4 @@
 import Phaser from 'phaser';
-import { pendingCertificate } from '../core/certificates';
 import { mistakesAllowed, roundSeconds } from '../core/hardware';
 import { canStartCities, hasLesson, isOnline, phaseOf, specsOf } from '../core/state';
 import { connectedNodes, swarmReport, totalSpecs } from '../core/swarm';
@@ -8,7 +7,7 @@ import { getLesson, ROUTING_LESSON_ID } from '../data/lessons';
 import { getPart, SLOT_LABELS } from '../data/parts';
 import { alignColumns, decimal, linkSpeed, plural } from '../core/fmt';
 import { button, COLORS, fitText, header, HEIGHT, objectiveBar, panel, textStyle, toast, WIDTH } from '../ui/widgets';
-import type { CertificateData } from './CertificateScene';
+import { startPendingCeremony, type CertificateData } from './CertificateScene';
 
 export interface HubData {
   /** Toast shown on entry, e.g. the tier a ceremony just opened. */
@@ -24,12 +23,7 @@ export class HubScene extends Phaser.Scene {
   create(data: HubData = {}) {
     // A certificate issued but not presented yet (tab closed mid-ceremony,
     // or just earned) resumes its ceremony before anything else.
-    const pending = pendingCertificate(game());
-    if (pending) {
-      if (pending.id === 'conclusao') this.scene.start('Formatura');
-      else this.scene.start('Certificate', { id: pending.id } satisfies CertificateData);
-      return;
-    }
+    if (startPendingCeremony(this)) return;
     this.cameras.main.setBackgroundColor(COLORS.bg);
     header(this, 'ROOTKIT ACADEMY — sua estação');
     objectiveBar(this);

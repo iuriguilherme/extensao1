@@ -6,7 +6,7 @@
 
 import { cityNode, type City, type CityNode } from './city';
 import { broadcastAddress, formatIp, parseIp, sameSubnet } from './ip';
-import { createRng, pick, shuffle, type Rng } from './random';
+import { createRng, hash, pick, pickSome, shuffle } from './random';
 
 /** A routing entry as the form shows it: dotted addresses and a prefix length. */
 export interface RouteEntry {
@@ -130,17 +130,6 @@ function routerOf(city: City, routerId: string): CityNode {
   return router;
 }
 
-function pickSome<T>(rng: Rng, items: readonly T[], count: number): T[] {
-  return shuffle(rng, items).slice(0, count);
-}
-
 function unique<T>(items: T[]): T[] {
   return [...new Set(items)];
-}
-
-/** FNV-1a over the router id, mixed into the choice seed. */
-function hash(text: string): number {
-  let h = 0x811c9dc5;
-  for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 0x01000193);
-  return h >>> 0;
 }

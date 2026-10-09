@@ -13,7 +13,7 @@ import { cityNode, type City, type CityNode, type CitySubnet } from './city';
 import { broadcastAddress, formatIp, parseIp, sameSubnet } from './ip';
 import { formatIpv6Full, inIpv6Prefix, parseIpv6 } from './ipv6';
 import { privateRangeOf, PUBLISHED_SERVICES, vlanIdVerdict, type Vlan } from './minigames';
-import { createRng, pick, shuffle, type Rng } from './random';
+import { createRng, hash, pick, pickSome, shuffle } from './random';
 import { correctRoute, routeChoices, validateRoute, type RouteChoices, type RouteEntry, type RouteIssueCode } from './routing';
 
 export type GateKind = 'route' | 'nat' | 'vlan' | 'ipv6';
@@ -274,15 +274,4 @@ export function gateChoices(city: City, routerId: string): GateChoices {
       };
     }
   }
-}
-
-function pickSome<T>(rng: Rng, items: readonly T[], count: number): T[] {
-  return shuffle(rng, items).slice(0, count);
-}
-
-/** FNV-1a over the router id, mixed into the choice seed. */
-function hash(text: string): number {
-  let h = 0x811c9dc5;
-  for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 0x01000193);
-  return h >>> 0;
 }

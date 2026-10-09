@@ -29,3 +29,15 @@ export function shuffle<T>(rng: Rng, items: readonly T[]): T[] {
   }
   return out;
 }
+
+/** `count` items in random order, or all of them when there are fewer. */
+export function pickSome<T>(rng: Rng, items: readonly T[], count: number): T[] {
+  return shuffle(rng, items).slice(0, count);
+}
+
+/** FNV-1a over a string, for mixing ids into a seed. */
+export function hash(text: string): number {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 0x01000193);
+  return h >>> 0;
+}

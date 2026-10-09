@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import {
-  certificateRows, certificateTitle, getCertificate, presentCertificate, type AreaRecord, type Certificate, type CertificateId,
+  certificateRows, certificateTitle, certificateTopic, getCertificate, pendingCertificate, presentCertificate, type AreaRecord,
+  type Certificate, type CertificateId,
 } from '../core/certificates';
 import { agree, listJoin, percent, plural } from '../core/fmt';
 import { game, save } from '../core/store';
@@ -66,8 +67,7 @@ export class CertificateScene extends Phaser.Scene {
     const earned = game().certificates.filter((c) => c.presented);
     this.add.text(WIDTH / 2, 90, 'Escolha um certificado para ver os números de quando você recebeu e os de agora.', textStyle(17, COLORS.info)).setOrigin(0.5);
     earned.forEach((c, i) => {
-      const subtitle = c.id === 'conclusao' ? 'Laboratório de segurança' : getTier(c.id).topic;
-      button(this, WIDTH / 2 - 300, 140 + i * 90, 600, 70, `${certificateTitle(c.id)} · ${subtitle}`, () => {
+      button(this, WIDTH / 2 - 300, 140 + i * 90, 600, 70, `${certificateTitle(c.id)} · ${certificateTopic(c.id)}`, () => {
         const data: CertificateData = { id: c.id };
         this.scene.start('Certificate', data);
       }, { size: 20, color: COLORS.warn });
@@ -78,14 +78,15 @@ export class CertificateScene extends Phaser.Scene {
     const state = game();
     panel(this, 40, 66, WIDTH - 80, 590, COLORS.warn);
     this.add.text(WIDTH / 2, 80, 'ROOTKIT ACADEMY', textStyle(14, COLORS.muted)).setOrigin(0.5, 0);
-    const title = certificate.id === 'conclusao' ? certificateTitle('conclusao') : `${getTier(certificate.id).title} · ${getTier(certificate.id).topic}`;
+    const tier = certificate.id === 'conclusao' ? null : getTier(certificate.id);
+    const title = tier ? `${tier.title} · ${tier.topic}` : certificateTitle('conclusao');
     fitText(this.add.text(WIDTH / 2, 100, title, textStyle(28, COLORS.accent)).setOrigin(0.5, 0), RIGHT - LEFT);
     this.add.text(WIDTH / 2, 142, 'Certificamos que', textStyle(15, COLORS.muted)).setOrigin(0.5, 0);
     // A tier ceremony shows the name before presenting copies it into the certificate.
     fitText(this.add.text(WIDTH / 2, 162, certificate.name ?? state.studentName ?? '', textStyle(32, COLORS.warn)).setOrigin(0.5, 0), RIGHT - LEFT);
-    const what = certificate.id === 'conclusao'
-      ? 'concluiu o curso e o exercício final do laboratório de segurança.'
-      : `concluiu ${agree(getTier(certificate.id).gender, 'o', 'a')} ${getTier(certificate.id).title}, sobre ${getTier(certificate.id).topic}.`;
+    const what = tier
+      ? `concluiu ${agree(tier.gender, 'o', 'a')} ${tier.title}, sobre ${tier.topic}.`
+      : 'concluiu o curso e o exercício final do laboratório de segurança.';
     fitText(this.add.text(WIDTH / 2, 204, what, textStyle(16, COLORS.text)).setOrigin(0.5, 0), RIGHT - LEFT);
 
     this.drawAreas(certificate, reopened);
@@ -158,6 +159,19 @@ export class CertificateScene extends Phaser.Scene {
     button(this, RIGHT - 44, LESSONS_TOP, 44, 44, '▲', () => scroll(step), { size: 16 });
     button(this, RIGHT - 44, LESSONS_TOP + LESSONS_HEIGHT - 44, 44, 44, '▼', () => scroll(-step), { size: 16 });
   }
+}
+
+/**
+ * Starts the ceremony of a certificate issued but not presented yet: the
+ * formatura for the conclusão one, this screen for a tier. Returns false
+ * when there is none.
+ */
+export function startPendingCeremony(scene: Phaser.Scene): boolean {
+  const pending = pendingCertificate(game());
+  if (!pending) return false;
+  if (pending.id === 'conclusao') scene.scene.start('Formatura');
+  else scene.scene.start('Certificate', { id: pending.id } satisfies CertificateData);
+  return true;
 }
 
 /** What the Hub says after a tier ceremony: the tier that just opened, or the end of the ladder. */

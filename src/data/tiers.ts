@@ -50,5 +50,7 @@ export function getTier(id: TierId): Tier {
 }
 
 export function tierOfCityType(type: TierCityType): Tier {
-  return TIERS.find((t) => t.cityType === type)!;
+  const tier = TIERS.find((t) => t.cityType === type);
+  if (!tier) throw new Error(`No tier for city type: ${type}`);
+  return tier;
 }

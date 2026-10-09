@@ -9,6 +9,7 @@ import { MINIGAME_AREAS, type MinigameId } from '../data/nodes';
 import { getTier, tierOfCityType, TIERS, type Tier, type TierCityType, type TierId } from '../data/tiers';
 import { CONCEPTS, type ConceptId } from './minigames';
 import type { GameState } from './state';
+import { areaStats } from './stats';
 
 export type CertificateId = 'conclusao' | TierId;
 
@@ -43,14 +44,19 @@ export function certificateTitle(id: CertificateId): string {
   return id === 'conclusao' ? 'Certificado de conclusão' : getTier(id).title;
 }
 
+/** What the certificate covers: the lab for the conclusão one, the topic for a tier. */
+export function certificateTopic(id: CertificateId): string {
+  return id === 'conclusao' ? 'Laboratório de segurança' : getTier(id).topic;
+}
+
 const AREAS = Object.keys(MINIGAME_AREAS) as MinigameId[];
 
 /** The certificate numbers as they are now, for every area played so far. */
 export function areaRecords(state: GameState): Partial<Record<MinigameId, AreaRecord>> {
   const records: Partial<Record<MinigameId, AreaRecord>> = {};
   for (const area of AREAS) {
-    const stats = state.stats[area];
-    if (!stats || stats.answered === 0) continue;
+    const stats = areaStats(state, area);
+    if (!stats) continue;
     const inArea = (concept: ConceptId) => CONCEPTS[concept].area === area;
     const weak = (Object.keys(state.concepts) as ConceptId[]).filter((c) => inArea(c) && state.concepts[c]!.weak);
     const learned = state.correctConcepts.filter((c) => inArea(c) && !weak.includes(c));

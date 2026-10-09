@@ -27,9 +27,9 @@ export class StudyScene extends Phaser.Scene {
     header(this, 'Estudar', () => this.scene.start('Hub'));
     objectiveBar(this);
     // The tab switch appears only once there is a second tab to switch to.
-    const pos = isTierOpen(game(), TIERS[0].id);
-    const tab = pos ? data.tab ?? 'course' : 'course';
-    if (pos) {
+    const hasPosTab = isTierOpen(game(), TIERS[0].id);
+    const tab: StudyTab = hasPosTab && data.tab ? data.tab : 'course';
+    if (hasPosTab) {
       this.tab(360, 'Curso', 'course', tab);
       this.tab(580, 'Pós-graduação', 'pos', tab);
     }

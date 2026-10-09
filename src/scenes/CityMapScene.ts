@@ -1,5 +1,4 @@
 import Phaser from 'phaser';
-import { pendingCertificate } from '../core/certificates';
 import { CITY_COLUMN_WIDTH, cityNode, type City, type CityNode, type CitySubnet } from '../core/city';
 import { encodeCityCode } from '../core/cityCode';
 import { money, plural } from '../core/fmt';
@@ -10,7 +9,7 @@ import {
 import { game } from '../core/store';
 import { MINIGAME_AREAS } from '../data/nodes';
 import { button, COLORS, fitText, header, hex, Layer, objectiveBar, textStyle, toast, WIDTH, type Button } from '../ui/widgets';
-import type { CertificateData } from './CertificateScene';
+import { startPendingCeremony } from './CertificateScene';
 import type { MinigameData } from './MinigameScene';
 
 /** The button that opens a router's gate form, by gate kind. */
@@ -69,11 +68,7 @@ export class CityMapScene extends Phaser.Scene {
 
   create(data: CityMapData) {
     // The first core of a typed city earns a tier certificate: its ceremony comes first.
-    const pending = pendingCertificate(game());
-    if (data.finishedNow && pending && pending.id !== 'conclusao') {
-      this.scene.start('Certificate', { id: pending.id } satisfies CertificateData);
-      return;
-    }
+    if (data.finishedNow && startPendingCeremony(this)) return;
     this.params = data;
     this.mapObjects = new Set();
     this.drag = null;

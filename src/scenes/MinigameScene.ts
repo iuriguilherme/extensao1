@@ -8,7 +8,6 @@ import { buildRounds, toBinary, type BitsRound, type ChoiceRound, type ConceptId
 import { createRng } from '../core/random';
 import { commitRun, recordMiss } from '../core/reteach';
 import { recordAnswer } from '../core/stats';
-import { pendingCertificate } from '../core/certificates';
 import { breach, breachCityNode, loadCity } from '../core/state';
 import { joinSwarm, totalSpecs } from '../core/swarm';
 import { game, save } from '../core/store';
@@ -16,6 +15,7 @@ import { nodePartNames } from '../data/nodeBuilds';
 import { MINIGAME_AREAS, getNode, type MinigameId } from '../data/nodes';
 import { listJoin, money, plural } from '../core/fmt';
 import { COLORS, fitText, header, hex, Layer, textStyle, WIDTH } from '../ui/widgets';
+import { startPendingCeremony } from './CertificateScene';
 import type { CityMapData } from './CityMapScene';
 
 /** What a first router breach asks next, by the kind of gate it guards. */
@@ -293,7 +293,6 @@ export class MinigameScene extends Phaser.Scene {
       return;
     }
     // The first Core breach goes straight to the formatura.
-    if (pendingCertificate(game())?.id === 'conclusao') this.scene.start('Formatura');
-    else this.scene.start(this.params.nodeId ? 'NetMap' : 'Jobs');
+    if (!startPendingCeremony(this)) this.scene.start(this.params.nodeId ? 'NetMap' : 'Jobs');
   }
 }
