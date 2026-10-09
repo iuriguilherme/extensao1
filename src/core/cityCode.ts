@@ -20,6 +20,9 @@ export const SEEDS_PER_LEVEL = CITY_NAMES.length * DIGITS_RANGE;
 
 export const TYPE_PREFIXES: Record<TierCityType, string> = { nat: 'NAT', vlan: 'VLAN', ipv6: 'IP6' };
 
+/** An optional type prefix, then NAME-level-NNNN. */
+const CODE_PATTERN = new RegExp(`^(?:(${Object.values(TYPE_PREFIXES).join('|')})-)?([A-Z]{3})-([1-9][0-9]?)-([0-9]{4})$`);
+
 export interface CityCode {
   level: number;
   seed: number;
@@ -38,7 +41,7 @@ export function encodeCityCode(level: number, seed: number, type: CityType = 'pl
  * plain city named NAT (Natal); its NAT city is `NAT-NAT-3-0012`.
  */
 export function decodeCityCode(text: string): CityCode | null {
-  const m = /^(?:(NAT|VLAN|IP6)-)?([A-Z]{3})-([1-9][0-9]?)-([0-9]{4})$/.exec(text.trim().toUpperCase());
+  const m = CODE_PATTERN.exec(text.trim().toUpperCase());
   if (!m) return null;
   const index = (CITY_NAMES as readonly string[]).indexOf(m[2]);
   if (index < 0) return null;

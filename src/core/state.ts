@@ -3,7 +3,7 @@ import { NODES, HOME_NODE_ID, FINAL_NODE_ID, getNode, type MinigameId, type NetN
 import { getPart, type Part, type Slot } from '../data/parts';
 import { tierOfCityType, TIERS, type TierCityType } from '../data/tiers';
 import { getCertificate, isCityTypeUnlocked, isTierOpen, issueCertificate, nextGoal, type Certificate } from './certificates';
-import { CITY_TYPE_LABELS, cityNode, generateCity, type City, type CityNode, type CitySubnet, type CityType } from './city';
+import { CITY_TYPE_LABELS, cityNode, cityType, generateCity, type City, type CityNode, type CitySubnet, type CityType } from './city';
 import { decodeCityCode, MAX_CITY_LEVEL } from './cityCode';
 import type { Lens } from './explanations';
 import { agree, decimal, linkSpeed, money } from './fmt';
@@ -403,7 +403,7 @@ export function breach(state: GameState, nodeId: string): number {
 }
 
 function findCity(state: GameState, level: number, seed: number, type: CityType): number {
-  return state.cities.findIndex((c) => c.level === level && c.seed === seed && (c.type ?? 'plain') === type);
+  return state.cities.findIndex((c) => c.level === level && c.seed === seed && cityType(c) === type);
 }
 
 /**

@@ -146,18 +146,26 @@ export class CertificateScene extends Phaser.Scene {
     });
   }
 
-  /** The lesson titles in a fixed box that scrolls with ▲ and ▼ when they do not fit. */
+  /**
+   * The lesson titles in a fixed box. When the wrapped lines do not fit, the
+   * box shows a window of them that ▲ and ▼ move (no mask: WebGL ignores
+   * geometry masks in Phaser 4).
+   */
   private drawLessons(text: string) {
     const width = RIGHT - LEFT - 60;
-    const list = this.add.text(LEFT, LESSONS_TOP, text || '—', textStyle(14, COLORS.text, { wordWrap: { width }, lineSpacing: 4 }));
-    const mask = this.make.graphics({}).fillRect(LEFT, LESSONS_TOP, width, LESSONS_HEIGHT);
-    list.setMask(mask.createGeometryMask());
-    const overflow = Math.max(0, list.height - LESSONS_HEIGHT);
-    if (overflow === 0) return;
-    const step = 36;
-    const scroll = (delta: number) => { list.y = Phaser.Math.Clamp(list.y + delta, LESSONS_TOP - overflow, LESSONS_TOP); };
-    button(this, RIGHT - 44, LESSONS_TOP, 44, 44, '▲', () => scroll(step), { size: 16 });
-    button(this, RIGHT - 44, LESSONS_TOP + LESSONS_HEIGHT - 44, 44, 44, '▼', () => scroll(-step), { size: 16 });
+    const list = this.add.text(LEFT, LESSONS_TOP, '', textStyle(14, COLORS.text, { wordWrap: { width }, lineSpacing: 4 }));
+    const lines = list.getWrappedText(text || '—');
+    const visible = Math.max(1, Math.floor(LESSONS_HEIGHT / 22));
+    let first = 0;
+    const show = () => list.setText(lines.slice(first, first + visible).join('\n'));
+    show();
+    if (lines.length <= visible) return;
+    const scroll = (delta: number) => {
+      first = Phaser.Math.Clamp(first + delta, 0, lines.length - visible);
+      show();
+    };
+    button(this, RIGHT - 44, LESSONS_TOP, 44, 44, '▲', () => scroll(-1), { size: 16 });
+    button(this, RIGHT - 44, LESSONS_TOP + LESSONS_HEIGHT - 44, 44, 44, '▼', () => scroll(1), { size: 16 });
   }
 }
 
