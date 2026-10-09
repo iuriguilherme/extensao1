@@ -1,6 +1,7 @@
 import { ETHICS_LESSON_ID, getLesson, LESSONS, ROUTING_LESSON_ID } from '../data/lessons';
 import { NODES, HOME_NODE_ID, FINAL_NODE_ID, getNode, type MinigameId, type NetNode } from '../data/nodes';
 import { getPart, type Part, type Slot } from '../data/parts';
+import { issueCertificate, type Certificate } from './certificates';
 import { cityNode, generateCity, type City, type CityNode, type CitySubnet } from './city';
 import { MAX_CITY_LEVEL } from './cityCode';
 import type { Lens } from './explanations';
@@ -43,6 +44,10 @@ export interface GameState {
   stats: Partial<Record<MinigameId, AreaStats>>;
   /** Every concept answered correctly at least once. */
   correctConcepts: ConceptId[];
+  /** Earned certificates, in the order they were issued (certificates.ts). */
+  certificates: Certificate[];
+  /** Typed once at the formatura and printed on every certificate. */
+  studentName: string | null;
 }
 
 export interface CityProgress {
@@ -98,6 +103,8 @@ export function newGame(): GameState {
     cities: [],
     stats: {},
     correctConcepts: [],
+    certificates: [],
+    studentName: null,
   };
 }
 
@@ -337,7 +344,10 @@ export function setNetConfig(state: GameState, config: NetConfig): void {
   state.netConfig = { ...config };
 }
 
-/** Records a successful breach. Returns the cash awarded. */
+/**
+ * Records a successful breach. Returns the cash awarded. The first Core breach
+ * also issues the conclusão certificate; its formatura presents it later.
+ */
 export function breach(state: GameState, nodeId: string): number {
   const node = getNode(nodeId);
   if (state.breached.includes(nodeId)) {
@@ -346,6 +356,7 @@ export function breach(state: GameState, nodeId: string): number {
     return reward;
   }
   state.breached.push(nodeId);
+  if (nodeId === FINAL_NODE_ID) issueCertificate(state, 'conclusao');
   state.money += node.reward;
   return node.reward;
 }
