@@ -78,7 +78,7 @@ export const TERMOS: Termo[] = [
   { conceito: 'link-local address', termo: 'link-local', genero: 'm', mantido: true },
   { conceito: 'loopback', termo: 'loopback', genero: 'm', mantido: true },
   { conceito: 'multicast', termo: 'multicast', genero: 'm', mantido: true },
-  { conceito: 'unique local address', termo: 'local única', genero: 'f', mantido: false, nota: 'Endereços fd00::/8, o equivalente IPv6 das faixas privadas.' },
+  { conceito: 'unique local address', termo: 'endereço local', genero: 'm', mantido: false, nota: 'Endereços fd00::/8, o equivalente IPv6 das faixas privadas. Em português é só "local"; "local única" não existe.' },
   { conceito: 'swarm', termo: 'swarm', genero: 'm', mantido: true, nota: 'Os nós invadidos que estão conectados e somam poder ao seu PC. Fica em inglês: "enxame" não é o termo usado na área.' },
 
   // ─── Segurança ──────────────────────────────────────────────────────────

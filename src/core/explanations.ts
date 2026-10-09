@@ -351,7 +351,7 @@ export function explainAddressType(address: string, kind: V6Kind): Explanations 
       realWorld: 'O IPv6 não tem broadcast: para falar com todos os hosts de uma rede, ele usa o multicast ff02::1.',
     },
     uniqueLocal: {
-      steps: `${address} começa com fd: é local única, o jeito IPv6 de fazer o que as faixas privadas como 192.168.0.0/16 fazem.`,
+      steps: `${address} começa com fd: é local, o jeito IPv6 de fazer o que as faixas privadas como 192.168.0.0/16 fazem.`,
       analogy: `É como o ramal interno de uma empresa: ${address} funciona dentro da organização, mas não na internet.`,
       realWorld: 'Empresas usam endereços fd para serviços internos que não precisam aparecer na internet.',
     },

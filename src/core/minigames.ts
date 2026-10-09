@@ -940,7 +940,7 @@ const V6_KIND_LABELS: Record<V6Kind, string> = {
   linkLocal: 'Link-local: só vale no próprio link',
   loopback: 'Loopback: o próprio computador',
   multicast: 'Multicast: um grupo de destinos',
-  uniqueLocal: 'Local única: privado, como o 192.168',
+  uniqueLocal: 'Local: privado, como o 192.168',
 };
 
 function v6OfKind(rng: Rng, kind: V6Kind, host: bigint): bigint {
@@ -1064,7 +1064,7 @@ const V6_KIND_NAMES: Record<V6Kind, string> = {
   linkLocal: 'link-local',
   loopback: 'o loopback',
   multicast: 'multicast',
-  uniqueLocal: 'local única, o equivalente das faixas privadas',
+  uniqueLocal: 'local, o equivalente das faixas privadas',
 };
 
 function addressTypeRound(rng: Rng, d: Difficulty, typed?: TypedContext): Round {
