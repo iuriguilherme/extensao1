@@ -1,3 +1,4 @@
+import { bootAchievements, syncAchievements } from './achievementStore';
 import { newGame, type GameState } from './state';
 
 /**
@@ -8,6 +9,7 @@ import { newGame, type GameState } from './state';
 const SAVE_KEY = 'rootkit-academy-save-v1';
 
 let current: GameState = load();
+bootAchievements(current);
 
 function load(): GameState {
   try {
@@ -36,6 +38,8 @@ export function save(): void {
   } catch {
     // Storage unavailable (private mode, quota): progress stays in memory.
   }
+  // Every state change ends in a save, so this is where conquistas are checked.
+  syncAchievements(current);
 }
 
 export function hasSave(): boolean {
