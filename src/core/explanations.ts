@@ -283,8 +283,8 @@ export function explainPortMode(ids: number[]): Explanations {
     };
   }
   return {
-    steps: `O aparelho fica só na VLAN ${ids[0]}, então a porta é de acesso nessa VLAN. Tronco é para links que levam várias VLANs.`,
-    analogy: `A porta de acesso é a rua de uma casa só, a VLAN ${ids[0]}. O tronco é a avenida que junta várias VLANs, e o aparelho nem saberia ler as etiquetas dela.`,
+    steps: `O link leva só a VLAN ${ids[0]}, então basta uma porta de acesso nessa VLAN. Tronco é para links que levam várias VLANs.`,
+    analogy: `A porta de acesso é a rua de uma casa só, a VLAN ${ids[0]}. O tronco é a avenida que junta várias VLANs; para uma VLAN só, a rua resolve.`,
     realWorld: `Impressoras, câmeras e PCs vão em portas de acesso: o switch põe o tráfego deles na VLAN ${ids[0]} sem que eles precisem saber disso.`,
   };
 }
@@ -357,4 +357,89 @@ export function explainAddressType(address: string, kind: V6Kind): Explanations 
     },
   };
   return all[kind];
+}
+
+// ─── NAT, VLAN and IPv6: more question shapes ─────────────────────────────
+
+export function explainNoForward(publicIp: string, host: string): Explanations {
+  return {
+    steps: `Sem regra de redirecionamento, a conexão que chega em ${publicIp} não tem dono na tabela do NAT, e o roteador a descarta.`,
+    analogy: `É como uma encomenda que chega na portaria sem o número do apartamento: o porteiro não sabe que ela é do ${host} e devolve.`,
+    realWorld: `Por isso um servidor montado em casa não aparece na internet até alguém criar o redirecionamento de porta no roteador.`,
+  };
+}
+
+export function explainTwoServers(publicIp: string, a: string, b: string): Explanations {
+  return {
+    steps: `Com um IP público só, ${publicIp}, cada servidor ganha uma porta pública própria: uma regra leva ao ${a} e outra ao ${b}.`,
+    analogy: `É como um prédio com um endereço só e dois apartamentos: a portaria encaminha cada visita pelo número que ela pede, a porta.`,
+    realWorld: `É comum publicar um servidor web na 80 e outro na 8080 do mesmo roteador. Quem acessa escolhe pela porta.`,
+  };
+}
+
+/** `a` and `b` are VLANs written as "20 (Secretaria)". */
+export function explainVlanSeparation(a: string, b: string): Explanations {
+  return {
+    steps: `As VLANs ${a} e ${b} são redes separadas, mesmo no mesmo switch. Para ir de uma à outra, o tráfego passa por um roteador.`,
+    analogy: `São duas salas de porta fechada no mesmo prédio: a VLAN ${a} e a VLAN ${b}. Para ir de uma à outra, só pelo corredor, o roteador.`,
+    realWorld: `Escolas separam alunos e secretaria em VLANs, como ${a} e ${b}. O roteador entre elas pode ter regras de firewall.`,
+  };
+}
+
+/** `vlan` is written as "20 (Secretaria)". */
+export function explainVlanAlone(port: number, vlan: string): Explanations {
+  return {
+    steps: `A porta ${port} é a única da VLAN ${vlan}. As outras portas estão em VLANs diferentes, então ninguém nelas fala direto com ela.`,
+    analogy: `A porta ${port} é a única pessoa na sala da VLAN ${vlan}: as outras salas ficam de porta fechada para ela.`,
+    realWorld: `Uma porta sozinha numa VLAN é comum para um aparelho isolado de propósito, como uma câmera na VLAN ${vlan}.`,
+  };
+}
+
+export function explainAccessCount(): Explanations {
+  return {
+    steps: 'Uma porta de acesso pertence a uma VLAN só. Para levar várias VLANs no mesmo cabo, a porta tem que ser um tronco.',
+    analogy: 'A porta de acesso é a rua de uma casa só: leva a um lugar. O tronco é a avenida com uma faixa para cada VLAN.',
+    realWorld: 'PCs, impressoras e câmeras vão em portas de acesso: o aparelho nem sabe que existe VLAN e enxerga só a rede dele.',
+  };
+}
+
+/** `ports` is the list of access ports of the tagged VLAN, already joined. */
+export function explainTag(id: number, ports: string): Explanations {
+  return {
+    steps: `A etiqueta diz que o quadro é da VLAN ${id}. O switch tira a etiqueta e entrega só nas portas de acesso dessa VLAN: ${ports}.`,
+    analogy: `A etiqueta é o endereço no envelope: VLAN ${id}. O carteiro, o switch, só entrega nas casas dessa rua, as portas ${ports}.`,
+    realWorld: `Num tronco 802.1Q, cada quadro leva o ID da VLAN dele. É assim que um cabo só separa o tráfego da VLAN ${id} do resto.`,
+  };
+}
+
+export type V6Invalid = 'double' | 'digits' | 'groups' | 'hex';
+
+export function explainInvalidV6(address: string, reason: V6Invalid): Explanations {
+  const why: Record<V6Invalid, string> = {
+    double: 'usa "::" duas vezes, e não dá para saber quantos zeros cada um esconde',
+    digits: 'tem um grupo com mais de 4 dígitos, e cada grupo vai de 0000 a ffff',
+    groups: 'tem mais de 8 grupos, e um endereço IPv6 tem exatamente 8',
+    hex: 'tem uma letra que não é hexadecimal: só valem 0 a 9 e a a f',
+  };
+  return {
+    steps: `${address} não é válido: ${why[reason]}.`,
+    analogy: `É como um CEP com um dígito a mais ou com letras: o carteiro nem tenta entregar. ${address} ${why[reason]}.`,
+    realWorld: `Se você digitar ${address} na configuração de rede, o sistema recusa o endereço antes de usar.`,
+  };
+}
+
+export function explainSubnetCount(): Explanations {
+  return {
+    steps: 'Do /48 ao /64 sobram 16 bits para numerar as redes: 2^16 = 65.536 redes /64.',
+    analogy: 'O /48 é um bairro, e o quarto grupo é o número da rua. Com 4 dígitos hexadecimais, dá para numerar 65.536 ruas.',
+    realWorld: 'Uma organização que recebe um /48 tem redes /64 de sobra: uma para cada sala, andar ou serviço.',
+  };
+}
+
+export function explainVlanRange(): Explanations {
+  return {
+    steps: 'O ID de VLAN vai de 1 a 4094. A 1 é a padrão e de 1002 a 1005 são reservados, então uma VLAN nova usa de 2 a 4094, menos esses.',
+    analogy: 'Pense nos IDs como números de sala: a 1 é o saguão onde todos começam, de 1002 a 1005 as salas estão trancadas e nada passa de 4094.',
+    realWorld: 'O switch recusa criar uma VLAN com ID 0, 1, 4095 ou entre 1002 e 1005. Por isso as redes costumam usar IDs como 10, 20 e 30.',
+  };
 }

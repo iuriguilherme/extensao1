@@ -13,7 +13,8 @@ import {
   explainNetworkAddress, explainOutsideAddress, explainPortForward, explainPortMode, explainPrivateRange,
   explainRecordType, explainResolve, explainSameNetwork, explainServicePort, explainStatusClass, explainStatusCode,
   explainToBinary, explainToDecimal, explainTransport, explainUsableHosts, explainV6Prefix, explainVlanId,
-  explainVlanMembership, type Explanations, type V6Kind, type VlanIdVerdict,
+  explainVlanMembership, explainAccessCount, explainInvalidV6, explainVlanRange, explainNoForward, explainSubnetCount, explainTag,
+  explainTwoServers, explainVlanAlone, explainVlanSeparation, type Explanations, type V6Invalid, type V6Kind, type VlanIdVerdict,
 } from './explanations';
 import { listJoin } from './fmt';
 import { broadcastAddress, formatIp, networkAddress, parseIp, prefixToMask, sameSubnet, usableHosts } from './ip';
@@ -563,56 +564,173 @@ const RANGE_OPTIONS = [...PRIVATE_RANGES.map((r) => `Privado, da faixa ${r.label
 function natRound(rng: Rng, d: Difficulty, focus?: ConceptId, _context?: RoundContext, typed?: TypedContext): Round {
   const nat = typed?.nat ?? randomNat(rng);
   const type = roundType(rng, focus, { 'nat.privateRange': [0], 'nat.outsideAddress': [1], 'nat.portForward': [2] }, d === 1 ? 1 : 2);
-  // A city gives its site and public address; the PC asked about varies inside
-  // the site (a /24), so one node's rounds do not all ask about one address.
-  const pc = typed?.nat && type !== 2 ? (nat.privateNetwork + randInt(rng, 2, 254)) >>> 0 : nat.privateHost;
+  if (type === 0) return privateRangeRound(rng, d, typed?.nat ? sitePc(rng, nat) : null);
+  if (type === 1) return outsideAddressRound(rng, d, nat, typed?.nat ? sitePc(rng, nat) : nat.privateHost);
+  return portForwardRound(rng, d, nat);
+}
+
+/**
+ * A city gives its site and public address; the PC asked about varies inside
+ * the site (a /24), so one node's rounds do not all ask about one address.
+ */
+function sitePc(rng: Rng, nat: NonNullable<TypedContext['nat']>): number {
+  return (nat.privateNetwork + randInt(rng, 2, 254)) >>> 0;
+}
+
+/** A host in one of the three private blocks. */
+const privateIp = (rng: Rng) => pick(rng, [
+  () => octets(10, randInt(rng, 0, 255), randInt(rng, 0, 255), randInt(rng, 1, 254)),
+  () => octets(172, randInt(rng, 16, 31), randInt(rng, 0, 255), randInt(rng, 1, 254)),
+  () => octets(192, 168, randInt(rng, 0, 255), randInt(rng, 1, 254)),
+])();
+
+/** A public address: an ordinary one, or from level 2 one just outside a private block. */
+function publicIp(rng: Rng, d: Difficulty): number {
+  let ip: number;
+  do ip = rangeQuestionIp(rng, d);
+  while (privateRangeOf(ip) !== null);
+  return ip;
+}
+
+/** Addresses that look like a private block but fall just outside it. */
+const NEAR_MISSES: Record<string, [number, number][]> = {
+  '10.0.0.0/8': [[11, -1], [9, -1], [100, -1]],
+  '172.16.0.0/12': [[172, 15], [172, 32], [173, 16]],
+  '192.168.0.0/16': [[192, 169], [192, 167], [193, 168]],
+};
+
+function privateRangeRound(rng: Rng, d: Difficulty, cityPc: number | null): Round {
+  const concept = 'nat.privateRange';
+  const variant = randInt(rng, 0, d === 1 ? 3 : 4);
+  const explain = (ip: number) => explainPrivateRange(formatIp(ip), privateRangeOf(ip));
+
+  if (variant === 0) {
+    const ip = cityPc !== null && rng() < 0.5 ? cityPc : rangeQuestionIp(rng, d);
+    const range = privateRangeOf(ip);
+    return choice(rng, concept, `O endereço ${formatIp(ip)} é privado ou público?`,
+      range ? `Privado, da faixa ${range}` : RANGE_OPTIONS[3], RANGE_OPTIONS, explain(ip));
+  }
+  if (variant === 1 || variant === 2) {
+    const wantPrivate = variant === 1;
+    const one = () => (wantPrivate ? privateIp(rng) : publicIp(rng, d));
+    const other = () => (wantPrivate ? publicIp(rng, d) : privateIp(rng));
+    const correct = wantPrivate && cityPc !== null && rng() < 0.5 ? cityPc : one();
+    const prompt = wantPrivate ? 'Qual destes endereços é privado?' : 'Qual destes endereços é público, válido na internet?';
+    return choice(rng, concept, prompt, formatIp(correct), Array.from({ length: 5 }, () => formatIp(other())), explain(correct));
+  }
+  if (variant === 3) {
+    const ip = cityPc ?? privateIp(rng);
+    return choice(rng, concept, `Sem NAT, por que um site não consegue responder para o PC ${formatIp(ip)}?`,
+      'Porque endereços privados não valem na internet', [
+        'Porque o site não aceita conexões de PCs',
+        'Porque o PC precisaria de um endereço IPv6',
+        'Porque o DNS esconde o endereço do PC',
+      ], explain(ip));
+  }
+  // Level 2 and up: one block and the addresses just outside it.
+  const range = pick(rng, PRIVATE_RANGES);
+  const inside = rng() < 0.5 && cityPc !== null && privateRangeOf(cityPc) === range.label
+    ? cityPc
+    : (range.network + randInt(rng, 1, 2 ** (32 - range.prefix) - 2)) >>> 0;
+  const misses = NEAR_MISSES[range.label].map(([a, b]) => octets(a, b < 0 ? randInt(rng, 0, 255) : b, randInt(rng, 0, 255), randInt(rng, 1, 254)));
+  return choice(rng, concept, `A rede da escola usa a faixa privada ${range.label}. Qual destes endereços pertence a ela?`,
+    formatIp(inside), misses.map(formatIp), explain(inside));
+}
+
+function outsideAddressRound(rng: Rng, d: Difficulty, nat: NonNullable<TypedContext['nat']>, pc: number): Round {
+  const concept = 'nat.outsideAddress';
   const host = formatIp(pc);
-  const publicIp = formatIp(nat.publicIp);
+  const outside = formatIp(nat.publicIp);
   // By convention the router takes the first usable address of the site.
   const inside = formatIp((nat.privateNetwork + 1) >>> 0);
+  const otherPc = () => {
+    let offset: number;
+    do offset = randInt(rng, 2, 254);
+    while (offset === pc - nat.privateNetwork);
+    return formatIp((nat.privateNetwork + offset) >>> 0);
+  };
+  const variant = randInt(rng, 0, d === 1 ? 2 : 3);
 
-  if (type === 0) {
-    // A city node asks about a PC of its own site half of the time.
-    const ip = typed?.nat && rng() < 0.5 ? pc : rangeQuestionIp(rng, d);
-    const range = privateRangeOf(ip);
-    return choice(rng, 'nat.privateRange', `O endereço ${formatIp(ip)} é privado ou público?`,
-      range ? `Privado, da faixa ${range}` : RANGE_OPTIONS[3], RANGE_OPTIONS, explainPrivateRange(formatIp(ip), range));
+  if (variant === 0) {
+    return choice(rng, concept,
+      `O PC ${host} abre um site. O roteador da rede usa ${inside} por dentro e ${outside} na internet. De qual endereço o site vê a conexão chegar?`,
+      outside, [host, inside, formatIp(nat.privateNetwork)], explainOutsideAddress(host, outside, 'out'));
   }
-  if (type === 1) {
-    if (d < 3 || rng() < 0.5) {
-      return choice(rng, 'nat.outsideAddress',
-        `O PC ${host} abre um site. O roteador da rede usa ${inside} por dentro e ${publicIp} na internet. De qual endereço o site vê a conexão chegar?`,
-        publicIp, [host, inside, formatIp(nat.privateNetwork)], explainOutsideAddress(host, publicIp, 'out'));
-    }
-    // The reply comes back to the public address; the NAT table says whose connection it is.
-    const offset = pc - nat.privateNetwork;
-    let otherOffset: number;
-    do otherOffset = randInt(rng, 2, 254);
-    while (otherOffset === offset);
-    const other = formatIp((nat.privateNetwork + otherOffset) >>> 0);
-    const mine = randInt(rng, 40000, 44999);
-    const rows = shuffle(rng, [
-      `${host}:${randInt(rng, 50000, 54999)}  ↔  ${publicIp}:${mine}`,
-      `${other}:${randInt(rng, 55000, 59999)}  ↔  ${publicIp}:${randInt(rng, 45000, 49999)}`,
-    ]);
-    return choice(rng, 'nat.outsideAddress', `Chegou uma resposta em ${publicIp}:${mine}. Para qual endereço o roteador entrega?`,
-      host, [other, publicIp, inside], explainOutsideAddress(host, publicIp, 'back'), ['tabela do NAT', ...rows].join('\n'));
+  if (variant === 1) {
+    const pcs = [...new Set([host, otherPc(), otherPc()])];
+    return choice(rng, concept,
+      `Os PCs ${listJoin(pcs)} acessam o mesmo site ao mesmo tempo, pelo roteador ${outside}. Que endereço de origem o site vê em cada conexão?`,
+      `${outside} em todas`,
+      [`O próprio endereço de cada PC: ${listJoin(pcs)}`, `${inside} em todas`, 'Um endereço público diferente para cada PC'],
+      explainOutsideAddress(host, outside, 'out'));
   }
+  if (variant === 2) {
+    return choice(rng, concept,
+      `O roteador trocou a origem ${host} por ${outside}. O que ele anota para conseguir entregar a resposta?`,
+      'Qual PC e qual porta abriram a conexão, ligados à porta usada do lado de fora', [
+        'O endereço do site, para bloquear a resposta',
+        'A máscara de sub-rede do site',
+        'Nada: a resposta já volta com o endereço de dentro',
+      ], explainOutsideAddress(host, outside, 'back'));
+  }
+  // Level 2 and up: the reply comes back to the public address; the NAT table says whose connection it is.
+  const other = otherPc();
+  const mine = randInt(rng, 40000, 44999);
+  const rows = shuffle(rng, [
+    `${host}:${randInt(rng, 50000, 54999)}  ↔  ${outside}:${mine}`,
+    `${other}:${randInt(rng, 55000, 59999)}  ↔  ${outside}:${randInt(rng, 45000, 49999)}`,
+  ]);
+  return choice(rng, concept, `Chegou uma resposta em ${outside}:${mine}. Para qual endereço o roteador entrega?`,
+    host, [other, outside, inside], explainOutsideAddress(host, outside, 'back'), ['tabela do NAT', ...rows].join('\n'));
+}
+
+function portForwardRound(rng: Rng, d: Difficulty, nat: NonNullable<TypedContext['nat']>): Round {
+  const concept = 'nat.portForward';
+  const host = formatIp(nat.privateHost);
+  const outside = formatIp(nat.publicIp);
+  const inside = formatIp((nat.privateNetwork + 1) >>> 0);
   const svc = pick(rng, PUBLISHED_SERVICES);
   const publicPort = d >= 3 && rng() < 0.5 ? svc.altPort : svc.port;
   const wrongPort = pick(rng, PUBLISHED_SERVICES.filter((s) => s !== svc)).port;
   const rule = (from: string, fromPort: number, to: string, toPort: number) => `${from}:${fromPort} → ${to}:${toPort}`;
-  const correct = rule(publicIp, publicPort, host, svc.port);
-  const distractors = [
-    rule(host, svc.port, publicIp, publicPort),
-    rule(publicIp, publicPort, formatIp(broadcastAddress(nat.privateNetwork, nat.privatePrefix)), svc.port),
-    rule(publicIp, publicPort, host, wrongPort),
-    rule(publicIp, publicPort, formatIp(nat.privateNetwork), svc.port),
-  ];
-  if (publicPort !== svc.port) distractors.push(rule(publicIp, svc.port, host, publicPort));
-  const where = publicPort === svc.port ? publicIp : `${publicIp}, na porta ${publicPort}`;
-  return choice(rng, 'nat.portForward', `O ${svc.name} ${host} escuta na porta ${svc.port}. Que regra publica esse serviço em ${where}?`,
-    correct, distractors, explainPortForward(correct, publicIp, host));
+  const correct = rule(outside, publicPort, host, svc.port);
+  const variant = randInt(rng, 0, d >= 3 ? 3 : 2);
+
+  if (variant === 0) {
+    const distractors = [
+      rule(host, svc.port, outside, publicPort),
+      rule(outside, publicPort, formatIp(broadcastAddress(nat.privateNetwork, nat.privatePrefix)), svc.port),
+      rule(outside, publicPort, host, wrongPort),
+      rule(outside, publicPort, formatIp(nat.privateNetwork), svc.port),
+    ];
+    if (publicPort !== svc.port) distractors.push(rule(outside, svc.port, host, publicPort));
+    const where = publicPort === svc.port ? outside : `${outside}, na porta ${publicPort}`;
+    return choice(rng, concept, `O ${svc.name} ${host} escuta na porta ${svc.port}. Que regra publica esse serviço em ${where}?`,
+      correct, distractors, explainPortForward(correct, outside, host));
+  }
+  if (variant === 1) {
+    return choice(rng, concept, `Pela regra do roteador, que endereço e porta quem está na internet usa para chegar ao ${svc.name}?`,
+      `${outside}:${publicPort}`, [`${host}:${svc.port}`, `${inside}:${publicPort}`, `${outside}:${wrongPort}`],
+      explainPortForward(correct, outside, host), `regra no roteador\n${correct}`);
+  }
+  if (variant === 2) {
+    return choice(rng, concept,
+      `Ninguém criou redirecionamento no roteador. Alguém na internet tenta abrir ${outside}:${svc.port} para chegar ao ${svc.name} ${host}. O que acontece?`,
+      'O roteador descarta a conexão: não sabe para qual PC mandar', [
+        `A conexão chega ao ${host} normalmente`,
+        'O roteador manda a conexão para todos os PCs da rede',
+        'O DNS encaminha a conexão sozinho',
+      ], explainNoForward(outside, host));
+  }
+  // Level 3: two servers behind one public address.
+  const second = formatIp((nat.privateHost === nat.privateNetwork + 2 ? nat.privateHost + 1 : nat.privateNetwork + 2) >>> 0);
+  return choice(rng, concept,
+    `A rede tem dois servidores web, ${host} e ${second}, e um IP público só, ${outside}. Como publicar os dois?`,
+    'Cada um numa porta pública diferente, como 80 e 8080', [
+      'Os dois na mesma porta pública 80',
+      `Dar o endereço ${outside} para os dois servidores`,
+      'Não dá: um IP público publica um servidor só',
+    ], explainTwoServers(outside, host, second));
 }
 
 // ─── VLAN ─────────────────────────────────────────────────────────────────
@@ -655,45 +773,134 @@ const VERDICT_OPTIONS: Record<VlanIdVerdict, string> = {
 
 function vlanRound(rng: Rng, d: Difficulty, focus?: ConceptId, _context?: RoundContext, typed?: TypedContext): Round {
   const type = roundType(rng, focus, { 'vlan.membership': [0], 'vlan.portMode': [1], 'vlan.validId': [2] }, d === 1 ? 1 : 2);
+  if (type === 0) return membershipRound(rng, d, typed?.vlan);
+  if (type === 1) return portModeRound(rng, d, typed?.vlan);
+  return validIdRound(rng, d, typed?.vlan);
+}
 
-  if (type === 0) {
+const vlanLabel = (v: Vlan) => `${v.id} (${v.name})`;
+
+/** A switch table: which VLAN each port is in, two entries per line. */
+function vlanTable(ports: number[], members: Vlan[]): string {
+  const rows = members.map((v, i) => ({ port: ports[i], text: `porta ${ports[i]}  VLAN ${v.id} · ${v.name}` })).sort((a, b) => a.port - b.port);
+  const width = Math.max(...rows.map((r) => r.text.length)) + 4;
+  const lines: string[] = [];
+  for (let i = 0; i < rows.length; i += 2) lines.push(rows[i].text.padEnd(width) + (rows[i + 1]?.text ?? ''));
+  return lines.join('\n').trimEnd();
+}
+
+/** Port numbers 1..count in random order; port `i` of the result belongs to member `i`. */
+function shuffledPorts(rng: Rng, count: number): number[] {
+  return shuffle(rng, Array.from({ length: count }, (_, i) => i + 1));
+}
+
+function membershipRound(rng: Rng, d: Difficulty, cityVlan?: Vlan): Round {
+  const concept = 'vlan.membership';
+  const variant = randInt(rng, 0, d === 1 ? 1 : 3);
+
+  if (variant === 0) {
     // Two ports share the asked VLAN; every other port sits in another one.
-    const [target, ...others] = someVlans(rng, d === 1 ? 2 : 3, typed?.vlan);
+    const [target, ...others] = someVlans(rng, d === 1 ? 2 : 3, cityVlan);
     const members = [target, target, ...Array.from({ length: d === 1 ? 3 : 5 }, (_, i) => others[i % others.length])];
-    const ports = shuffle(rng, members.map((_, i) => i + 1));
-    const rows = members.map((v, i) => ({ port: ports[i], text: `porta ${ports[i]}  VLAN ${v.id} · ${v.name}` })).sort((a, b) => a.port - b.port);
-    const width = Math.max(...rows.map((r) => r.text.length)) + 4;
-    const lines: string[] = [];
-    for (let i = 0; i < rows.length; i += 2) lines.push(rows[i].text.padEnd(width) + (rows[i + 1]?.text ?? ''));
-    return choice(rng, 'vlan.membership', `Pela tabela do switch, o PC da porta ${ports[0]} fala direto com o PC de qual porta?`,
-      `Porta ${ports[1]}`, ports.slice(2).map((p) => `Porta ${p}`), explainVlanMembership(ports[0], ports[1], `${target.id} (${target.name})`),
-      lines.join('\n').trimEnd());
+    const ports = shuffledPorts(rng, members.length);
+    return choice(rng, concept, `Pela tabela do switch, o PC da porta ${ports[0]} fala direto com o PC de qual porta?`,
+      `Porta ${ports[1]}`, ports.slice(2).map((p) => `Porta ${p}`), explainVlanMembership(ports[0], ports[1], vlanLabel(target)),
+      vlanTable(ports, members));
   }
-  if (type === 1) {
-    const vlans = someVlans(rng, 3, typed?.vlan);
-    const ids = vlans.map((v) => v.id);
-    const access = (id: number) => `Porta de acesso na VLAN ${id}`;
-    if (rng() < 0.5) {
-      return choice(rng, 'vlan.portMode', `O cabo entre dois switches precisa levar as VLANs ${listJoin(ids.map(String))}. Como configurar a porta desse cabo?`,
-        'Tronco', ids.map(access), explainPortMode(ids));
-    }
+  if (variant === 1) {
+    const [a, b] = someVlans(rng, 2, cityVlan);
+    return choice(rng, concept,
+      `No mesmo switch, um PC está na VLAN ${vlanLabel(a)} e outro na VLAN ${vlanLabel(b)}. Eles se falam direto?`,
+      'Não: VLANs diferentes só se falam passando por um roteador', [
+        'Sim: estão ligados no mesmo switch',
+        'Sim, desde que os dois cabos sejam do mesmo tipo',
+        'Só se os dois tiverem o mesmo endereço IP',
+      ], explainVlanSeparation(vlanLabel(a), vlanLabel(b)));
+  }
+  if (variant === 2) {
+    // One port alone in its VLAN; the others come in pairs or more.
+    const [target, o1, o2] = someVlans(rng, 3, cityVlan);
+    const members = [target, o1, o1, o2, o2, o1];
+    const ports = shuffledPorts(rng, members.length);
+    return choice(rng, concept, 'Pela tabela do switch, qual porta não fala direto com nenhuma das outras?',
+      `Porta ${ports[0]}`, ports.slice(1).map((p) => `Porta ${p}`), explainVlanAlone(ports[0], vlanLabel(target)),
+      vlanTable(ports, members));
+  }
+  const [a, b] = someVlans(rng, 2, cityVlan);
+  return choice(rng, concept,
+    `Um PC da VLAN ${vlanLabel(a)} precisa imprimir na impressora da VLAN ${vlanLabel(b)}. O que tem que existir no caminho?`,
+    'Um roteador ligando as duas VLANs', [
+      'Um cabo mais curto entre os dois',
+      'Outro switch na mesma VLAN do PC',
+      'Nada: a impressora já aparece para ele',
+    ], explainVlanSeparation(vlanLabel(a), vlanLabel(b)));
+}
+
+function portModeRound(rng: Rng, d: Difficulty, cityVlan?: Vlan): Round {
+  const concept = 'vlan.portMode';
+  const access = (id: number) => `Porta de acesso na VLAN ${id}`;
+  const variant = randInt(rng, 0, d === 1 ? 2 : d === 2 ? 3 : 4);
+
+  if (variant === 0) {
+    const ids = someVlans(rng, 3, cityVlan).map((v) => v.id);
+    return choice(rng, concept, `O cabo entre dois switches precisa levar as VLANs ${listJoin(ids.map(String))}. Como configurar a porta desse cabo?`,
+      'Tronco', ids.map(access), explainPortMode(ids));
+  }
+  if (variant === 1) {
+    const vlans = someVlans(rng, 3, cityVlan);
     const [vlan] = vlans;
     const device = pick(rng, ['uma impressora', 'uma câmera', 'um telefone IP', 'um PC']);
-    return choice(rng, 'vlan.portMode', `Uma porta do switch vai ligar ${device} da VLAN ${vlan.id} (${vlan.name}). Como configurar essa porta?`,
-      access(vlan.id), ['Tronco', ...ids.slice(1).map(access)], explainPortMode([vlan.id]));
+    return choice(rng, concept, `Uma porta do switch vai ligar ${device} da VLAN ${vlanLabel(vlan)}. Como configurar essa porta?`,
+      access(vlan.id), ['Tronco', ...vlans.slice(1).map((v) => access(v.id))], explainPortMode([vlan.id]));
   }
+  if (variant === 2) {
+    return choice(rng, concept, 'Quantas VLANs uma porta de acesso leva?', 'Uma só',
+      ['Duas', 'Todas as VLANs do switch', 'Nenhuma'], explainAccessCount());
+  }
+  if (variant === 3) {
+    // A tagged frame goes out only on the access ports of its VLAN.
+    const [target, other] = someVlans(rng, 2, cityVlan);
+    const members = [target, target, other, other, other];
+    const ports = shuffledPorts(rng, members.length);
+    const mine = listJoin(ports.slice(0, 2).sort((a, b) => a - b).map(String));
+    const theirs = listJoin(ports.slice(2, 4).sort((a, b) => a - b).map(String));
+    return choice(rng, concept,
+      `Chega pelo tronco um quadro com a etiqueta da VLAN ${target.id}. Para quais portas de acesso o switch pode mandar esse quadro?`,
+      `Portas ${mine}`, [`Portas ${theirs}`, 'Para todas as portas', 'Para nenhuma: quadro com etiqueta é descartado'],
+      explainTag(target.id, mine), vlanTable(ports, members));
+  }
+  // Level 3: a cable between switches that carries one VLAN only.
+  const [vlan, other] = someVlans(rng, 2, cityVlan);
+  return choice(rng, concept, `O cabo entre dois switches só precisa levar a VLAN ${vlanLabel(vlan)}. Como configurar a porta desse cabo?`,
+    access(vlan.id), ['Tronco', access(other.id), access(1)], explainPortMode([vlan.id]));
+}
+
+function validIdRound(rng: Rng, d: Difficulty, cityVlan?: Vlan): Round {
+  const concept = 'vlan.validId';
   const invalid = d >= 3 ? [1, 0, 4095, 4096, 1002, 1003, 1004, 1005] : [1, 0, 4095, 4096];
-  if (d >= 3 && rng() < 0.5) {
+  const freshId = () => randInt(rng, 2, 400) * 10;
+  const variant = randInt(rng, 0, d >= 3 ? 3 : 1);
+
+  if (variant === 0) {
+    // The asked VLAN is a new one, so the city's own VLAN only lends its name now and then.
+    const name = cityVlan && rng() < 0.3 ? cityVlan.name : pick(rng, VLAN_NAMES);
+    const id = freshId();
+    return choice(rng, concept, `Você vai criar a VLAN ${name}. Qual destes IDs ela pode usar?`, String(id), invalid.map(String),
+      explainVlanId(id, 'ok'));
+  }
+  if (variant === 1) {
+    const bad = pick(rng, invalid);
+    return choice(rng, concept, 'Qual destes IDs NÃO pode ser usado numa VLAN nova?', String(bad),
+      Array.from({ length: 5 }, () => String(freshId())), explainVlanId(bad, vlanIdVerdict(bad)));
+  }
+  if (variant === 2) {
     const id = pick(rng, [randInt(rng, 2, 1001), ...invalid]);
     const verdict = vlanIdVerdict(id);
-    return choice(rng, 'vlan.validId', `O ID ${id} serve para uma VLAN nova?`, VERDICT_OPTIONS[verdict], Object.values(VERDICT_OPTIONS),
+    return choice(rng, concept, `O ID ${id} serve para uma VLAN nova?`, VERDICT_OPTIONS[verdict], Object.values(VERDICT_OPTIONS),
       explainVlanId(id, verdict));
   }
-  // The asked VLAN is a new one, so the city's own VLAN only lends its name now and then.
-  const name = typed?.vlan && rng() < 0.3 ? typed.vlan.name : pick(rng, VLAN_NAMES);
-  const id = randInt(rng, 2, 400) * 10;
-  return choice(rng, 'vlan.validId', `Você vai criar a VLAN ${name}. Qual destes IDs ela pode usar?`, String(id), invalid.map(String),
-    explainVlanId(id, 'ok'));
+  return choice(rng, concept, 'Que IDs uma VLAN nova pode usar?', 'De 2 a 4094, menos os reservados de 1002 a 1005',
+    ['De 0 a 4095', 'De 1 a 1000', 'Qualquer número até 9999'], explainVlanRange());
 }
 
 // ─── IPv6 ─────────────────────────────────────────────────────────────────
@@ -754,35 +961,140 @@ function cityV6Host(rng: Rng, typed: TypedContext | undefined): bigint | null {
 
 function ipv6Round(rng: Rng, d: Difficulty, focus?: ConceptId, _context?: RoundContext, typed?: TypedContext): Round {
   const type = roundType(rng, focus, { 'ipv6.compress': [0], 'ipv6.prefix': [1], 'ipv6.addressType': [2] }, 2);
+  if (type === 0) return compressRound(rng, d, typed);
+  if (type === 1) return v6PrefixRound(rng, d, typed);
+  return addressTypeRound(rng, d, typed);
+}
 
-  if (type === 0) {
-    // City addresses all share one shape, so half the shortening rounds use a general address.
-    const value = (typed?.ipv6 && rng() < 0.5 ? cityV6Host(rng, typed) : null) ?? randomV6Host(rng, d);
-    const full = formatIpv6Full(value);
-    const short = formatIpv6(value);
-    return choice(rng, 'ipv6.compress', `Qual é a forma abreviada de ${full}?`, short, compressMistakes(value), explainCompress(full, short));
+/** Wrong full forms of a short address: groups padded on the right, or the zeros put back in the wrong place. */
+function fullMistakes(value: bigint): string[] {
+  const short = formatIpv6(value);
+  const padded = short.split(':').map((g) => (g ? g.padEnd(4, '0') : g)).join(':');
+  const moved = compressMistakes(value).map(parseIpv6).filter((v): v is bigint => v !== null && v !== value).map(formatIpv6Full);
+  const full = formatIpv6Full(value).split(':');
+  const missing = [...full.slice(0, -2), full[full.length - 1]].join(':');
+  return [formatIpv6Full(parseIpv6(padded) ?? value), missing, ...moved].filter((t) => t !== formatIpv6Full(value));
+}
+
+/** An invalid address made from a valid one, and why it is invalid. */
+function invalidV6(rng: Rng, value: bigint): { text: string; reason: V6Invalid } {
+  const short = formatIpv6(value);
+  const [head] = short.split('::');
+  const ways: (() => { text: string; reason: V6Invalid })[] = [
+    () => ({ text: `${head.split(':')[0]}::${head.split(':').slice(1).join(':')}::1`, reason: 'double' }),
+    () => ({ text: short.replace(/^2001/, '20011'), reason: 'digits' }),
+    () => ({ text: `${formatIpv6Full(value)}:1`, reason: 'groups' }),
+    () => ({ text: short.replace(/^2001:db8/, '2001:dg8'), reason: 'hex' }),
+  ];
+  return pick(rng, ways)();
+}
+
+function compressRound(rng: Rng, d: Difficulty, typed?: TypedContext): Round {
+  const concept = 'ipv6.compress';
+  // City addresses all share one shape, so half the rounds use a general address.
+  const value = (typed?.ipv6 && rng() < 0.5 ? cityV6Host(rng, typed) : null) ?? randomV6Host(rng, d);
+  const full = formatIpv6Full(value);
+  const short = formatIpv6(value);
+  const variant = randInt(rng, 0, d === 1 ? 2 : 3);
+
+  if (variant === 0) {
+    return choice(rng, concept, `Qual é a forma abreviada de ${full}?`, short, compressMistakes(value), explainCompress(full, short));
   }
-  if (type === 1) {
-    const value = cityV6Host(rng, typed) ?? randomV6Host(rng, 1);
-    const length = d >= 2 && rng() < 0.4 ? 48 : 64;
-    const host = formatIpv6(value);
-    const net = (bits: number) => ipv6Network(value, bits);
-    const written = (network: bigint) => `${formatIpv6(network)}/${length}`;
-    const correct = written(net(length));
+  if (variant === 1) {
+    return choice(rng, concept, `Qual destes é o mesmo endereço que ${short}?`, full,
+      fullMistakes(value).filter((t) => parseIpv6(t) !== null), explainCompress(full, short));
+  }
+  if (variant === 2) {
+    const bad = invalidV6(rng, value);
+    const valid = Array.from({ length: 4 }, () => formatIpv6(randomV6Host(rng, d)));
+    return choice(rng, concept, 'Qual destes endereços IPv6 NÃO é válido?', bad.text, valid, explainInvalidV6(bad.text, bad.reason));
+  }
+  return choice(rng, concept, `Qual é a forma completa de ${short}?`, full, fullMistakes(value), explainCompress(full, short));
+}
+
+function v6PrefixRound(rng: Rng, d: Difficulty, typed?: TypedContext): Round {
+  const concept = 'ipv6.prefix';
+  const value = cityV6Host(rng, typed) ?? randomV6Host(rng, 1);
+  const host = formatIpv6(value);
+  const net = (bits: number) => ipv6Network(value, bits);
+  const written = (network: bigint, length: number) => `${formatIpv6(network)}/${length}`;
+  const own64 = written(net(64), 64);
+  const nextNet = (net(64) + (1n << 64n)) & ((1n << 128n) - 1n);
+  const iid = () => BigInt(randInt(rng, 2, 0xfff));
+  const variant = randInt(rng, 0, d === 1 ? 2 : 5);
+
+  if (variant === 0 || variant === 3) {
+    const length = variant === 3 ? 48 : 64;
+    const correct = written(net(length), length);
     const prompt = length === 64
       ? `Em qual rede /64 está o endereço ${host}?`
       : `Qual é o prefixo /48 da organização dona do endereço ${host}?`;
-    return choice(rng, 'ipv6.prefix', prompt, correct, [
+    return choice(rng, concept, prompt, correct, [
       `${host}/${length}`,
-      written(net(length === 64 ? 48 : 64)),
-      written(net(length) + (1n << BigInt(128 - length))),
-      written(0x20010db8n << 96n),
+      written(net(length === 64 ? 48 : 64), length),
+      written(net(length) + (1n << BigInt(128 - length)), length),
+      written(0x20010db8n << 96n, length),
     ], explainV6Prefix(host, correct, length));
   }
+  if (variant === 1) {
+    const same = rng() < 0.5;
+    const other = formatIpv6((same ? net(64) : nextNet) | iid());
+    return choice(rng, concept, `Os endereços ${host} e ${other} estão na mesma rede /64?`,
+      same ? 'Sim: os quatro primeiros grupos são iguais' : 'Não: o quarto grupo é diferente', [
+        same ? 'Não: o último grupo é diferente' : 'Sim: os dois começam com 2001:db8',
+        same ? 'Não: um /64 tem um endereço só' : 'Sim: o último grupo não importa',
+        'Não dá para saber sem a máscara de sub-rede',
+      ], explainV6Prefix(host, own64, 64));
+  }
+  if (variant === 2) {
+    return choice(rng, concept, 'Numa rede local IPv6 comum, quantos bits são do prefixo da rede?', '64', ['48', '32', '128'],
+      explainV6Prefix(host, own64, 64));
+  }
+  if (variant === 4) {
+    return choice(rng, concept, 'Quantas redes /64 cabem dentro de um /48?', '65.536', ['256', '48', '16'], explainSubnetCount());
+  }
+  const outside = formatIpv6(nextNet | iid());
+  return choice(rng, concept, `Qual destes endereços NÃO está na rede ${own64}?`, outside,
+    Array.from({ length: 5 }, () => formatIpv6(net(64) | iid())), explainV6Prefix(outside, written(ipv6Network(nextNet, 64), 64), 64));
+}
+
+/** How a kind is named in "Qual destes endereços é …?". */
+const V6_KIND_NAMES: Record<V6Kind, string> = {
+  global: 'global, válido na internet',
+  linkLocal: 'link-local',
+  loopback: 'o loopback',
+  multicast: 'multicast',
+  uniqueLocal: 'local única, o equivalente das faixas privadas',
+};
+
+function addressTypeRound(rng: Rng, d: Difficulty, typed?: TypedContext): Round {
+  const concept = 'ipv6.addressType';
   const kinds: V6Kind[] = d === 1 ? ['global', 'linkLocal', 'loopback', 'multicast'] : ['global', 'linkLocal', 'loopback', 'multicast', 'uniqueLocal'];
-  // A city node asks about an address of its own network half of the time.
-  const kind = typed?.ipv6 && rng() < 0.5 ? 'global' : pick(rng, kinds);
-  const address = formatIpv6(v6OfKind(rng, kind, cityV6Host(rng, typed) ?? randomV6Host(rng, 1)));
-  return choice(rng, 'ipv6.addressType', `Que tipo de endereço IPv6 é ${address}?`, V6_KIND_LABELS[kind], kinds.map((k) => V6_KIND_LABELS[k]),
-    explainAddressType(address, kind));
+  const globalHost = () => cityV6Host(rng, typed) ?? randomV6Host(rng, 1);
+  const variant = randInt(rng, 0, d === 1 ? 3 : 4);
+
+  if (variant === 0) {
+    const kind = pick(rng, kinds);
+    const address = formatIpv6(v6OfKind(rng, kind, globalHost()));
+    return choice(rng, concept, `Que tipo de endereço IPv6 é ${address}?`, V6_KIND_LABELS[kind], kinds.map((k) => V6_KIND_LABELS[k]),
+      explainAddressType(address, kind));
+  }
+  if (variant === 1) {
+    const kind = pick(rng, kinds);
+    const address = (k: V6Kind) => formatIpv6(v6OfKind(rng, k, globalHost()));
+    const correct = address(kind);
+    return choice(rng, concept, `Qual destes endereços é ${V6_KIND_NAMES[kind]}?`, correct,
+      kinds.filter((k) => k !== kind).map(address), explainAddressType(correct, kind));
+  }
+  if (variant === 2) {
+    const linkLocal = formatIpv6(v6OfKind(rng, 'linkLocal', 0n));
+    return choice(rng, concept, 'Um PC acabou de ligar numa rede sem nenhum roteador. Que tipo de endereço IPv6 ele já tem?',
+      V6_KIND_LABELS.linkLocal, kinds.map((k) => V6_KIND_LABELS[k]), explainAddressType(linkLocal, 'linkLocal'));
+  }
+  if (variant === 3) {
+    return choice(rng, concept, 'Qual endereço IPv6 faz o mesmo papel do 127.0.0.1 do IPv4?', '::1',
+      ['fe80::1', 'ff02::1', '2001:db8::1'], explainAddressType('::1', 'loopback'));
+  }
+  return choice(rng, concept, 'O IPv6 não tem broadcast. Para falar com todos os hosts de uma rede, ele usa...', 'O multicast ff02::1',
+    ['O loopback ::1', 'O endereço link-local fe80::1', 'O último endereço da rede'], explainAddressType('ff02::1', 'multicast'));
 }

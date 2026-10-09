@@ -36,17 +36,16 @@ describe('NAT, VLAN and IPv6 areas', () => {
     for (const pub of ['172.32.0.1', '172.15.9.9', '192.169.0.1', '11.0.0.1']) expect(privateRangeOf(ip(pub)), pub).toBeNull();
   });
 
-  it('a port-forwarding round in a NAT city publishes the city host on the city public address', () => {
-    const rounds = choiceRounds('nat', 3, 'nat.portForward', NAT);
-    expect(rounds.length).toBeGreaterThan(0);
-    for (const r of rounds) {
-      const correct = r.options[r.answer];
-      expect(correct).toMatch(/^203\.0\.113\.7:\d+ → 192\.168\.10\.20:\d+$/);
-    }
+  it('a port-forwarding rule round in a NAT city publishes the city host on the city public address', () => {
+    const rules = choiceRounds('nat', 3, 'nat.portForward', NAT).filter((r) => r.options[r.answer].includes('→'));
+    expect(rules.length).toBeGreaterThan(0);
+    for (const r of rules) expect(r.options[r.answer]).toMatch(/^203\.0\.113\.7:\d+ → 192\.168\.10\.20:\d+$/);
   });
 
   it('private-or-public rounds in a NAT city ask about PCs of the city site, among other addresses', () => {
-    const asked = choiceRounds('nat', 1, 'nat.privateRange', NAT).map((r) => /O endereço (\S+) é/.exec(r.prompt)![1]);
+    const asked = choiceRounds('nat', 1, 'nat.privateRange', NAT)
+      .map((r) => /O endereço (\S+) é/.exec(r.prompt)?.[1])
+      .filter((a): a is string => a !== undefined);
     const inSite = asked.filter((a) => a.startsWith('192.168.10.'));
     expect(inSite.length).toBeGreaterThan(0);
     expect(new Set(inSite).size).toBeGreaterThan(1);
@@ -55,7 +54,9 @@ describe('NAT, VLAN and IPv6 areas', () => {
   it('an IPv6 shortening round has exactly one option with the asked address', () => {
     for (let level = 1; level <= 3; level++) {
       for (const r of choiceRounds('ipv6', level, 'ipv6.compress')) {
-        const asked = parseIpv6(/de (\S+)\?$/.exec(r.prompt)![1]);
+        const match = /(?:de|que) (\S+)\?$/.exec(r.prompt);
+        if (!match) continue;
+        const asked = parseIpv6(match[1]);
         expect(asked).not.toBeNull();
         expect(r.options.filter((o) => parseIpv6(o) === asked), r.prompt).toEqual([r.options[r.answer]]);
       }
@@ -64,8 +65,11 @@ describe('NAT, VLAN and IPv6 areas', () => {
 
   it('a prefix round in an IPv6 city asks about an address of the node /64', () => {
     const host = parseIpv6('2001:db8:4b2:17::2a')!;
-    for (const r of choiceRounds('ipv6', 2, 'ipv6.prefix', { ipv6: { host } })) {
-      expect(r.prompt).toMatch(/2001:db8:4b2:17::[0-9a-f]+\?$/);
+    const rounds = choiceRounds('ipv6', 2, 'ipv6.prefix', { ipv6: { host } });
+    const addresses = rounds.map((r) => r.prompt.match(/[0-9a-f]*:[0-9a-f:]{2,}/g) ?? []).filter((a) => a.length > 0);
+    expect(addresses.length).toBeGreaterThan(0);
+    for (const found of addresses) {
+      expect(found.some((a) => a.startsWith('2001:db8:4b2:17::')), found.join(' ')).toBe(true);
     }
   });
 
@@ -88,6 +92,21 @@ describe('NAT, VLAN and IPv6 areas', () => {
           const keys = rounds.map((r) => r.prompt + (r.kind === 'choice' ? r.detail ?? '' : ''));
           expect(new Set(keys).size, `${area} level ${level} seed ${seed}: ${keys.join(' | ')}`).toBe(rounds.length);
         }
+      }
+    }
+  });
+
+  it('offers as many question shapes as the other level 1-3 areas', () => {
+    const shape = (p: string) => p.replace(/[0-9a-f]*:[0-9a-f:]{2,}(\/\d+)?/gi, '#').replace(/[\d.]+/g, '#')
+      .replace(/\(([\p{Lu}][\p{L}-]+)\)/gu, '#').replace(/VLAN [\p{Lu}][\p{L}-]+\./gu, 'VLAN #.')
+      .replace(/(uma impressora|uma câmera|um telefone IP|um PC)/g, '#')
+      .replace(/O (servidor web|servidor HTTPS|servidor SSH|servidor FTP|banco de dados MySQL)/g, '#');
+    const minimum = [6, 10, 12];
+    for (const area of ['nat', 'vlan', 'ipv6'] as const) {
+      for (let level = 1; level <= 3; level++) {
+        const shapes = new Set<string>();
+        for (let seed = 1; seed <= 200; seed++) for (const r of buildRounds(area, level, createRng(seed))) shapes.add(shape(r.prompt));
+        expect(shapes.size, `${area} level ${level}`).toBeGreaterThanOrEqual(level === 1 && area === 'vlan' ? 5 : minimum[level - 1]);
       }
     }
   });
