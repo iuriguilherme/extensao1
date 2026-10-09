@@ -563,14 +563,17 @@ const RANGE_OPTIONS = [...PRIVATE_RANGES.map((r) => `Privado, da faixa ${r.label
 function natRound(rng: Rng, d: Difficulty, focus?: ConceptId, _context?: RoundContext, typed?: TypedContext): Round {
   const nat = typed?.nat ?? randomNat(rng);
   const type = roundType(rng, focus, { 'nat.privateRange': [0], 'nat.outsideAddress': [1], 'nat.portForward': [2] }, d === 1 ? 1 : 2);
-  const host = formatIp(nat.privateHost);
+  // A city gives its site and public address; the PC asked about varies inside
+  // the site (a /24), so one node's rounds do not all ask about one address.
+  const pc = typed?.nat && type !== 2 ? (nat.privateNetwork + randInt(rng, 2, 254)) >>> 0 : nat.privateHost;
+  const host = formatIp(pc);
   const publicIp = formatIp(nat.publicIp);
   // By convention the router takes the first usable address of the site.
   const inside = formatIp((nat.privateNetwork + 1) >>> 0);
 
   if (type === 0) {
-    // A city node asks about its own site's addresses: the private host or the public one.
-    const ip = typed?.nat ? (rng() < 0.5 ? nat.privateHost : nat.publicIp) : rangeQuestionIp(rng, d);
+    // A city node asks about a PC of its own site half of the time.
+    const ip = typed?.nat && rng() < 0.5 ? pc : rangeQuestionIp(rng, d);
     const range = privateRangeOf(ip);
     return choice(rng, 'nat.privateRange', `O endereço ${formatIp(ip)} é privado ou público?`,
       range ? `Privado, da faixa ${range}` : RANGE_OPTIONS[3], RANGE_OPTIONS, explainPrivateRange(formatIp(ip), range));
@@ -582,7 +585,7 @@ function natRound(rng: Rng, d: Difficulty, focus?: ConceptId, _context?: RoundCo
         publicIp, [host, inside, formatIp(nat.privateNetwork)], explainOutsideAddress(host, publicIp, 'out'));
     }
     // The reply comes back to the public address; the NAT table says whose connection it is.
-    const offset = nat.privateHost - nat.privateNetwork;
+    const offset = pc - nat.privateNetwork;
     let otherOffset: number;
     do otherOffset = randInt(rng, 2, 254);
     while (otherOffset === offset);
@@ -686,8 +689,9 @@ function vlanRound(rng: Rng, d: Difficulty, focus?: ConceptId, _context?: RoundC
     return choice(rng, 'vlan.validId', `O ID ${id} serve para uma VLAN nova?`, VERDICT_OPTIONS[verdict], Object.values(VERDICT_OPTIONS),
       explainVlanId(id, verdict));
   }
-  const name = typed?.vlan?.name ?? pick(rng, VLAN_NAMES);
-  const id = typed?.vlan?.id ?? randInt(rng, 2, 400) * 10;
+  // The asked VLAN is a new one, so the city's own VLAN only lends its name now and then.
+  const name = typed?.vlan && rng() < 0.3 ? typed.vlan.name : pick(rng, VLAN_NAMES);
+  const id = randInt(rng, 2, 400) * 10;
   return choice(rng, 'vlan.validId', `Você vai criar a VLAN ${name}. Qual destes IDs ela pode usar?`, String(id), invalid.map(String),
     explainVlanId(id, 'ok'));
 }
@@ -743,17 +747,23 @@ function v6OfKind(rng: Rng, kind: V6Kind, host: bigint): bigint {
   }
 }
 
+/** Another host in the city node's own /64, so one node's rounds do not all ask about one address. */
+function cityV6Host(rng: Rng, typed: TypedContext | undefined): bigint | null {
+  return typed?.ipv6 ? ipv6Network(typed.ipv6.host, 64) | BigInt(randInt(rng, 2, 0xfff)) : null;
+}
+
 function ipv6Round(rng: Rng, d: Difficulty, focus?: ConceptId, _context?: RoundContext, typed?: TypedContext): Round {
   const type = roundType(rng, focus, { 'ipv6.compress': [0], 'ipv6.prefix': [1], 'ipv6.addressType': [2] }, 2);
 
   if (type === 0) {
-    const value = typed?.ipv6?.host ?? randomV6Host(rng, d);
+    // City addresses all share one shape, so half the shortening rounds use a general address.
+    const value = (typed?.ipv6 && rng() < 0.5 ? cityV6Host(rng, typed) : null) ?? randomV6Host(rng, d);
     const full = formatIpv6Full(value);
     const short = formatIpv6(value);
     return choice(rng, 'ipv6.compress', `Qual é a forma abreviada de ${full}?`, short, compressMistakes(value), explainCompress(full, short));
   }
   if (type === 1) {
-    const value = typed?.ipv6?.host ?? randomV6Host(rng, 1);
+    const value = cityV6Host(rng, typed) ?? randomV6Host(rng, 1);
     const length = d >= 2 && rng() < 0.4 ? 48 : 64;
     const host = formatIpv6(value);
     const net = (bits: number) => ipv6Network(value, bits);
@@ -770,9 +780,9 @@ function ipv6Round(rng: Rng, d: Difficulty, focus?: ConceptId, _context?: RoundC
     ], explainV6Prefix(host, correct, length));
   }
   const kinds: V6Kind[] = d === 1 ? ['global', 'linkLocal', 'loopback', 'multicast'] : ['global', 'linkLocal', 'loopback', 'multicast', 'uniqueLocal'];
-  // A city node asks about its own address half of the time.
+  // A city node asks about an address of its own network half of the time.
   const kind = typed?.ipv6 && rng() < 0.5 ? 'global' : pick(rng, kinds);
-  const address = formatIpv6(v6OfKind(rng, kind, typed?.ipv6?.host ?? randomV6Host(rng, 1)));
+  const address = formatIpv6(v6OfKind(rng, kind, cityV6Host(rng, typed) ?? randomV6Host(rng, 1)));
   return choice(rng, 'ipv6.addressType', `Que tipo de endereço IPv6 é ${address}?`, V6_KIND_LABELS[kind], kinds.map((k) => V6_KIND_LABELS[k]),
     explainAddressType(address, kind));
 }

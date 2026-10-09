@@ -45,10 +45,11 @@ describe('NAT, VLAN and IPv6 areas', () => {
     }
   });
 
-  it('a private-or-public round in a NAT city asks about the city addresses', () => {
-    for (const r of choiceRounds('nat', 1, 'nat.privateRange', NAT)) {
-      expect(r.prompt).toMatch(/192\.168\.10\.20|203\.0\.113\.7/);
-    }
+  it('private-or-public rounds in a NAT city ask about PCs of the city site, among other addresses', () => {
+    const asked = choiceRounds('nat', 1, 'nat.privateRange', NAT).map((r) => /O endereço (\S+) é/.exec(r.prompt)![1]);
+    const inSite = asked.filter((a) => a.startsWith('192.168.10.'));
+    expect(inSite.length).toBeGreaterThan(0);
+    expect(new Set(inSite).size).toBeGreaterThan(1);
   });
 
   it('an IPv6 shortening round has exactly one option with the asked address', () => {
@@ -61,16 +62,33 @@ describe('NAT, VLAN and IPv6 areas', () => {
     }
   });
 
-  it('an IPv6 round in an IPv6 city uses the node address', () => {
+  it('a prefix round in an IPv6 city asks about an address of the node /64', () => {
     const host = parseIpv6('2001:db8:4b2:17::2a')!;
     for (const r of choiceRounds('ipv6', 2, 'ipv6.prefix', { ipv6: { host } })) {
-      expect(r.prompt).toContain('2001:db8:4b2:17::2a');
+      expect(r.prompt).toMatch(/2001:db8:4b2:17::[0-9a-f]+\?$/);
     }
   });
 
   it('a VLAN membership round in a VLAN city asks about the node VLAN', () => {
     for (const r of choiceRounds('vlan', 2, 'vlan.membership', { vlan: { id: 230, name: 'Secretaria' } })) {
       expect(r.explain.steps).toContain('230 (Secretaria)');
+    }
+  });
+
+  it('a typed city node never repeats a question within one intrusion', () => {
+    const contexts: ['nat' | 'vlan' | 'ipv6', TypedContext][] = [
+      ['nat', NAT],
+      ['vlan', { vlan: { id: 230, name: 'Secretaria' } }],
+      ['ipv6', { ipv6: { host: parseIpv6('2001:db8:4b2:17::2a')! } }],
+    ];
+    for (const [area, typed] of contexts) {
+      for (let level = 1; level <= 3; level++) {
+        for (let seed = 1; seed <= 30; seed++) {
+          const rounds = buildRounds(area, level, createRng(seed), undefined, undefined, typed);
+          const keys = rounds.map((r) => r.prompt + (r.kind === 'choice' ? r.detail ?? '' : ''));
+          expect(new Set(keys).size, `${area} level ${level} seed ${seed}: ${keys.join(' | ')}`).toBe(rounds.length);
+        }
+      }
     }
   });
 
