@@ -44,7 +44,7 @@ export const ACHIEVEMENTS: Achievement[] = [
   // ─── Contadores ─────────────────────────────────────────────────────────
   { id: 'rounds-100', kind: 'counter', symbol: '#', name: 'Cem respostas', description: 'Responda 100 etapas de invasão.', target: 100 },
   { id: 'rounds-500', kind: 'counter', symbol: '#', name: 'Quinhentas respostas', description: 'Responda 500 etapas de invasão.', target: 500 },
-  { id: 'rounds-1000', kind: 'counter', symbol: '#', name: 'Mil respostas', description: 'Responda 1000 etapas de invasão.', target: 1000 },
+  { id: 'rounds-1000', kind: 'counter', symbol: '#', name: 'Mil respostas', description: 'Responda mil etapas de invasão.', target: 1000 },
   { id: 'correct-250', kind: 'counter', symbol: '✓', name: 'Na mosca', description: 'Acerte 250 etapas de invasão.', target: 250 },
   { id: 'runs-50', kind: 'counter', symbol: '↻', name: 'Rotina de pentester', description: 'Termine 50 invasões ou trabalhos extras.', target: 50 },
   { id: 'cities-10', kind: 'counter', symbol: '⌂', name: 'Dez cidades', description: 'Conclua 10 cidades.', target: 10 },
