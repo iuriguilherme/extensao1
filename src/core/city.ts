@@ -203,6 +203,9 @@ const NAMES: Record<CityKind, string> = {
   ports: 'Firewall',
   http: 'Servidor Web',
   dns: 'Servidor DNS',
+  nat: 'Gateway NAT',
+  vlan: 'Switch de Acesso',
+  ipv6: 'Servidor IPv6',
   router: 'Roteador',
   core: 'Núcleo da Cidade',
 };
@@ -213,6 +216,9 @@ const FLAVORS: Record<CityKind, string> = {
   ports: 'Filtra o tráfego desta rede pelas portas. Saiba qual serviço usa cada uma.',
   http: 'Hospeda os sites internos. Leia as respostas dele para achar a brecha.',
   dns: 'Resolve os nomes da rede interna. Domine os tipos de registro.',
+  nat: 'Traduz os endereços privados desta rede para o endereço público. Entenda o NAT para entrar.',
+  vlan: 'Separa as máquinas desta rede em VLANs. Saiba ler as VLANs e as portas para entrar.',
+  ipv6: 'Só fala IPv6. Domine a notação e os prefixos para entrar.',
   router: 'Liga esta sub-rede à próxima. Depois de invadir, escreva a rota até lá.',
   core: 'O centro da rede da cidade. Invada aqui para concluir o exercício.',
 };

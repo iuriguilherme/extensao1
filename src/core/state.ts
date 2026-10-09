@@ -98,7 +98,7 @@ export function newGame(): GameState {
     swarm: {},
     concepts: {},
     lensCredits: { steps: 0, analogy: 0, realWorld: 0 },
-    areaLevels: { binary: 1, subnet: 1, ports: 1, http: 1, dns: 1 },
+    areaLevels: { binary: 1, subnet: 1, ports: 1, http: 1, dns: 1, nat: 1, vlan: 1, ipv6: 1 },
     runCount: 0,
     cities: [],
     stats: {},

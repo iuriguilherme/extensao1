@@ -30,6 +30,11 @@ export function decimal(value: number): string {
   return DECIMAL.format(value);
 }
 
+/** "80%", "83,3%": a share of a total, to one decimal place. */
+export function percent(part: number, total: number): string {
+  return `${decimal(Math.round((part / total) * 1000) / 10)}%`;
+}
+
 /** "100 Mbps", "2,5 Gbps". */
 export function linkSpeed(mbps: number): string {
   return mbps >= 1000 ? `${decimal(mbps / 1000)} Gbps` : `${decimal(mbps)} Mbps`;

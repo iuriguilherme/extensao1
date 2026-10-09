@@ -219,3 +219,142 @@ export function explainResolve(domain: string, ask: 'mail' | 'chain' | 'direct',
     realWorld: `O navegador pede ao DNS o registro A de www.${domain}, recebe ${ip} e só então abre a conexão com o site.`,
   };
 }
+
+// ─── NAT ──────────────────────────────────────────────────────────────────
+
+/** `range` is the private block the address is in, or null for a public one. */
+export function explainPrivateRange(ip: string, range: string | null): Explanations {
+  if (range) {
+    return {
+      steps: `${ip} fica na faixa privada ${range}: só vale dentro de uma rede local e nunca aparece na internet.`,
+      analogy: `É como o ramal de uma empresa: ${ip} funciona dentro da rede, mas ninguém de fora liga direto para ele. A faixa ${range} se repete em milhares de redes.`,
+      realWorld: `O IP do seu PC em casa quase sempre está numa faixa privada como ${range}. Para sair para a internet, o roteador troca esse endereço pelo público dele.`,
+    };
+  }
+  return {
+    steps: `${ip} não fica em 10.0.0.0/8, 172.16.0.0/12 nem 192.168.0.0/16. Fora dessas três faixas, o endereço é público e vale na internet.`,
+    analogy: `É como um telefone com DDD: ${ip} é único no mundo, e qualquer um na internet consegue chegar até ele.`,
+    realWorld: `Servidores de sites e o lado de fora do roteador de casa usam endereços públicos como ${ip}. Repare que 172.32 e 192.169 já ficam fora das faixas privadas.`,
+  };
+}
+
+/** `out`: a connection leaving the network; `back`: its reply coming in. */
+export function explainOutsideAddress(host: string, publicIp: string, direction: 'out' | 'back'): Explanations {
+  if (direction === 'out') {
+    return {
+      steps: `Na saída, o NAT troca a origem ${host} pelo IP público do roteador, ${publicIp}. O site só enxerga ${publicIp}.`,
+      analogy: `É como a portaria de um prédio que despacha as cartas de todo mundo com o endereço do prédio, ${publicIp}. Quem recebe nem sabe que o remetente mora no ${host}.`,
+      realWorld: `Os sites que mostram "qual é o meu IP" exibem o endereço público do roteador, como ${publicIp}, e nunca o ${host} do PC.`,
+    };
+  }
+  return {
+    steps: `A resposta chega em ${publicIp}. O roteador procura essa porta na tabela do NAT e entrega a resposta a ${host}, que abriu a conexão.`,
+    analogy: `É a portaria recebendo a resposta no endereço do prédio, ${publicIp}, e levando até o apartamento certo, ${host}, porque anotou quem mandou a carta.`,
+    realWorld: `É assim que vários PCs da mesma casa navegam juntos por um IP público só: a tabela do NAT lembra que essa conexão é do ${host}.`,
+  };
+}
+
+export function explainPortForward(rule: string, publicIp: string, host: string): Explanations {
+  return {
+    steps: `${rule}. O lado público é o IP do roteador, ${publicIp}; o lado privado é o host ${host}, na porta em que o serviço escuta.`,
+    analogy: `O redirecionamento é a recepção que encaminha as visitas: quem chega em ${publicIp} pedindo aquela porta é levado até ${host}.`,
+    realWorld: `Quem hospeda um servidor de jogo em casa faz isso no roteador: abre a porta no IP público e aponta para o IP privado do PC, como ${host}.`,
+  };
+}
+
+// ─── VLAN ─────────────────────────────────────────────────────────────────
+
+export function explainVlanMembership(port: number, other: number, vlan: string): Explanations {
+  return {
+    steps: `As portas ${port} e ${other} estão as duas na VLAN ${vlan}. As outras portas ficam em VLANs diferentes e só se falam passando por um roteador.`,
+    analogy: `Cada VLAN é uma sala de porta fechada no mesmo prédio. As portas ${port} e ${other} estão na mesma sala, a VLAN ${vlan}; as outras estão em salas vizinhas.`,
+    realWorld: `Na escola, o mesmo switch pode separar alunos e professores em VLANs. Quem está na VLAN ${vlan} só enxerga direto as máquinas dessa VLAN.`,
+  };
+}
+
+/** `ids` are the VLANs the link has to carry; one VLAN means an access port. */
+export function explainPortMode(ids: number[]): Explanations {
+  const vlans = `as VLANs ${listJoin(ids.map(String))}`;
+  if (ids.length > 1) {
+    return {
+      steps: `O link precisa levar ${vlans}: mais de uma VLAN, então é tronco, e cada quadro passa com a etiqueta da VLAN dele.`,
+      analogy: `O tronco é uma avenida com uma faixa para cada VLAN; a porta de acesso é a rua de uma casa só. Para levar ${vlans} juntas, só a avenida serve.`,
+      realWorld: `Entre os switches de andares diferentes de uma escola, o cabo quase sempre é tronco: por ele passam ${vlans} ao mesmo tempo.`,
+    };
+  }
+  return {
+    steps: `O aparelho fica só na VLAN ${ids[0]}, então a porta é de acesso nessa VLAN. Tronco é para links que levam várias VLANs.`,
+    analogy: `A porta de acesso é a rua de uma casa só, a VLAN ${ids[0]}. O tronco é a avenida que junta várias VLANs, e o aparelho nem saberia ler as etiquetas dela.`,
+    realWorld: `Impressoras, câmeras e PCs vão em portas de acesso: o switch põe o tráfego deles na VLAN ${ids[0]} sem que eles precisem saber disso.`,
+  };
+}
+
+export type VlanIdVerdict = 'ok' | 'default' | 'reserved' | 'range';
+
+export function explainVlanId(id: number, verdict: VlanIdVerdict): Explanations {
+  const steps: Record<VlanIdVerdict, string> = {
+    ok: `${id} fica entre 2 e 4094 e não é um dos reservados (1002 a 1005), então pode ser o ID de uma VLAN nova.`,
+    default: 'A VLAN 1 é a padrão: toda porta do switch começa nela, então ela não serve para separar nada.',
+    reserved: `${id} está entre os IDs reservados, de 1002 a 1005, que o switch não deixa usar.`,
+    range: `${id} fica fora da faixa de 1 a 4094, a única que um ID de VLAN pode ter.`,
+  };
+  const room: Record<VlanIdVerdict, string> = {
+    ok: 'é uma sala livre', default: 'é o saguão', reserved: 'é uma sala trancada', range: 'nem existe no prédio',
+  };
+  return {
+    steps: steps[verdict],
+    analogy: `Pense nos IDs como números de sala: a 1 é o saguão onde todos começam, de 1002 a 1005 as salas estão trancadas e nada passa de 4094. O ${id} ${room[verdict]}.`,
+    realWorld: `No switch, o comando que cria a VLAN ${id} ${verdict === 'ok' ? 'funciona normalmente' : 'é recusado com erro'}. Por isso as redes costumam usar IDs simples, como 10, 20 e 30.`,
+  };
+}
+
+// ─── IPv6 ─────────────────────────────────────────────────────────────────
+
+export function explainCompress(full: string, short: string): Explanations {
+  return {
+    steps: `Tire os zeros à esquerda de cada grupo e troque a maior sequência de grupos zerados por "::": ${short}.`,
+    analogy: `É como ditar 007 como 7: zero à esquerda não muda o valor. E o "::" quer dizer "aqui vão grupos de zero", por isso só pode aparecer uma vez: ${short}.`,
+    realWorld: `Os comandos de rede mostram sempre a forma curta, ${short}. Ela é o mesmo endereço que ${full}.`,
+  };
+}
+
+export function explainV6Prefix(host: string, prefix: string, length: number): Explanations {
+  return {
+    steps: `Num /${length}, os ${length / 16} primeiros grupos são a rede: fique com eles e zere o resto. ${host} está em ${prefix}.`,
+    analogy: `O endereço é como CEP mais número da casa: os primeiros ${length} bits são o CEP da rede, ${prefix}, e o resto é a casa.`,
+    realWorld: `O roteador olha só os primeiros ${length} bits para escolher o caminho: tudo o que começa como ${prefix} vai para a mesma rede.`,
+  };
+}
+
+export type V6Kind = 'global' | 'linkLocal' | 'loopback' | 'multicast' | 'uniqueLocal';
+
+export function explainAddressType(address: string, kind: V6Kind): Explanations {
+  const all: Record<V6Kind, Explanations> = {
+    global: {
+      steps: `${address} começa com 2 ou 3: é um endereço global, que pode ser alcançado pela internet.`,
+      analogy: `É como um telefone com código do país: ${address} é único no mundo, e qualquer um consegue chegar até ele.`,
+      realWorld: `Quando você abre um site por IPv6, os dois lados da conexão usam endereços globais como ${address}.`,
+    },
+    linkLocal: {
+      steps: `${address} começa com fe80: é link-local, só vale no próprio link e nunca passa por um roteador.`,
+      analogy: `É como conversar com o vizinho por cima do muro: ${address} só alcança quem está no mesmo link.`,
+      realWorld: 'Toda placa de rede com IPv6 cria sozinha um endereço fe80 quando liga, mesmo sem nenhum roteador na rede.',
+    },
+    loopback: {
+      steps: '::1 é o loopback: o computador falando com ele mesmo, como o 127.0.0.1 do IPv4.',
+      analogy: 'É como mandar um bilhete para você mesmo: o que vai para ::1 nunca sai do computador.',
+      realWorld: 'Programas que conversam dentro do próprio PC, como um servidor de testes, usam o ::1 para não passar pela rede.',
+    },
+    multicast: {
+      steps: `${address} começa com ff: é multicast, um endereço de grupo que entrega a mesma mensagem a vários destinos.`,
+      analogy: `É como um grupo de mensagens: mandar para ${address} entrega a todo mundo que entrou no grupo.`,
+      realWorld: 'O IPv6 não tem broadcast: para falar com todos os hosts de uma rede, ele usa o multicast ff02::1.',
+    },
+    uniqueLocal: {
+      steps: `${address} começa com fd: é local única, o jeito IPv6 de fazer o que as faixas privadas como 192.168.0.0/16 fazem.`,
+      analogy: `É como o ramal interno de uma empresa: ${address} funciona dentro da organização, mas não na internet.`,
+      realWorld: 'Empresas usam endereços fd para serviços internos que não precisam aparecer na internet.',
+    },
+  };
+  return all[kind];
+}

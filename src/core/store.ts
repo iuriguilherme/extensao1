@@ -14,7 +14,11 @@ function load(): GameState {
     const raw = globalThis.localStorage?.getItem(SAVE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw) as GameState;
-      if (parsed.version === 1) return { ...newGame(), ...parsed };
+      if (parsed.version === 1) {
+        const fresh = newGame();
+        // Areas added later start at level 1 in saves made before them.
+        return { ...fresh, ...parsed, areaLevels: { ...fresh.areaLevels, ...parsed.areaLevels } };
+      }
     }
   } catch {
     // Corrupt or unavailable storage: start fresh.

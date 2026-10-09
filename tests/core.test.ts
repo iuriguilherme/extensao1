@@ -15,7 +15,7 @@ import {
   dependents, freePorts, joinSwarm, leaveSwarm, pickProvider, removeSwitch, swarmReport, totalSpecs,
 } from '../src/core/swarm';
 import { ETHICS_LESSON_ID, LESSONS, ROUTING_LESSON_ID, TRACK_LABELS, getLesson } from '../src/data/lessons';
-import { AREA_LESSON, NODES, getNode, type MinigameId } from '../src/data/nodes';
+import { AREA_LESSON, MINIGAME_AREAS, NODES, getNode, type MinigameId } from '../src/data/nodes';
 import { NODE_KINDS, NODE_KIND_LABELS, buildContribution, nodeBuild, resolveBuild } from '../src/data/nodeBuilds';
 import { CASE_SLOTS, PARTS, SLOTS, SLOT_GENDER, SLOT_LABELS, describeStats, getPart } from '../src/data/parts';
 import { TIERS } from '../src/data/tiers';
@@ -125,7 +125,7 @@ describe('ip', () => {
 });
 
 describe('minigames', () => {
-  const ids: MinigameId[] = ['binary', 'subnet', 'ports', 'http', 'dns'];
+  const ids = Object.keys(MINIGAME_AREAS) as MinigameId[];
   const levels = (id: MinigameId) => Array.from({ length: MAX_LEVEL[id] }, (_, i) => i + 1);
 
   for (const id of ids) {
@@ -156,7 +156,7 @@ describe('minigames', () => {
   });
 
   it('only binary and subnets go above level 3', () => {
-    expect(MAX_LEVEL).toEqual({ binary: 7, subnet: 5, ports: 3, http: 3, dns: 3 });
+    expect(MAX_LEVEL).toEqual({ binary: 7, subnet: 5, ports: 3, http: 3, dns: 3, nat: 3, vlan: 3, ipv6: 3 });
   });
 
   it('binary bits grow by 2 per level above 3, up to 16', () => {
@@ -300,6 +300,10 @@ describe('content integrity', () => {
         expect(lesson.requires, id).toEqual(i === 0 ? [] : [tier.lessons[i - 1]]);
         expect(lesson.quiz.length, id).toBeGreaterThanOrEqual(3);
       });
+    }
+    for (const tier of TIERS) {
+      expect(MINIGAME_AREAS[tier.area], tier.id).toBeTruthy();
+      expect(AREA_LESSON[tier.area], tier.id).toBe(tier.lessons[tier.lessons.length - 1]);
     }
     const tierLessons = LESSONS.filter((l) => l.tier).map((l) => l.id);
     expect(tierLessons.sort()).toEqual(TIERS.flatMap((t) => t.lessons).sort());

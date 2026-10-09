@@ -62,6 +62,8 @@ function englishWords(text: string): string[] {
   rest = rest.replace(NOTATION, ' ');
   // Host and domain names (www.shop.test, mail.example.com) are notation too.
   rest = rest.replace(/[\p{L}\d@-]+(\.[\p{L}\d-]+)+/gu, ' ');
+  // So are IPv6 addresses, whose hex groups can spell words (2001:db8::be).
+  rest = rest.replace(/[0-9a-f]{0,4}(:[0-9a-f]{0,4}){2,7}/gi, ' ');
   return (rest.match(/\p{L}+/gu) ?? [])
     .map((w) => w.toLowerCase())
     .filter((w) => ENGLISH.has(w) && !ALLOWED.has(w));
@@ -141,7 +143,7 @@ function runtimeTexts(): string[] {
   out.push(objective(s));
 
   out.push(...Object.values(CONCEPTS).map((c) => c.label), ...Object.values(LENS_LABELS));
-  const ids: MinigameId[] = ['binary', 'subnet', 'ports', 'http', 'dns'];
+  const ids = Object.keys(MINIGAME_AREAS) as MinigameId[];
   for (const id of ids) {
     for (let d = 1; d <= MAX_LEVEL[id]; d++) {
       for (let seed = 1; seed <= 30; seed++) {
@@ -194,6 +196,7 @@ describe('English scan', () => {
     expect(englishWords('O firewall libera DNS na porta 53')).toEqual([]);
     expect(englishWords('404 Not Found: o recurso não existe')).toEqual([]);
     expect(englishWords('192.168.0.0/24 · 1010 · ALLOW TCP 80')).toEqual([]);
+    expect(englishWords('2001:db8::be/64 · fe80::add · ::1')).toEqual([]);
   });
 
   it('accepts protocol tokens only in caps', () => {

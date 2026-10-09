@@ -5,6 +5,8 @@
  * derived from certificates and never stored apart (src/core/certificates.ts).
  */
 
+import type { MinigameId } from './nodes';
+
 export type TierId = 'especializacao' | 'mestrado' | 'doutorado';
 
 /** City types the tiers unlock; plain cities need none. */
@@ -17,6 +19,8 @@ export interface Tier {
   /** What the tier teaches, as a short subtitle. */
   topic: string;
   cityType: TierCityType;
+  /** The mini-game area its city nodes and side jobs add. */
+  area: MinigameId;
   /** The lecture pack; each lesson requires the one before it. */
   lessons: string[];
 }
@@ -24,15 +28,15 @@ export interface Tier {
 export const TIERS: Tier[] = [
   {
     id: 'especializacao', title: 'Especialização', topic: 'NAT e redirecionamento de porta',
-    cityType: 'nat', lessons: ['nat-basics', 'port-forwarding'],
+    cityType: 'nat', area: 'nat', lessons: ['nat-basics', 'port-forwarding'],
   },
   {
     id: 'mestrado', title: 'Mestrado', topic: 'VLANs',
-    cityType: 'vlan', lessons: ['vlan-basics', 'vlan-trunks'],
+    cityType: 'vlan', area: 'vlan', lessons: ['vlan-basics', 'vlan-trunks'],
   },
   {
     id: 'doutorado', title: 'Doutorado', topic: 'IPv6',
-    cityType: 'ipv6', lessons: ['ipv6-basics', 'ipv6-routing'],
+    cityType: 'ipv6', area: 'ipv6', lessons: ['ipv6-basics', 'ipv6-routing'],
   },
 ];
 

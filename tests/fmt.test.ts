@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { agree, alignColumns, decimal, linkSpeed, listJoin, money, plural } from '../src/core/fmt';
+import { agree, alignColumns, decimal, linkSpeed, listJoin, money, percent, plural } from '../src/core/fmt';
 
 describe('fmt', () => {
   it('formats money in reais, without cents for whole amounts', () => {
@@ -45,6 +45,12 @@ describe('fmt', () => {
     expect(listJoin(['A'])).toBe('A');
     expect(listJoin(['A', 'B'])).toBe('A e B');
     expect(listJoin(['A', 'B', 'C'])).toBe('A, B e C');
+  });
+
+  it('writes a share as a percentage with a decimal comma', () => {
+    expect(percent(8, 10)).toBe('80%');
+    expect(percent(5, 6)).toBe('83,3%');
+    expect(percent(0, 4)).toBe('0%');
   });
 
   it('picks the word form that agrees with the gender', () => {

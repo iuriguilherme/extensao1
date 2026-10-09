@@ -6,7 +6,7 @@
 
 import type { NodeHardware } from './nodeBuilds';
 
-export type MinigameId = 'binary' | 'subnet' | 'ports' | 'http' | 'dns';
+export type MinigameId = 'binary' | 'subnet' | 'ports' | 'http' | 'dns' | 'nat' | 'vlan' | 'ipv6';
 
 export const MINIGAME_AREAS: Record<MinigameId, string> = {
   binary: 'Dados e binário',
@@ -14,6 +14,9 @@ export const MINIGAME_AREAS: Record<MinigameId, string> = {
   ports: 'Portas e firewalls',
   http: 'Web / HTTP',
   dns: 'DNS',
+  nat: 'NAT',
+  vlan: 'VLANs',
+  ipv6: 'IPv6',
 };
 
 /** The lesson that teaches each area; side jobs in an area open with it. */
@@ -23,6 +26,10 @@ export const AREA_LESSON: Record<MinigameId, string> = {
   ports: 'ports',
   http: 'http',
   dns: 'dns',
+  // A pack's second lesson requires its first, so the whole pack must be done.
+  nat: 'port-forwarding',
+  vlan: 'vlan-trunks',
+  ipv6: 'ipv6-routing',
 };
 
 export interface NodeRequirements {

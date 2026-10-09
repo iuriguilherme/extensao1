@@ -102,7 +102,7 @@ describe('old saves', () => {
     const loaded = { ...newGame(), ...JSON.parse(JSON.stringify(old)) } as GameState;
     expect(loaded.concepts).toEqual({});
     expect(loaded.lensCredits).toEqual({ steps: 0, analogy: 0, realWorld: 0 });
-    expect(loaded.areaLevels).toEqual({ binary: 1, subnet: 1, ports: 1, http: 1, dns: 1 });
+    expect(loaded.areaLevels).toEqual({ binary: 1, subnet: 1, ports: 1, http: 1, dns: 1, nat: 1, vlan: 1, ipv6: 1 });
     expect(loaded.runCount).toBe(0);
   });
 });
@@ -141,7 +141,7 @@ describe('side-job board', () => {
 
   it('fills the board with fresh jobs in the three lowest-level areas', () => {
     const s = withLessons(...ALL_AREA_LESSONS);
-    s.areaLevels = { binary: 3, subnet: 1, ports: 2, http: 1, dns: 1 };
+    s.areaLevels = { ...s.areaLevels, binary: 3, subnet: 1, ports: 2, http: 1, dns: 1 };
     expect(jobBoard(s)).toEqual([
       { kind: 'fresh', area: 'subnet', level: 1 },
       { kind: 'fresh', area: 'http', level: 1 },
@@ -151,7 +151,7 @@ describe('side-job board', () => {
 
   it('offers areas that can still level up before areas at their maximum', () => {
     const s = withLessons(...ALL_AREA_LESSONS);
-    s.areaLevels = { binary: 4, subnet: 4, ports: 3, http: 3, dns: 3 };
+    s.areaLevels = { ...s.areaLevels, binary: 4, subnet: 4, ports: 3, http: 3, dns: 3 };
     expect(jobBoard(s)).toEqual([
       { kind: 'fresh', area: 'binary', level: 4 },
       { kind: 'fresh', area: 'subnet', level: 4 },
