@@ -1,13 +1,15 @@
 import { describe, expect, it } from 'vitest';
+import { presentCertificate } from '../src/core/certificates';
 import { generateCity, type City, type CityNode } from '../src/core/city';
-import { MAX_CITY_LEVEL } from '../src/core/cityCode';
+import { CITY_NAMES, MAX_CITY_LEVEL } from '../src/core/cityCode';
 import { correctRoute } from '../src/core/routing';
 import {
-  breach, breachCityNode, canConnectCityNode, canStartCities, cityNodeStatus, newGame, nextCityLevel, objective, phaseOf,
-  REPLAY_RATIO, startCity, submitRoute, type GameState,
+  breach, breachCityNode, canConnectCityNode, canStartCities, cityNodeStatus, enterCityCode, loadCity, newGame, nextCityLevel,
+  objective, phaseOf, REPLAY_RATIO, startCity, submitRoute, type GameState,
 } from '../src/core/state';
 import { ETHICS_LESSON_ID, getLesson, ROUTING_LESSON_ID } from '../src/data/lessons';
 import { FINAL_NODE_ID } from '../src/data/nodes';
+import { getTier, type TierId } from '../src/data/tiers';
 
 const NET = { ip: '192.168.0.42', mask: '255.255.255.0', gateway: '192.168.0.1', dns: '192.168.0.1' };
 
@@ -22,6 +24,25 @@ function wonState(opts: { routing?: boolean } = {}): GameState {
   s.lessonsCompleted = ['network-basics', 'ip-addressing', 'dns', ETHICS_LESSON_ID];
   if (opts.routing !== false) s.lessonsCompleted.push(ROUTING_LESSON_ID);
   s.breached = ['isp', FINAL_NODE_ID];
+  return s;
+}
+
+/**
+ * A won save past the formatura (the Core breach issued the conclusão
+ * certificate), with the lecture packs of the given tiers passed and every
+ * tier before the last one earned.
+ */
+function graduatedWith(...tiers: TierId[]): GameState {
+  const s = wonState();
+  s.breached = ['isp'];
+  breach(s, FINAL_NODE_ID);
+  presentCertificate(s, 'conclusao', 'Ana');
+  tiers.forEach((id, i) => {
+    s.lessonsCompleted.push(...getTier(id).lessons);
+    if (i < tiers.length - 1) {
+      s.certificates.push({ id, presented: true, name: 'Ana', snapshot: { lessons: [], areas: {} } });
+    }
+  });
   return s;
 }
 
@@ -88,6 +109,46 @@ describe('starting cities', () => {
     expect(a).not.toBe(b);
     expect(s.cities).toHaveLength(2);
     expect(s.cities[a]).toEqual({ level: 2, seed: 4821, breached: [], opened: [], finished: false });
+  });
+
+  it('keeps cities of different types apart, even with the same level and seed', () => {
+    const s = graduatedWith('especializacao');
+    const plain = startCity(s, 2, 4821);
+    const nat = startCity(s, 2, 4821, 'nat');
+    expect(nat).not.toBe(plain);
+    expect(startCity(s, 2, 4821, 'nat')).toBe(nat);
+    expect(s.cities[nat]).toEqual({ level: 2, seed: 4821, type: 'nat', breached: [], opened: [], finished: false });
+    expect(loadCity(s, nat).type).toBe('nat');
+  });
+
+  it('never starts a typed city whose type is still locked', () => {
+    const s = graduatedWith();
+    expect(() => startCity(s, 2, 4821, 'nat')).toThrow();
+    expect(s.cities).toHaveLength(0);
+  });
+
+  it('AE7: a VLAN code entered before Mestrado names the tier and creates no city', () => {
+    const s = graduatedWith('especializacao');
+    const result = enterCityCode(s, 'VLAN-RIO-4-0042');
+    expect(result).toMatchObject({ ok: false, code: 'tier-locked' });
+    expect(!result.ok && result.message).toContain('Mestrado');
+    expect(s.cities).toHaveLength(0);
+  });
+
+  it('AE7: a classmate who passed the VLAN lessons gets the same VLAN city at the same level', () => {
+    const s = graduatedWith('especializacao', 'mestrado');
+    const result = enterCityCode(s, 'VLAN-RIO-4-0042');
+    expect(result).toMatchObject({ ok: true, known: false });
+    const city = loadCity(s, result.ok ? result.index : -1);
+    expect(city).toEqual(generateCity(4, CITY_NAMES.indexOf('RIO') * 10000 + 42, 'vlan'));
+  });
+
+  it('a code for a city already in the save opens it, and a bad code creates nothing', () => {
+    const s = graduatedWith();
+    const first = enterCityCode(s, 'RIO-2-0001');
+    expect(enterCityCode(s, 'rio-2-0001')).toEqual({ ...first, known: true });
+    expect(enterCityCode(s, 'RIO-2-001')).toMatchObject({ ok: false, code: 'code-invalid' });
+    expect(s.cities).toHaveLength(1);
   });
 
   it('the next level is 1 plus finished cities, clamped to the highest code level', () => {

@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { generateCity, roundContext, type City } from '../src/core/city';
+import { generateCity, roundContext, typedContext, type City, type CityType } from '../src/core/city';
 import { broadcastAddress, networkAddress, parseIp } from '../src/core/ip';
-import { MAX_LEVEL } from '../src/core/minigames';
+import { inIpv6Prefix, ipv6Network, parseIpv6 } from '../src/core/ipv6';
+import { MAX_LEVEL, privateRangeOf, PUBLISHED_SERVICES, vlanIdVerdict } from '../src/core/minigames';
 import { NODES, getNode } from '../src/data/nodes';
+import { tierOfCityType, type TierCityType } from '../src/data/tiers';
 
 /** Levels 1-30 with seeds 1-50, and levels 31-99 with seeds 1-5. */
 function sampleCities(): City[] {
@@ -277,6 +279,174 @@ describe('roundContext', () => {
         const subnet = city.subnets[node.subnetId];
         expect(roundContext(city, node.id)).toEqual({ network: parseIp(subnet.network), prefix: subnet.prefix, host: parseIp(node.ip) });
       }
+    }
+  });
+});
+
+/** 200 cities of a type, over levels 1-20. */
+function typedCities(type: TierCityType): City[] {
+  return Array.from({ length: 200 }, (_, i) => generateCity(1 + (i % 20), 1000 + i, type));
+}
+
+const NAT_CITIES = typedCities('nat');
+const VLAN_CITIES = typedCities('vlan');
+const IPV6_CITIES = typedCities('ipv6');
+
+const v6 = (text: string) => {
+  const value = parseIpv6(text);
+  if (value === null) throw new Error(`bad ipv6 ${text}`);
+  return value;
+};
+
+/** The first usable address of a dotted /24 network. */
+function firstHost(network: string): string {
+  const [a, b, c, d] = network.split('.').map(Number);
+  return `${a}.${b}.${c}.${d + 1}`;
+}
+
+describe('typed cities', () => {
+  it('rebuilds the same city from the same type, level and seed', () => {
+    for (const type of ['nat', 'vlan', 'ipv6'] as const) expect(generateCity(4, 4821, type)).toEqual(generateCity(4, 4821, type));
+  });
+
+  it('builds a plain city when no type is given, with no type field', () => {
+    expect(generateCity(5, 9, 'plain')).toEqual(generateCity(5, 9));
+    expect('type' in generateCity(5, 9)).toBe(false);
+    expect(generateCity(5, 9, 'nat').type).toBe('nat');
+  });
+
+  it('keeps the tree of the plain city with the same level and seed', () => {
+    for (const type of ['nat', 'vlan', 'ipv6'] as const) {
+      const plain = generateCity(7, 31);
+      const typed = generateCity(7, 31, type);
+      expect(typed.subnets.map((s) => [s.depth, s.parentId])).toEqual(plain.subnets.map((s) => [s.depth, s.parentId]));
+      expect(typed.nodes.map((n) => n.id)).toEqual(plain.nodes.map((n) => n.id));
+    }
+  });
+
+  it('NAT: the student subnet is a public /24 and every site behind it is private', () => {
+    const { check, done } = collector();
+    for (const city of NAT_CITIES) {
+      const home = city.subnets[0];
+      check(['203.0.113.0', '198.51.100.0'].includes(home.network) && home.prefix === 24, `${tag(city)} public home ${home.network}/${home.prefix}`);
+      for (const subnet of city.subnets.slice(1)) {
+        check(privateRangeOf(ip(subnet.network)) === '192.168.0.0/16' && subnet.prefix === 24, `${tag(city)} private ${subnet.network}/${subnet.prefix}`);
+      }
+      for (const node of city.nodes) {
+        const own = city.subnets[node.subnetId];
+        check(subnetHolds(own.network, own.prefix, node.ip), `${tag(city)} ${node.id} in own subnet`);
+        if (own.depth > 0) check(privateRangeOf(ip(node.ip)) === '192.168.0.0/16', `${tag(city)} ${node.id} private`);
+        // A router out of the student subnet has its public address there.
+        if (node.role === 'router' && own.depth === 0) check(subnetHolds(home.network, 24, node.ip), `${tag(city)} ${node.id} public`);
+      }
+    }
+    done();
+  });
+
+  it('NAT: each site entry publishes one service on one of its hosts', () => {
+    const { check, done } = collector();
+    for (const city of NAT_CITIES) {
+      for (const subnet of city.subnets) {
+        if (subnet.depth !== 1) {
+          check(subnet.publish === undefined, `${tag(city)} only depth 1 publishes`);
+          continue;
+        }
+        const hosts = city.nodes.filter((n) => n.subnetId === subnet.id && n.role !== 'router').map((n) => n.ip);
+        check(subnet.publish !== undefined && hosts.includes(subnet.publish.host), `${tag(city)} published host`);
+        check(subnet.publish !== undefined && PUBLISHED_SERVICES.includes(subnet.publish.service), `${tag(city)} service`);
+      }
+    }
+    done();
+  });
+
+  it('NAT cities keep the router-address rule: one address in the parent, the first usable one in the child', () => {
+    const { check, done } = collector();
+    for (const city of NAT_CITIES) {
+      const seen = new Set<string>();
+      for (const node of city.nodes) {
+        check(!seen.has(node.ip), `${tag(city)} unique ${node.ip}`);
+        seen.add(node.ip);
+        const own = city.subnets[node.subnetId];
+        const value = ip(node.ip);
+        check(value !== networkAddress(value, own.prefix) && value !== broadcastAddress(value, own.prefix), `${tag(city)} host address`);
+        if (node.childSubnetId === null) continue;
+        const child = city.subnets[node.childSubnetId];
+        check(child.parentId === own.id && child.routerId === node.id, `${tag(city)} ${node.id} one child`);
+        check(child.routerChildIp === firstHost(child.network), `${tag(city)} ${node.id} child side`);
+      }
+      for (const subnet of city.subnets) {
+        if (subnet.routerChildIp) check(!city.nodes.some((n) => n.ip === subnet.routerChildIp), `${tag(city)} child side unique`);
+      }
+    }
+    done();
+  });
+
+  it('VLAN: every subnet has a valid, unreserved and unique VLAN with its own name', () => {
+    const { check, done } = collector();
+    for (const city of VLAN_CITIES) {
+      const ids = city.subnets.map((s) => s.vlan?.id);
+      const names = city.subnets.map((s) => s.vlan?.name);
+      check(ids.every((id) => id !== undefined && vlanIdVerdict(id) === 'ok'), `${tag(city)} valid ids ${ids}`);
+      check(new Set(ids).size === ids.length && new Set(names).size === names.length, `${tag(city)} unique`);
+    }
+    done();
+  });
+
+  it('IPv6: every subnet is a /64 inside the city /48, and every address in its own /64', () => {
+    const { check, done } = collector();
+    for (const city of IPV6_CITIES) {
+      const site = v6(city.network);
+      check(site === ipv6Network(site, 48) && inIpv6Prefix(site, v6('2001:db8::'), 32), `${tag(city)} /48 ${city.network}`);
+      for (const subnet of city.subnets) {
+        check(subnet.prefix === 64 && inIpv6Prefix(v6(subnet.network), site, 48), `${tag(city)} /64 ${subnet.network}`);
+        if (subnet.routerChildIp) check(v6(subnet.routerChildIp) === v6(subnet.network) + 1n, `${tag(city)} child side ::1`);
+      }
+      for (const node of city.nodes) {
+        const own = city.subnets[node.subnetId];
+        check(inIpv6Prefix(v6(node.ip), v6(own.network), 64) && v6(node.ip) !== v6(own.network), `${tag(city)} ${node.ip} in ${own.network}`);
+      }
+      const all = [...city.nodes.map((n) => n.ip), ...city.subnets.map((s) => s.network), ...city.subnets.map((s) => s.routerChildIp).filter(Boolean)];
+      check(new Set(all).size === all.length, `${tag(city)} unique addresses`);
+    }
+    done();
+  });
+
+  it('puts the tier area on the core and on at least half the other nodes', () => {
+    const { check, done } = collector();
+    for (const [type, cities] of [['nat', NAT_CITIES], ['vlan', VLAN_CITIES], ['ipv6', IPV6_CITIES]] as const) {
+      const area = tierOfCityType(type).area;
+      for (const city of cities) {
+        const core = city.nodes.find((n) => n.id === city.coreId)!;
+        check(core.minigame === area, `${tag(city)} core area`);
+        const others = city.nodes.filter((n) => n.id !== city.coreId);
+        check(others.filter((n) => n.minigame === area).length * 2 >= others.length, `${tag(city)} half`);
+        check(city.nodes.every((n) => n.difficulty <= MAX_LEVEL[n.minigame]), `${tag(city)} difficulty`);
+      }
+    }
+    done();
+  });
+
+  it('feeds typed rounds with the node site, VLAN or address', () => {
+    const nat = NAT_CITIES.find((c) => c.subnets.length >= 2)!;
+    const siteHost = nat.nodes.find((n) => n.role !== 'router' && nat.subnets[n.subnetId].depth === 1)!;
+    const entry = nat.nodes.find((n) => n.childSubnetId === siteHost.subnetId)!;
+    expect(typedContext(nat, siteHost.id)?.nat).toEqual({
+      publicIp: ip(entry.ip), privateNetwork: ip(nat.subnets[siteHost.subnetId].network), privatePrefix: 24, privateHost: ip(siteHost.ip),
+    });
+    const vlan = VLAN_CITIES[0];
+    expect(typedContext(vlan, vlan.nodes[0].id)?.vlan).toEqual(vlan.subnets[vlan.nodes[0].subnetId].vlan);
+    const ipv6 = IPV6_CITIES[0];
+    expect(typedContext(ipv6, ipv6.nodes[0].id)?.ipv6).toEqual({ host: v6(ipv6.nodes[0].ip) });
+    expect(roundContext(ipv6, ipv6.nodes[0].id)).toBeUndefined();
+    const plain = generateCity(3, 3);
+    expect(typedContext(plain, plain.nodes[0].id)).toBeUndefined();
+  });
+
+  it('labels subnets with VLANs only in VLAN cities', () => {
+    const types: CityType[] = ['plain', 'nat', 'vlan', 'ipv6'];
+    for (const type of types) {
+      const city = generateCity(6, 12, type);
+      expect(city.subnets.every((s) => (s.vlan !== undefined) === (type === 'vlan')), type).toBe(true);
     }
   });
 });

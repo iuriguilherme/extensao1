@@ -5,6 +5,7 @@
  * derived from certificates and never stored apart (src/core/certificates.ts).
  */
 
+import type { Gender } from '../core/fmt';
 import type { MinigameId } from './nodes';
 
 export type TierId = 'especializacao' | 'mestrado' | 'doutorado';
@@ -16,6 +17,8 @@ export interface Tier {
   id: TierId;
   /** Printed on the certificate and used in the Hub's goals. */
   title: string;
+  /** For agreeing words: "da Especialização", "do Mestrado". */
+  gender: Gender;
   /** What the tier teaches, as a short subtitle. */
   topic: string;
   cityType: TierCityType;
@@ -27,15 +30,15 @@ export interface Tier {
 
 export const TIERS: Tier[] = [
   {
-    id: 'especializacao', title: 'Especialização', topic: 'NAT e redirecionamento de porta',
+    id: 'especializacao', title: 'Especialização', gender: 'f', topic: 'NAT e redirecionamento de porta',
     cityType: 'nat', area: 'nat', lessons: ['nat-basics', 'port-forwarding'],
   },
   {
-    id: 'mestrado', title: 'Mestrado', topic: 'VLANs',
+    id: 'mestrado', title: 'Mestrado', gender: 'm', topic: 'VLANs',
     cityType: 'vlan', area: 'vlan', lessons: ['vlan-basics', 'vlan-trunks'],
   },
   {
-    id: 'doutorado', title: 'Doutorado', topic: 'IPv6',
+    id: 'doutorado', title: 'Doutorado', gender: 'm', topic: 'IPv6',
     cityType: 'ipv6', area: 'ipv6', lessons: ['ipv6-basics', 'ipv6-routing'],
   },
 ];

@@ -1,14 +1,28 @@
 /**
  * Generated cities: a tree of subnets joined by routers, rebuilt on demand
- * from (level, seed) and never saved. Every city is a correct IPv4 plan inside
- * one /16 of 10.0.0.0/8, laid out in depth columns for the city map.
+ * from (level, seed) and never saved. Every plain city is a correct IPv4 plan
+ * inside one /16 of 10.0.0.0/8, laid out in depth columns for the city map.
+ *
+ * Typed cities (unlocked by the pós-graduação tiers) keep the plain city's
+ * tree and nodes, then change its addresses or labels with a second rng, so
+ * plain cities never change: NAT puts private sites behind a public subnet,
+ * VLAN labels every subnet with a VLAN, and IPv6 readdresses the whole plan.
  */
 
 import type { MinigameId, NetNode, NodeRequirements } from '../data/nodes';
 import { getNode, FINAL_NODE_ID } from '../data/nodes';
+import { tierOfCityType, type TierCityType } from '../data/tiers';
 import { formatIp, parseIp } from './ip';
-import { MAX_LEVEL, type RoundContext } from './minigames';
-import { createRng, pick, randInt, type Rng } from './random';
+import { formatIpv6, parseIpv6 } from './ipv6';
+import {
+  MAX_LEVEL, PUBLIC_NETWORKS, PUBLISHED_SERVICES, VLAN_NAMES, type PublishedService, type RoundContext, type TypedContext, type Vlan,
+} from './minigames';
+import { createRng, pick, randInt, shuffle, type Rng } from './random';
+
+export type CityType = 'plain' | TierCityType;
+
+/** How a city type reads in "uma cidade NAT". */
+export const CITY_TYPE_LABELS: Record<CityType, string> = { plain: 'comum', nat: 'NAT', vlan: 'VLAN', ipv6: 'IPv6' };
 
 /** Depth, branching and prefix spread stop growing at this level. */
 export const STRUCTURE_MAX_LEVEL = 12;
@@ -38,6 +52,10 @@ export interface CitySubnet {
   routerChildIp: string | null;
   /** Box drawn on the city map, in map coordinates. */
   box: { x: number; y: number; width: number; height: number };
+  /** VLAN cities only: the segment's VLAN. */
+  vlan?: Vlan;
+  /** NAT cities only, on each private site's entry (depth 1): the service its router publishes. */
+  publish?: { service: PublishedService; host: string };
 }
 
 export type CityNodeRole = 'host' | 'router' | 'core';
@@ -53,14 +71,24 @@ export interface CityNode extends NetNode {
 export interface City {
   level: number;
   seed: number;
-  /** The /16 every subnet is carved from, e.g. `10.37.0.0`. */
+  /**
+   * The block every subnet is carved from: a /16 such as `10.37.0.0`, the
+   * private `192.168.0.0` behind a NAT city's public subnet, or an IPv6 /48.
+   */
   network: string;
   subnets: CitySubnet[];
   nodes: CityNode[];
   coreId: string;
+  /** Absent on plain cities, so their form (and the pinned hash) stays as it was. */
+  type?: TierCityType;
 }
 
-export function generateCity(level: number, seed: number): City {
+/** The city's type, plain when it has none. */
+export function cityType(city: { type?: TierCityType }): CityType {
+  return city.type ?? 'plain';
+}
+
+export function generateCity(level: number, seed: number, type: CityType = 'plain'): City {
   const rng = createRng((Math.imul(seed >>> 0, 0x9e3779b1) ^ Math.imul(level, 0x85ebca6b)) >>> 0);
   const growth = Math.min(Math.max(level, 1), STRUCTURE_MAX_LEVEL);
 
@@ -92,6 +120,17 @@ export function generateCity(level: number, seed: number): City {
     return formatIp(networks[subnet.id] + offset);
   };
 
+  // A typed city gives its tier's area to the core and to every other node in
+  // turn (at least half of them); the plain area draw still happens, so the
+  // rest of the city is the plain one.
+  const tierArea = type === 'plain' ? null : tierOfCityType(type).area;
+  let turn = 0;
+  const areaOf = (role: CityNodeRole, area: MinigameId): MinigameId => {
+    if (!tierArea) return area;
+    if (role === 'core') return tierArea;
+    return turn++ % 2 === 0 ? tierArea : area;
+  };
+
   const deepest = Math.max(...subnets.map((s) => s.depth));
   const coreSubnet = pick(rng, subnets.filter((s) => s.depth === deepest));
   const names = new Map<string, number>();
@@ -103,10 +142,10 @@ export function generateCity(level: number, seed: number): City {
     for (let k = 0; k < hostCount; k++) {
       const role: CityNodeRole = k === coreIndex ? 'core' : 'host';
       const area = pick(rng, AREAS);
-      nodes.push(makeNode(`s${subnet.id}-h${k + 1}`, role, area, subnet, freeAddress(subnet), level, growth, names));
+      nodes.push(makeNode(`s${subnet.id}-h${k + 1}`, role, areaOf(role, area), subnet, freeAddress(subnet), level, growth, names));
     }
     for (const child of subnets.filter((s) => s.parentId === subnet.id)) {
-      const router = makeNode(`r${child.id}`, 'router', 'subnet', subnet, freeAddress(subnet), level, growth, names);
+      const router = makeNode(`r${child.id}`, 'router', areaOf('router', 'subnet'), subnet, freeAddress(subnet), level, growth, names);
       router.childSubnetId = child.id;
       nodes.push(router);
       child.routerId = router.id;
@@ -117,7 +156,72 @@ export function generateCity(level: number, seed: number): City {
   linkNodes(nodes);
   layout(subnets, nodes);
   const core = nodes.find((n) => n.role === 'core')!;
-  return { level, seed, network: formatIp(base), subnets, nodes, coreId: core.id };
+  const city: City = { level, seed, network: formatIp(base), subnets, nodes, coreId: core.id };
+  if (type !== 'plain') {
+    const typed = createRng((Math.imul(seed >>> 0, 0x2c1b3c6d) ^ Math.imul(level, 0x297a2d39) ^ TYPE_SALT[type]) >>> 0);
+    TYPE_PASSES[type](city, typed);
+    city.type = type;
+  }
+  return city;
+}
+
+const TYPE_SALT: Record<TierCityType, number> = { nat: 0x4e4154, vlan: 0x564c414e, ipv6: 0x495036 };
+
+const TYPE_PASSES: Record<TierCityType, (city: City, rng: Rng) => void> = { nat: addressNat, vlan: labelVlans, ipv6: addressIpv6 };
+
+/** Gives each subnet's nodes distinct addresses; the incoming router keeps the first usable one. */
+function readdress(city: City, rng: Rng, address: (subnet: CitySubnet, offset: number) => string, maxOffset: number): void {
+  for (const subnet of city.subnets) {
+    const taken = new Set<number>([1]);
+    subnet.routerChildIp = subnet.depth === 0 ? null : address(subnet, 1);
+    for (const node of city.nodes.filter((n) => n.subnetId === subnet.id)) {
+      let offset: number;
+      do offset = randInt(rng, 2, maxOffset);
+      while (taken.has(offset));
+      taken.add(offset);
+      node.ip = address(subnet, offset);
+    }
+  }
+}
+
+/**
+ * NAT: the student subnet becomes a public /24, so each router out of it has
+ * its public address there, and everything behind it is a private /24 of
+ * 192.168.0.0/16. Each site entry publishes one service on one of its hosts.
+ */
+function addressNat(city: City, rng: Rng): void {
+  const thirds = shuffle(rng, Array.from({ length: 255 }, (_, i) => i));
+  const networks = city.subnets.map((s) => (s.depth === 0 ? parseIp(pick(rng, PUBLIC_NETWORKS))! : parseIp(`192.168.${thirds[s.id]}.0`)!));
+  for (const subnet of city.subnets) {
+    subnet.network = formatIp(networks[subnet.id]);
+    subnet.prefix = 24;
+  }
+  readdress(city, rng, (subnet, offset) => formatIp(networks[subnet.id] + offset), 254);
+  for (const subnet of city.subnets.filter((s) => s.depth === 1)) {
+    const hosts = city.nodes.filter((n) => n.subnetId === subnet.id && n.role !== 'router');
+    subnet.publish = { service: pick(rng, PUBLISHED_SERVICES), host: pick(rng, hosts).ip };
+  }
+  city.network = '192.168.0.0';
+}
+
+/** VLAN: every subnet is a segment with its own VLAN ID (in tens, never reserved) and name. */
+function labelVlans(city: City, rng: Rng): void {
+  const ids = shuffle(rng, Array.from({ length: 99 }, (_, i) => (i + 1) * 10));
+  const names = shuffle(rng, VLAN_NAMES);
+  city.subnets.forEach((subnet, i) => { subnet.vlan = { id: ids[i], name: names[i] }; });
+}
+
+/** IPv6: the city is a /48 of 2001:db8::/32 and every subnet a /64 inside it. */
+function addressIpv6(city: City, rng: Rng): void {
+  const site = (0x20010db8n << 96n) | (BigInt(randInt(rng, 1, 0xffff)) << 80n);
+  const ids = shuffle(rng, Array.from({ length: 0xfff }, (_, i) => i + 1));
+  const networks = city.subnets.map((s) => site | (BigInt(ids[s.id]) << 64n));
+  for (const subnet of city.subnets) {
+    subnet.network = formatIpv6(networks[subnet.id]);
+    subnet.prefix = 64;
+  }
+  readdress(city, rng, (subnet, offset) => formatIpv6(networks[subnet.id] + BigInt(offset)), 0xfff);
+  city.network = formatIpv6(site);
 }
 
 /** The node with this id in the city; throws when it does not exist. */
@@ -127,11 +231,43 @@ export function cityNode(city: City, id: string): CityNode {
   return node;
 }
 
-/** The addresses a city node's mini-game rounds are built from: its own subnet and IP. */
-export function roundContext(city: City, nodeId: string): RoundContext {
+/**
+ * The addresses a city node's mini-game rounds are built from: its own subnet
+ * and IP. IPv6 cities have no IPv4 addresses, so their rounds get none.
+ */
+export function roundContext(city: City, nodeId: string): RoundContext | undefined {
+  if (city.type === 'ipv6') return undefined;
   const node = cityNode(city, nodeId);
   const subnet = city.subnets[node.subnetId];
   return { network: parseIp(subnet.network)!, prefix: subnet.prefix, host: parseIp(node.ip)! };
+}
+
+/**
+ * What a typed city adds to its nodes' rounds: the node's VLAN, its IPv6
+ * address, or its NAT site (its own, or the first site for nodes on the
+ * public side). Plain cities add nothing.
+ */
+export function typedContext(city: City, nodeId: string): TypedContext | undefined {
+  const node = cityNode(city, nodeId);
+  const subnet = city.subnets[node.subnetId];
+  switch (city.type) {
+    case undefined: return undefined;
+    case 'vlan': return { vlan: subnet.vlan };
+    case 'ipv6': return { ipv6: { host: parseIpv6(node.ip)! } };
+    case 'nat': {
+      const inside = subnet.depth > 0;
+      let site = inside ? subnet : city.subnets.find((s) => s.depth === 1)!;
+      while (site.depth > 1) site = city.subnets[site.parentId!];
+      return {
+        nat: {
+          publicIp: parseIp(cityNode(city, site.routerId!).ip)!,
+          privateNetwork: parseIp((inside ? subnet : site).network)!,
+          privatePrefix: 24,
+          privateHost: parseIp(inside ? node.ip : site.publish!.host)!,
+        },
+      };
+    }
+  }
 }
 
 /**

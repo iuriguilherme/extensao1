@@ -1,9 +1,10 @@
 import { ETHICS_LESSON_ID, getLesson, LESSONS, ROUTING_LESSON_ID } from '../data/lessons';
 import { NODES, HOME_NODE_ID, FINAL_NODE_ID, getNode, type MinigameId, type NetNode } from '../data/nodes';
 import { getPart, type Part, type Slot } from '../data/parts';
-import { isTierOpen, issueCertificate, type Certificate } from './certificates';
-import { cityNode, generateCity, type City, type CityNode, type CitySubnet } from './city';
-import { MAX_CITY_LEVEL } from './cityCode';
+import { tierOfCityType, type TierCityType } from '../data/tiers';
+import { isCityTypeUnlocked, isTierOpen, issueCertificate, type Certificate } from './certificates';
+import { CITY_TYPE_LABELS, cityNode, generateCity, type City, type CityNode, type CitySubnet, type CityType } from './city';
+import { decodeCityCode, MAX_CITY_LEVEL } from './cityCode';
 import type { Lens } from './explanations';
 import { agree, decimal, linkSpeed, money } from './fmt';
 import { computeSpecs, type Installed, type Specs } from './hardware';
@@ -53,6 +54,8 @@ export interface GameState {
 export interface CityProgress {
   level: number;
   seed: number;
+  /** Absent on plain cities. */
+  type?: TierCityType;
   /** Breached city node ids; unique only within this city. */
   breached: string[];
   /** Subnet ids opened by a correct route. */
@@ -261,7 +264,7 @@ export type CityNodeStatus = 'breached' | 'reachable' | 'hidden';
 /** Rebuilds a started city from its level and seed (cities are never saved whole). */
 export function loadCity(state: GameState, index: number): City {
   const progress = state.cities[index];
-  return generateCity(progress.level, progress.seed);
+  return generateCity(progress.level, progress.seed, progress.type);
 }
 
 /** The home subnet is always open; any other subnet opens with a correct route. */
@@ -367,11 +370,39 @@ export function breach(state: GameState, nodeId: string): number {
   return node.reward;
 }
 
-/** Opens a city (or finds it, when this level and seed was started before). Returns its index. */
-export function startCity(state: GameState, level: number, seed: number): number {
-  const existing = state.cities.findIndex((c) => c.level === level && c.seed === seed);
+function findCity(state: GameState, level: number, seed: number, type: CityType): number {
+  return state.cities.findIndex((c) => c.level === level && c.seed === seed && (c.type ?? 'plain') === type);
+}
+
+/**
+ * Opens a city (or finds it, when this type, level and seed was started
+ * before). Returns its index. A typed city needs its type unlocked first.
+ */
+export function startCity(state: GameState, level: number, seed: number, type: CityType = 'plain'): number {
+  if (type !== 'plain' && !isCityTypeUnlocked(state, type)) throw new Error(`City type locked: ${type}`);
+  const existing = findCity(state, level, seed, type);
   if (existing >= 0) return existing;
-  return state.cities.push({ level, seed, breached: [], opened: [], finished: false }) - 1;
+  return state.cities.push({ level, seed, ...(type === 'plain' ? {} : { type }), breached: [], opened: [], finished: false }) - 1;
+}
+
+export type CodeEntryIssue = 'code-invalid' | 'tier-locked';
+
+export type CodeEntry =
+  | { ok: true; index: number; known: boolean }
+  | { ok: false; code: CodeEntryIssue; message: string };
+
+/** Opens the city a shared code names, unless the code is wrong or its type is still locked. */
+export function enterCityCode(state: GameState, text: string): CodeEntry {
+  const decoded = decodeCityCode(text);
+  if (!decoded) return { ok: false, code: 'code-invalid', message: 'Esse código não existe. Confira as letras e os números.' };
+  const { level, seed, type } = decoded;
+  if (type !== 'plain' && !isCityTypeUnlocked(state, type)) {
+    const tier = tierOfCityType(type);
+    const message = `Esse código é de uma cidade ${CITY_TYPE_LABELS[type]}. Ela só abre para quem fez as aulas ${agree(tier.gender, 'do', 'da')} ${tier.title}.`;
+    return { ok: false, code: 'tier-locked', message };
+  }
+  const known = findCity(state, level, seed, type) >= 0;
+  return { ok: true, index: startCity(state, level, seed, type), known };
 }
 
 /**

@@ -28,8 +28,32 @@ describe('city code', () => {
     for (let i = 0; i < 1000; i++) {
       const level = randInt(rng, 1, MAX_CITY_LEVEL);
       const seed = randInt(rng, 0, SEEDS_PER_LEVEL - 1);
-      expect(decodeCityCode(encodeCityCode(level, seed))).toEqual({ level, seed });
+      expect(decodeCityCode(encodeCityCode(level, seed))).toEqual({ level, seed, type: 'plain' });
     }
+  });
+
+  it('adds a type prefix for typed cities and keeps plain codes as they were', () => {
+    const rio = CITY_NAMES.indexOf('RIO') * 10000 + 4821;
+    expect(encodeCityCode(3, rio, 'nat')).toBe('NAT-RIO-3-4821');
+    expect(encodeCityCode(3, rio, 'vlan')).toBe('VLAN-RIO-3-4821');
+    expect(encodeCityCode(3, rio, 'ipv6')).toBe('IP6-RIO-3-4821');
+    expect(encodeCityCode(3, rio)).toBe('RIO-3-4821');
+    expect(decodeCityCode('NAT-RIO-3-4821')).toEqual({ level: 3, seed: rio, type: 'nat' });
+    expect(decodeCityCode('ip6-rio-3-4821')).toEqual({ level: 3, seed: rio, type: 'ipv6' });
+    expect(decodeCityCode('RIO-3-4821')).toEqual({ level: 3, seed: rio, type: 'plain' });
+  });
+
+  it('tells the city named NAT apart from the NAT prefix', () => {
+    const natal = CITY_NAMES.indexOf('NAT') * 10000 + 12;
+    expect(decodeCityCode('NAT-3-0012')).toEqual({ level: 3, seed: natal, type: 'plain' });
+    expect(decodeCityCode('NAT-NAT-3-0012')).toEqual({ level: 3, seed: natal, type: 'nat' });
+    for (const type of ['plain', 'nat', 'vlan', 'ipv6'] as const) {
+      expect(decodeCityCode(encodeCityCode(3, natal, type))).toEqual({ level: 3, seed: natal, type });
+    }
+  });
+
+  it('rejects unknown type prefixes', () => {
+    for (const bad of ['IP4-RIO-3-4821', 'NAT-VLAN-RIO-3-4821', 'NATRIO-3-4821', 'NAT--RIO-3-4821']) expect(decodeCityCode(bad), bad).toBeNull();
   });
 
   it('ignores case and surrounding whitespace', () => {
