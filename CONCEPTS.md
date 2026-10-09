@@ -36,19 +36,40 @@ The set of breached network nodes currently connected to the player's network, w
 A node joins the Swarm only by occupying a free port on the player's router, on a switch in the NOC, or on another connected node that has ports, and it counts only while the player's own computer is online. How much processing and memory the Swarm adds is limited by the Swarm's bandwidth, the traffic its nodes' links can carry through the uplinks they connect to; storage is not. Breaching a node and connecting it are separate: a breached node with no free port waits disconnected. The word is a Kept term.
 
 ### City
-A generated network the player can explore after winning the campaign and passing the routing lesson: a tree of subnets joined by routers that forms a correct IPv4 address plan, with one core machine at its deepest level.
+A generated network the player can explore after winning the campaign and passing the routing lesson: a tree of subnets joined by routers that forms a correct address plan, with one core machine at its deepest level.
 *Avoid:* procedural map, random city
 
-A city is never saved whole: its level and seed rebuild it identically, so the save keeps only the player's progress in it, apart from the campaign map. Only the player's own subnet is visible at first; each further subnet appears once the player breaches the router that leads to it and writes a correct Route entry. Breaching the core finishes the city, and each finished city raises the level of the next new one, up to a cap. A City code lets another player rebuild the same city.
+A city is never saved whole: its level and seed rebuild it identically, so the save keeps only the player's progress in it, apart from the campaign map. Only the player's own subnet is visible at first; each further subnet appears once the player breaches the router that leads to it and writes the correct entry for that router: a Route entry, or the entry its City type asks for. Breaching the core finishes the city, and each finished city raises the level of the next new one, up to a cap. A City code lets another player rebuild the same city.
 
 ### City code
 The short code that names a City by its level and seed, so anyone who can open cities can rebuild exactly that city, while the mini-game questions stay random for each player.
+
+### City type
+The kind of a City, fixed when it is created: a plain City practises IPv4 routes, and each Pós-graduação tier unlocks one more type whose routers ask for that tier's topic, a port forward for NAT, a VLAN and port mode for VLAN, or a route for IPv6.
+
+A typed City has the same tree a plain City of its level and seed would have and changes only its addresses or labels. Its City code names the type, and a code for a type the player has not unlocked opens nothing. A typed City's mini-game rounds draw on its own networks, with addresses that vary from round to round inside them.
 
 ### Route entry
 What the player writes to open the subnet behind a breached router in a City: the destination network with its prefix, and the next hop, which is that router's address on the network the player's own machine already reaches.
 
 A wrong Route entry names the specific mistake without revealing the right value and can be retried with no cost. Each field is judged on its own against the correct route, so a single wrong field produces a single error.
 
+
+## Graduation
+
+### Formatura
+The one-time ceremony that follows the first breach of the campaign's final machine: the player types the name for their certificates and receives the conclusão Certificate, which presents finishing the campaign as finishing the course.
+
+### Certificate
+A record of what the player had achieved when they earned it: their name, the lessons completed, and per area their accuracy, learned and weak Concepts, and Area level.
+
+A Certificate keeps the numbers it was earned with; reopened later, it shows the current numbers beside them. It is created at the qualifying breach and shown later by its ceremony, so closing the game mid-ceremony resumes it.
+
+### Pós-graduação tier
+One of three optional steps after the Formatura, in fixed order, each pairing two lessons with a City type and a mini-game area; finishing the first City of that type earns the tier's Certificate, and the next tier opens once that Certificate is presented.
+*Avoid:* level (for a tier), pós-graduação level
+
+Only the next step is ever shown: a tier's lessons appear once the tier opens, and its City type once those lessons are passed.
 
 ## Mini-games
 

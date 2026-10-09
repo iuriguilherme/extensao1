@@ -38,7 +38,7 @@ Things that span files:
 ## PT-BR text rules
 
 - Write Portuguese natively from meaning, never by translating English sentence structure. See `docs/solutions/conventions/ptbr-text-native-not-calque.md`; only a native reader catches calques, tests do not.
-- `src/data/termos.ts` is the glossary: the one term per concept (with grammatical gender) and the IT words kept in English the way Brazilian technicians use them. `CONCEPTS.md` defines Glossary, Kept term and Calque.
+- `src/data/termos.ts` is the glossary: the one term per concept (with grammatical gender) and the IT words kept in English the way Brazilian technicians use them. `CONCEPTS.md` is the shared domain vocabulary (game text, network and cities, graduation, mini-games), including Glossary, Kept term and Calque; relevant when orienting to the codebase or discussing domain concepts.
 - Informal "você". Never build numbers, money, plurals or gender agreement by hand: use `money`, `decimal`, `linkSpeed`, `plural` (singular only for exactly 1) and `agree` from `src/core/fmt.ts`. Parts and slots carry a `gender` for agreeing messages.
 - Technical notation stays as-is: IPs, masks, CIDR, binary, ports, HTTP status codes and reason phrases ("404 Not Found"), DNS record types.
 - `tests/content.test.ts` fails when player-visible text contains common English words outside the glossary's allowed list. It scans runtime data, generated rounds and scene string literals that contain a space; single-word labels are not covered.
