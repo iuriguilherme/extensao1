@@ -12,6 +12,8 @@ export class TitleScene extends Phaser.Scene {
   create() {
     this.cameras.main.setBackgroundColor(COLORS.bg);
     this.drawRain();
+    // The conquista pop-up runs alongside every scene from here on.
+    if (!this.scene.isActive('ConquistaPopup')) this.scene.launch('ConquistaPopup');
 
     this.add.text(WIDTH / 2, 190, 'ROOTKIT ACADEMY', textStyle(64, COLORS.accent)).setOrigin(0.5);
     this.add.text(WIDTH / 2, 260, 'monte · conecte · invada — aprenda TI na prática', textStyle(20, COLORS.info)).setOrigin(0.5);

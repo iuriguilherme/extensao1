@@ -3,6 +3,7 @@ import { achievements, resetAchievements } from '../core/achievementStore';
 import { game, resetGame } from '../core/store';
 import { money } from '../core/fmt';
 import { objective } from '../core/state';
+import type { Achievement, AchievementKind } from '../data/achievements';
 
 export const WIDTH = 1280;
 export const HEIGHT = 720;
@@ -204,4 +205,24 @@ export function resetEverything(): void {
   );
   resetGame();
   if (ask) resetAchievements(erase);
+}
+
+const KIND_COLORS: Record<AchievementKind, number> = {
+  story: COLORS.accent,
+  skill: COLORS.info,
+  counter: COLORS.warn,
+  secret: COLORS.danger,
+};
+
+/**
+ * A conquista's symbol in a square colored by its kind. Locked ones are dimmed,
+ * and a locked secret hides its symbol.
+ */
+export function badge(scene: Phaser.Scene, x: number, y: number, size: number, achievement: Achievement, unlocked: boolean) {
+  const color = unlocked ? KIND_COLORS[achievement.kind] : COLORS.muted;
+  const square = scene.add.rectangle(x, y, size, size, COLORS.bg).setOrigin(0).setStrokeStyle(2, color);
+  const symbol = !unlocked && achievement.kind === 'secret' ? '?' : achievement.symbol;
+  const glyph = scene.add.text(x + size / 2, y + size / 2, symbol, textStyle(Math.round(size * 0.55), color)).setOrigin(0.5);
+  if (!unlocked) glyph.setAlpha(0.6);
+  return [square, glyph];
 }
