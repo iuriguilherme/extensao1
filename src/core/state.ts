@@ -9,6 +9,7 @@ import { computeSpecs, type Installed, type Specs } from './hardware';
 import type { NetConfig } from './ip';
 import type { ConceptId } from './minigames';
 import { validateRoute, type RouteEntry, type RouteIssue } from './routing';
+import type { AreaStats } from './stats';
 import { installSwitch, rehomeForRouter, totalSpecs } from './swarm';
 
 export interface GameState {
@@ -38,6 +39,10 @@ export interface GameState {
    * numbers are saved here.
    */
   cities: CityProgress[];
+  /** Mini-game rounds answered per area (stats.ts). */
+  stats: Partial<Record<MinigameId, AreaStats>>;
+  /** Every concept answered correctly at least once. */
+  correctConcepts: ConceptId[];
 }
 
 export interface CityProgress {
@@ -91,6 +96,8 @@ export function newGame(): GameState {
     areaLevels: { binary: 1, subnet: 1, ports: 1, http: 1, dns: 1 },
     runCount: 0,
     cities: [],
+    stats: {},
+    correctConcepts: [],
   };
 }
 

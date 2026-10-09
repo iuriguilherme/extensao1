@@ -6,6 +6,7 @@ import { completeJob, type Job } from '../core/jobs';
 import { buildRounds, toBinary, type BitsRound, type ChoiceRound, type ConceptId, type Difficulty, type Round } from '../core/minigames';
 import { createRng } from '../core/random';
 import { commitRun, recordMiss } from '../core/reteach';
+import { recordAnswer } from '../core/stats';
 import { breach, breachCityNode, loadCity } from '../core/state';
 import { joinSwarm, totalSpecs } from '../core/swarm';
 import { game, save } from '../core/store';
@@ -176,6 +177,7 @@ export class MinigameScene extends Phaser.Scene {
     this.running = false;
     const round = this.rounds[this.index];
     let explain = round.explain.steps;
+    recordAnswer(game(), round.concept, correct);
     if (correct) {
       this.correctConcepts.push(round.concept);
     } else {
@@ -266,6 +268,8 @@ export class MinigameScene extends Phaser.Scene {
 
   private leave() {
     this.running = false;
+    // Rounds answered before quitting still count in the stats.
+    save();
     const city = this.params.city;
     if (city) {
       const back: CityMapData = {
