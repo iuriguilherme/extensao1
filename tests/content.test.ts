@@ -23,6 +23,7 @@ import { certificateTitle, issueCertificate, presentCertificate, validateStudent
 import {
   breach, buy, canBuy, checkRequirements, completeLesson, enterCityCode, install, newGame, objective, sell, setNetConfig, uninstall,
 } from '../src/core/state';
+import { ACHIEVEMENTS } from '../src/data/achievements';
 import { TIERS } from '../src/data/tiers';
 import { LESSONS, TRACK_LABELS } from '../src/data/lessons';
 import { MINIGAME_AREAS, NODES, type MinigameId } from '../src/data/nodes';
@@ -91,6 +92,7 @@ function runtimeTexts(): string[] {
   for (const p of PARTS) out.push(p.name, p.description, describeStats(p));
   out.push(...Object.values(SLOT_LABELS), ...Object.values(TRACK_LABELS), ...Object.values(MINIGAME_AREAS));
   for (const n of NODES) out.push(n.name, n.flavor);
+  for (const a of ACHIEVEMENTS) out.push(a.name, a.description);
 
   for (const build of [{}, { motherboard: 'mb_b1', cpu: 'cpu_s2_16c', ram: 'ram_32_ddr5', storage: 'hdd_500', psu: 'psu_250' }]) {
     out.push(...computeSpecs(build).issues.map((i) => i.message));

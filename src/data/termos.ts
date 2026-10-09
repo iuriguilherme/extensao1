@@ -103,6 +103,7 @@ export const TERMOS: Termo[] = [
   { conceito: 'mistake', termo: 'erro', genero: 'm', mantido: false },
   { conceito: 'side job', termo: 'trabalho extra', genero: 'm', mantido: false },
   { conceito: 'reward', termo: 'recompensa', genero: 'f', mantido: false },
+  { conceito: 'achievement', termo: 'conquista', genero: 'f', mantido: false, nota: 'As conquistas opcionais, no estilo da Steam. Nunca "troféu" ou "medalha".' },
   { conceito: 'save / progress', termo: 'progresso', genero: 'm', mantido: false },
   { conceito: 'rootkit', termo: 'rootkit', genero: 'm', mantido: true },
 ];
