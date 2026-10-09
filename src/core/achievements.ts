@@ -105,3 +105,11 @@ export function satisfied(state: GameState, totals: CounterTotals, summary?: Run
     return summary !== undefined && rule.test(summary);
   }).map((a) => a.id);
 }
+
+/** A counter achievement's progress toward its target; null for other kinds. */
+export function counterProgress(id: string, totals: CounterTotals): { value: number; target: number } | null {
+  const rule = RULES[id];
+  const target = ACHIEVEMENTS.find((a) => a.id === id)?.target;
+  if (rule?.kind !== 'counter' || target === undefined) return null;
+  return { value: Math.min(totals[rule.metric], target), target };
+}

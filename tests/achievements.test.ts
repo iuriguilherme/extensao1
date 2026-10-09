@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { RULES, satisfied, type CounterTotals, type RunSummary } from '../src/core/achievements';
+import { counterProgress, RULES, satisfied, type CounterTotals, type RunSummary } from '../src/core/achievements';
 import { issueCertificate, presentCertificate } from '../src/core/certificates';
 import { MAX_LEVEL } from '../src/core/minigames';
 import { newGame, type GameState } from '../src/core/state';
@@ -168,5 +168,13 @@ describe('achievement rules', () => {
       expect(ids(s, ZERO, run({ nodeId: FINAL_NODE_ID, firstBreach: false }))).toContain('core-again');
       expect(ids(s, ZERO, run({ nodeId: FINAL_NODE_ID, firstBreach: false, success: false }))).not.toContain('core-again');
     });
+  });
+});
+
+describe('counter progress', () => {
+  it('caps at the target and is null for non-counters', () => {
+    expect(counterProgress('rounds-500', { ...ZERO, answered: 312 })).toEqual({ value: 312, target: 500 });
+    expect(counterProgress('rounds-100', { ...ZERO, answered: 312 })).toEqual({ value: 100, target: 100 });
+    expect(counterProgress('formatura', ZERO)).toBeNull();
   });
 });

@@ -53,6 +53,8 @@ The game itself is all canvas: there are no DOM buttons to target, and `src/main
    ```
 
    Ids come from `src/data/` (parts, lessons, nodes). The example above is online with every lesson except `ethics` and `routing`, and has the Data Center Core reachable. To reach the cities, add `'ethics'` and `'routing'` to `lessonsCompleted` and `'core'` to `breached`; a `cities` entry such as `{ level: 3, seed: 4821, breached: [], opened: [], finished: false }` opens straight onto a known city.
+
+   Conquistas have their own key, `rootkit-academy-conquistas-v1` (`src/core/achievementStore.ts`). It also needs `version: 1` and an `unlocked` array, for example `{ version: 1, unlocked: ['first-boot'], totals: { answered: 312, correct: 0, runs: 0, cities: 0 }, last: { answered: 312, correct: 0, runs: 0, cities: 0 }, popups: true }`. Keep `last` equal to what the seeded game save shows, or the first check adds the difference to `totals`. When the key is missing, the load seeds the counters from the game save and silently unlocks whatever that save proves, so remove the key to test a first load.
 3. **Click in game coordinates.** The canvas is a fixed 1280x720 game scaled with `Scale.FIT` (`src/main.ts`), so screen pixels differ from game pixels unless the viewport is exactly 1280x720. Convert from the canvas rect:
 
    ```js

@@ -3,6 +3,7 @@ import { CertificateScene } from './scenes/CertificateScene';
 import { CityListScene } from './scenes/CityListScene';
 import { CityMapScene } from './scenes/CityMapScene';
 import { ConquistaPopupScene } from './scenes/ConquistaPopupScene';
+import { ConquistasScene } from './scenes/ConquistasScene';
 import { FormaturaScene } from './scenes/FormaturaScene';
 import { HubScene } from './scenes/HubScene';
 import { JobBoardScene } from './scenes/JobBoardScene';
@@ -30,7 +31,7 @@ new Phaser.Game({
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
   scene: [TitleScene, HubScene, StudyScene, LessonScene, ShopScene, WorkbenchScene, NetSetupScene, NetMapScene, MinigameScene, JobBoardScene,
-    CityListScene, CityMapScene, RouteScene, FormaturaScene, CertificateScene,
+    CityListScene, CityMapScene, RouteScene, FormaturaScene, CertificateScene, ConquistasScene,
     // Last, so its cards draw over every other scene.
     ConquistaPopupScene],
 });

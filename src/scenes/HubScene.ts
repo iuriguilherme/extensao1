@@ -86,22 +86,23 @@ export class HubScene extends Phaser.Scene {
       { label: 'Mapa da Rede', scene: 'NetMap', enabled: isOnline(state), hint: 'Precisa do PC conectado à internet' },
       { label: 'Cidades', scene: 'Cities', enabled: canStartCities(state), hint: citiesHint(phase === 'won', hasLesson(state, ROUTING_LESSON_ID)) },
     ];
-    // Six rows fit between the header and the side-job row at y 560.
+    // Six rows fit between the header and the bottom buttons at y 548.
     items.forEach((item, i) => {
       const y = 76 + i * 78;
       button(this, x, y, w, 48, item.label, () => this.scene.start(item.scene), { disabled: !item.enabled, size: 22 });
       fitText(this.add.text(x + 4, y + 53, item.hint, textStyle(13, COLORS.muted)), w - 8);
     });
 
+    // Two rows of two between the last hint (~y 535) and the footer note.
+    const half = (w - 10) / 2;
+    const right = x + half + 10;
+    button(this, x, 548, half, 44, 'Trabalhos extras', () => this.scene.start('Jobs'), { size: 16, color: COLORS.info });
+    button(this, right, 548, half, 44, 'Conquistas', () => this.scene.start('Conquistas'), { size: 16, color: COLORS.accent });
     // The certificates entry appears with the first certificate, never before.
-    const certificates = state.certificates.some((c) => c.presented);
-    const w3 = certificates ? 140 : 210;
-    const gap = certificates ? 10 : 20;
-    button(this, x, 560, w3, 44, 'Trabalhos extras', () => this.scene.start('Jobs'), { size: 16, color: COLORS.info });
-    if (certificates) {
-      button(this, x + w3 + gap, 560, w3, 44, 'Certificados', () => this.scene.start('Certificate', {} satisfies CertificateData), { size: 16, color: COLORS.warn });
+    if (state.certificates.some((c) => c.presented)) {
+      button(this, x, 600, half, 44, 'Certificados', () => this.scene.start('Certificate', {} satisfies CertificateData), { size: 16, color: COLORS.warn });
     }
-    button(this, x + (w3 + gap) * (certificates ? 2 : 1), 560, w3, 44, 'Apagar progresso', () => {
+    button(this, right, 600, half, 44, 'Apagar progresso', () => {
       if (window.confirm('Apagar todo o progresso e começar do zero?')) {
         resetEverything();
         this.scene.restart();
