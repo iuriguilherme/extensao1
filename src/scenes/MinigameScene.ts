@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
-import { cityNode, roundContext, type City } from '../core/city';
+import { cityNode, roundContext, typedContext, type City } from '../core/city';
+import { gateKind, type GateKind } from '../core/gates';
 import { mistakesAllowed, roundSeconds } from '../core/hardware';
 import { LENS_LABELS } from '../core/explanations';
 import { completeJob, type Job } from '../core/jobs';
@@ -16,6 +17,14 @@ import { MINIGAME_AREAS, getNode, type MinigameId } from '../data/nodes';
 import { listJoin, money, plural } from '../core/fmt';
 import { COLORS, fitText, header, hex, Layer, textStyle, WIDTH } from '../ui/widgets';
 import type { CityMapData } from './CityMapScene';
+
+/** What a first router breach asks next, by the kind of gate it guards. */
+const GATE_NEXT_STEP: Record<GateKind, string> = {
+  route: 'Agora escreva a rota até a rede que fica atrás deste roteador.',
+  ipv6: 'Agora escreva a rota IPv6 até a rede que fica atrás deste roteador.',
+  nat: 'Agora redirecione a porta do serviço publicado para abrir a rede privada atrás deste roteador.',
+  vlan: 'Agora configure a porta do switch para abrir o segmento atrás deste roteador.',
+};
 
 export interface MinigameData {
   minigame: MinigameId;
@@ -71,9 +80,10 @@ export class MinigameScene extends Phaser.Scene {
     this.allowed = mistakesAllowed(specs.ramGB) + (data.nodeId || data.city ? 0 : 1);
     const focus = data.job?.kind === 'review' ? data.job.concept : undefined;
     this.city = data.city ? loadCity(game(), data.city.index) : null;
-    // City rounds use the addresses of the node's own subnet.
+    // City rounds use the addresses of the node's own subnet; typed cities add their NAT site, VLAN or IPv6 address.
     const context = this.city && data.city ? roundContext(this.city, data.city.nodeId) : undefined;
-    this.rounds = buildRounds(data.minigame, data.difficulty, createRng(Date.now()), focus, context);
+    const typed = this.city && data.city ? typedContext(this.city, data.city.nodeId) : undefined;
+    this.rounds = buildRounds(data.minigame, data.difficulty, createRng(Date.now()), focus, context, typed);
     this.index = 0;
     this.mistakes = 0;
     this.correctConcepts = [];
@@ -237,7 +247,7 @@ export class MinigameScene extends Phaser.Scene {
       this.finishedNow = !wasFinished && progress.finished;
       const node = cityNode(this.city, cityNodeId);
       if (this.finishedNow) details = 'Você invadiu o núcleo: a cidade está concluída!';
-      else if (firstCityBreach && node.role === 'router') details = 'Agora escreva a rota até a rede que fica atrás deste roteador.';
+      else if (firstCityBreach && node.role === 'router') details = GATE_NEXT_STEP[gateKind(this.city, cityNodeId)];
     } else if (nodeId) {
       reward = breach(state, nodeId);
       if (firstBreach) {

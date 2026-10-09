@@ -1,14 +1,22 @@
 import Phaser from 'phaser';
+import { pendingCertificate } from '../core/certificates';
 import { CITY_COLUMN_WIDTH, cityNode, type City, type CityNode, type CitySubnet } from '../core/city';
 import { encodeCityCode } from '../core/cityCode';
-import { money } from '../core/fmt';
+import { money, plural } from '../core/fmt';
+import { correctGate, gateKind, vlanGate, type GateKind } from '../core/gates';
 import {
   canConnectCityNode, checkRequirements, cityNodeStatus, isSubnetOpen, loadCity, nextCityLevel, REPLAY_RATIO, type CityNodeStatus, type CityProgress,
 } from '../core/state';
 import { game } from '../core/store';
 import { MINIGAME_AREAS } from '../data/nodes';
 import { button, COLORS, fitText, header, hex, Layer, objectiveBar, textStyle, toast, WIDTH, type Button } from '../ui/widgets';
+import type { CertificateData } from './CertificateScene';
 import type { MinigameData } from './MinigameScene';
+
+/** The button that opens a router's gate form, by gate kind. */
+const GATE_BUTTON: Record<GateKind, string> = {
+  route: 'Escrever rota', ipv6: 'Escrever rota', nat: 'Redirecionar porta', vlan: 'Configurar porta',
+};
 
 export interface CityMapData {
   /** Index of the city in `GameState.cities`. */
@@ -60,6 +68,12 @@ export class CityMapScene extends Phaser.Scene {
   }
 
   create(data: CityMapData) {
+    // The first core of a typed city earns a tier certificate: its ceremony comes first.
+    const pending = pendingCertificate(game());
+    if (data.finishedNow && pending && pending.id !== 'conclusao') {
+      this.scene.start('Certificate', { id: pending.id } satisfies CertificateData);
+      return;
+    }
     this.params = data;
     this.mapObjects = new Set();
     this.drag = null;
@@ -75,7 +89,7 @@ export class CityMapScene extends Phaser.Scene {
     this.mapCam.setScroll(0, VIEW_SCROLL_Y);
 
     const status = progress.finished ? 'concluída' : 'em andamento';
-    header(this, `Cidade ${encodeCityCode(progress.level, progress.seed)} · nível ${progress.level} · ${status}`, () => this.scene.start('Cities'));
+    header(this, `Cidade ${encodeCityCode(progress.level, progress.seed, progress.type)} · nível ${progress.level} · ${status}`, () => this.scene.start('Cities'));
     objectiveBar(this);
     this.info = new Layer(this);
 
@@ -145,7 +159,10 @@ export class CityMapScene extends Phaser.Scene {
       const home = subnet.depth === 0;
       this.m(this.add.rectangle(x, y, width, height + BOX_LABEL_ROOM, COLORS.panel).setOrigin(0).setStrokeStyle(2, home ? COLORS.info : COLORS.panelBorder));
       fitText(this.m(this.add.text(x + 8, y + 6, `${subnet.network}/${subnet.prefix}`, textStyle(15, COLORS.info))), width - 16);
-      if (home) this.m(this.add.text(x + width - 8, y - 4, 'entrada', textStyle(11, COLORS.info)).setOrigin(1, 1));
+      // The box's top-right tag: the entrance, and on typed cities what the subnet is.
+      const tag = [home ? 'entrada' : '', subnet.vlan ? `VLAN ${subnet.vlan.id} · ${subnet.vlan.name}` : '',
+        city.type === 'nat' ? (home ? 'rede pública' : 'rede privada') : ''].filter(Boolean).join(' · ');
+      if (tag) fitText(this.m(this.add.text(x + width - 8, y - 4, tag, textStyle(11, COLORS.info)).setOrigin(1, 1)), width);
 
       // The link to an open child subnet is the route the player wrote.
       if (subnet.routerId) {
@@ -166,7 +183,7 @@ export class CityMapScene extends Phaser.Scene {
       if (status === 'breached') this.m(this.add.text(node.x, node.y, '✓', textStyle(13, color)).setOrigin(0.5));
       if (status === 'reachable') this.tweens.add({ targets: shape, scale: 1.12, yoyo: true, repeat: -1, duration: 700 });
       fitText(this.m(this.add.text(node.x, node.y + 14, node.name, textStyle(11, color)).setOrigin(0.5, 0)), 96);
-      this.m(this.add.text(node.x, node.y + 27, node.ip, textStyle(10, COLORS.muted)).setOrigin(0.5, 0));
+      this.m(this.add.text(node.x, node.y + 27, this.shortIp(node), textStyle(10, COLORS.muted)).setOrigin(0.5, 0));
       shape.setInteractive({ useHandCursor: true });
       shape.on('pointerdown', () => this.showInfo(node));
 
@@ -245,19 +262,31 @@ export class CityMapScene extends Phaser.Scene {
     const breached = status === 'breached';
     const child = node.childSubnetId === null ? null : this.city.subnets[node.childSubnetId];
     const routeMissing = breached && child !== null && !this.isOpen(child);
+    const kind = child ? gateKind(this.city, node.id) : 'route';
+    const line = (text: string, size: number, color: number, indent = 14, height = 20) => {
+      fitText(this.info.text(x + indent, cy, text, textStyle(size, color)), w - indent - 14);
+      cy += height;
+    };
     if (routeMissing) {
       cy += 8;
-      this.info.text(x + 14, cy, 'Você achou a interface do outro lado do roteador:', textStyle(13, COLORS.text));
-      cy += 20;
-      this.info.text(x + 24, cy, `eth1: inet ${child.routerChildIp}/${child.prefix}`, textStyle(15, COLORS.info));
-      cy += 22;
-      const hint = fitText(this.info.text(x + 14, cy, 'Escreva a rota até a rede que fica atrás dele para ela aparecer no mapa.',
-        textStyle(13, COLORS.muted, { wordWrap: { width: w - 28 } })), w - 28, 36);
+      if (kind === 'vlan') {
+        const gate = vlanGate(this.city, node.id);
+        line(`O segmento atrás deste roteador se chama ${gate.segment.name}.`, 13, COLORS.text);
+        // The names can be many; the gate screen lists them in full.
+        line(`O link até ele leva ${plural(gate.carried.length, 'VLAN', 'VLANs')}.`, 13, COLORS.info, 14, 22);
+      } else {
+        line('Você achou a interface do outro lado do roteador:', 13, COLORS.text);
+        line(`eth1: ${kind === 'ipv6' ? 'inet6' : 'inet'} ${child.routerChildIp}/${child.prefix}`, 15, COLORS.info, 24, 22);
+        if (kind === 'nat') {
+          const { service, host } = child.publish!;
+          line(`Serviço publicado: ${service.name}, porta ${service.port}, no host .${host.split('.')[3]}`, 13, COLORS.warn);
+        }
+      }
+      const hint = fitText(this.info.text(x + 14, cy, GATE_HINT[kind], textStyle(13, COLORS.muted, { wordWrap: { width: w - 28 } })), w - 28, 36);
       cy += hint.height + 4;
     } else if (breached && child) {
       cy += 8;
-      this.info.text(x + 14, cy, `Rota escrita: ${child.network}/${child.prefix} via ${node.ip}`, textStyle(13, COLORS.accent));
-      cy += 20;
+      line(gateDone(this.city, node), 13, COLORS.accent);
     }
 
     const by = Math.max(cy + 8, y + 190);
@@ -275,12 +304,18 @@ export class CityMapScene extends Phaser.Scene {
     }, { disabled: !ok, color: COLORS.warn, size: 16 });
     if (!ok) attack.label.setColor(hex(COLORS.muted));
     if (routeMissing) {
-      this.info.button(x + 14, by, 176, 42, 'Escrever rota', () => this.scene.start('Route', { index, routerId: node.id }), { color: COLORS.info, size: 16 });
+      this.info.button(x + 14, by, 176, 42, GATE_BUTTON[kind], () => this.scene.start('Route', { index, routerId: node.id }), { color: COLORS.info, size: 16 });
     } else {
       this.info.button(x + 14, by, 110, 42, 'Fechar', () => this.info.clear(), { color: COLORS.info, size: 16 });
     }
     panel.setSize(w, by + 56 - y);
     this.syncCameras();
+  }
+
+  /** IPv6 nodes show only their interface part ("::2a"); the subnet box already shows the prefix. */
+  private shortIp(node: CityNode): string {
+    const network = this.city.subnets[node.subnetId].network;
+    return this.city.type === 'ipv6' && network.endsWith('::') && node.ip.startsWith(network) ? `::${node.ip.slice(network.length)}` : node.ip;
   }
 
   /** Banner for the first breach of the core: the city is done. */
@@ -297,5 +332,24 @@ export class CityMapScene extends Phaser.Scene {
       textStyle(18, COLORS.text, { align: 'center', lineSpacing: 6, wordWrap: { width: w - 40 } })).setOrigin(0.5, 0), w - 40, 80);
     this.info.button(x + 30, y + h - 76, 280, 50, 'Ver cidades', () => this.scene.start('Cities'), { size: 20 });
     this.info.button(x + w - 310, y + h - 76, 280, 50, 'Ficar no mapa', () => this.info.clear(), { size: 20, color: COLORS.info });
+  }
+}
+
+/** What a router's panel asks for while its gate is closed. */
+const GATE_HINT: Record<GateKind, string> = {
+  route: 'Escreva a rota até a rede que fica atrás dele para ela aparecer no mapa.',
+  ipv6: 'Escreva a rota IPv6 até a rede que fica atrás dele para ela aparecer no mapa.',
+  nat: 'Redirecione a porta do serviço publicado para a rede privada aparecer no mapa.',
+  vlan: 'Configure a porta do switch com a VLAN do segmento para ele aparecer no mapa.',
+};
+
+/** The entry that opened a router's gate, as the panel shows it afterwards. */
+function gateDone(city: City, router: CityNode): string {
+  const entry = correctGate(city, router.id);
+  switch (entry.kind) {
+    case 'route':
+    case 'ipv6': return `Rota escrita: ${entry.destination}/${entry.prefix} via ${entry.nextHop}`;
+    case 'nat': return `Redirecionamento: ${entry.publicAddress}:${entry.publicPort} → ${entry.privateAddress}:${entry.privatePort}`;
+    case 'vlan': return `Porta configurada: ${entry.mode === 'trunk' ? 'tronco' : 'acesso'}, VLAN ${entry.vlanId}`;
   }
 }

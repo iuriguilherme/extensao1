@@ -199,6 +199,9 @@ function postGraduateGoal(state: GameState): string | null {
   if (goal.kind === 'city') {
     const label = CITY_TYPE_LABELS[tier.cityType];
     if (!hasLesson(state, ROUTING_LESSON_ID)) return `Para criar uma cidade ${label}, faça antes a aula "${getLesson(ROUTING_LESSON_ID).title}".`;
+    if (state.cities.some((c) => c.type === tier.cityType)) {
+      return `Invada o núcleo de uma cidade ${label} para receber o certificado ${agree(tier.gender, 'do', 'da')} ${tier.title}.`;
+    }
     return `Agora crie uma cidade ${label} em Cidades e invada o núcleo dela para receber o certificado ${agree(tier.gender, 'do', 'da')} ${tier.title}.`;
   }
   const index = TIERS.indexOf(tier);

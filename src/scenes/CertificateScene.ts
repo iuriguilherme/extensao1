@@ -81,7 +81,8 @@ export class CertificateScene extends Phaser.Scene {
     const title = certificate.id === 'conclusao' ? certificateTitle('conclusao') : `${getTier(certificate.id).title} · ${getTier(certificate.id).topic}`;
     fitText(this.add.text(WIDTH / 2, 100, title, textStyle(28, COLORS.accent)).setOrigin(0.5, 0), RIGHT - LEFT);
     this.add.text(WIDTH / 2, 142, 'Certificamos que', textStyle(15, COLORS.muted)).setOrigin(0.5, 0);
-    fitText(this.add.text(WIDTH / 2, 162, certificate.name ?? '', textStyle(32, COLORS.warn)).setOrigin(0.5, 0), RIGHT - LEFT);
+    // A tier ceremony shows the name before presenting copies it into the certificate.
+    fitText(this.add.text(WIDTH / 2, 162, certificate.name ?? state.studentName ?? '', textStyle(32, COLORS.warn)).setOrigin(0.5, 0), RIGHT - LEFT);
     const what = certificate.id === 'conclusao'
       ? 'concluiu o curso e o exercício final do laboratório de segurança.'
       : `concluiu ${agree(getTier(certificate.id).gender, 'o', 'a')} ${getTier(certificate.id).title}, sobre ${getTier(certificate.id).topic}.`;

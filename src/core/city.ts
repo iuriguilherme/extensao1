@@ -160,10 +160,29 @@ export function generateCity(level: number, seed: number, type: CityType = 'plai
   if (type !== 'plain') {
     const typed = createRng((Math.imul(seed >>> 0, 0x2c1b3c6d) ^ Math.imul(level, 0x297a2d39) ^ TYPE_SALT[type]) >>> 0);
     TYPE_PASSES[type](city, typed);
+    for (const node of city.nodes) {
+      if (node.childSubnetId !== null) node.flavor = TYPED_ROUTER_FLAVORS[type][city.subnets[node.subnetId].depth === 0 ? 0 : 1];
+    }
     city.type = type;
   }
   return city;
 }
+
+/** A typed city's router flavor: out of the student subnet, then deeper in. */
+const TYPED_ROUTER_FLAVORS: Record<TierCityType, [string, string]> = {
+  nat: [
+    'Traduz a rede privada atrás dele para o endereço público. Depois de invadir, redirecione a porta do serviço publicado.',
+    'Liga esta sub-rede privada à próxima. Depois de invadir, escreva a rota até lá.',
+  ],
+  vlan: [
+    'Liga este segmento ao próximo pelo switch. Depois de invadir, configure a porta com a VLAN certa.',
+    'Liga este segmento ao próximo pelo switch. Depois de invadir, configure a porta com a VLAN certa.',
+  ],
+  ipv6: [
+    'Liga esta sub-rede à próxima. Depois de invadir, escreva a rota IPv6 até lá.',
+    'Liga esta sub-rede à próxima. Depois de invadir, escreva a rota IPv6 até lá.',
+  ],
+};
 
 const TYPE_SALT: Record<TierCityType, number> = { nat: 0x4e4154, vlan: 0x564c414e, ipv6: 0x495036 };
 
