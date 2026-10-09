@@ -5,7 +5,7 @@ import { CITY_NAMES, MAX_CITY_LEVEL } from '../src/core/cityCode';
 import { correctRoute } from '../src/core/routing';
 import {
   breach, breachCityNode, canConnectCityNode, canStartCities, cityNodeStatus, enterCityCode, loadCity, newGame, nextCityLevel,
-  objective, phaseOf, REPLAY_RATIO, startCity, submitRoute, type GameState,
+  objective, phaseOf, REPLAY_RATIO, startCity, submitGate, type GameState,
 } from '../src/core/state';
 import { ETHICS_LESSON_ID, getLesson, ROUTING_LESSON_ID } from '../src/data/lessons';
 import { FINAL_NODE_ID } from '../src/data/nodes';
@@ -201,7 +201,7 @@ describe('city map progress', () => {
     const router = firstRouter(city);
     breachCityNode(s, index, city, router.id);
     const child = city.subnets[router.childSubnetId!];
-    const issues = submitRoute(s, index, city, router.id, { ...correctRoute(city, router.id), destination: child.routerChildIp! });
+    const issues = submitGate(s, index, city, router.id, { kind: 'route', ...correctRoute(city, router.id), destination: child.routerChildIp! });
     expect(issues.map((i) => i.code)).toEqual(['destination-host']);
     expect(s.cities[index].opened).toEqual([]);
     expect(cityNodeStatus(s, index, city, router)).toBe('breached');
@@ -214,8 +214,8 @@ describe('city map progress', () => {
     const index = startCity(s, city.level, city.seed);
     const router = firstRouter(city);
     breachCityNode(s, index, city, router.id);
-    expect(submitRoute(s, index, city, router.id, correctRoute(city, router.id))).toEqual([]);
-    expect(submitRoute(s, index, city, router.id, correctRoute(city, router.id))).toEqual([]);
+    expect(submitGate(s, index, city, router.id, { kind: 'route', ...correctRoute(city, router.id) })).toEqual([]);
+    expect(submitGate(s, index, city, router.id, { kind: 'route', ...correctRoute(city, router.id) })).toEqual([]);
     expect(s.cities[index].opened).toEqual([router.childSubnetId]);
     for (const node of nodesIn(city, router.childSubnetId!)) {
       expect(cityNodeStatus(s, index, city, node)).toBe('reachable');
@@ -228,7 +228,7 @@ describe('city map progress', () => {
     const city = deepCity();
     const index = startCity(s, city.level, city.seed);
     const router = firstRouter(city);
-    expect(() => submitRoute(s, index, city, router.id, correctRoute(city, router.id))).toThrow();
+    expect(() => submitGate(s, index, city, router.id, { kind: 'route', ...correctRoute(city, router.id) })).toThrow();
     expect(s.cities[index].opened).toEqual([]);
   });
 
@@ -240,7 +240,7 @@ describe('city map progress', () => {
       const router = city.nodes.find((n) => n.id === subnet.routerId)!;
       expect(cityNodeStatus(s, index, city, router)).toBe('reachable');
       breachCityNode(s, index, city, router.id);
-      expect(submitRoute(s, index, city, router.id, correctRoute(city, router.id))).toEqual([]);
+      expect(submitGate(s, index, city, router.id, { kind: 'route', ...correctRoute(city, router.id) })).toEqual([]);
     }
     const core = city.nodes.find((n) => n.id === city.coreId)!;
     expect(cityNodeStatus(s, index, city, core)).toBe('reachable');

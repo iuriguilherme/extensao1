@@ -10,7 +10,7 @@ import { agree, decimal, linkSpeed, money } from './fmt';
 import { computeSpecs, type Installed, type Specs } from './hardware';
 import type { NetConfig } from './ip';
 import type { ConceptId } from './minigames';
-import { validateRoute, type RouteEntry, type RouteIssue } from './routing';
+import { validateGate, type GateEntry, type GateIssue } from './gates';
 import type { AreaStats } from './stats';
 import { installSwitch, rehomeForRouter, totalSpecs } from './swarm';
 
@@ -406,13 +406,14 @@ export function enterCityCode(state: GameState, text: string): CodeEntry {
 }
 
 /**
- * Checks a routing entry for a breached router. With no problems, the subnet
- * behind the router opens. Wrong entries change nothing and can be retried.
+ * Checks a gate entry (a route, port forward, VLAN or IPv6 route, by the
+ * city's type) for a breached router. With no problems, the subnet behind the
+ * router opens. Wrong entries change nothing and can be retried.
  */
-export function submitRoute(state: GameState, index: number, city: City, routerId: string, entry: RouteEntry): RouteIssue[] {
+export function submitGate(state: GameState, index: number, city: City, routerId: string, entry: GateEntry): GateIssue[] {
   const progress = state.cities[index];
   if (!progress.breached.includes(routerId)) throw new Error(`Router not breached: ${routerId}`);
-  const issues = validateRoute(entry, city, routerId);
+  const issues = validateGate(city, routerId, entry);
   const child = cityNode(city, routerId).childSubnetId!;
   if (issues.length === 0 && !progress.opened.includes(child)) progress.opened.push(child);
   return issues;
@@ -420,8 +421,9 @@ export function submitRoute(state: GameState, index: number, city: City, routerI
 
 /**
  * Records a city breach and returns the cash paid: the full reward the first
- * time, the replay share after. The core finishes the city. City breaches
- * never touch the campaign list or the swarm.
+ * time, the replay share after. The core finishes the city; the first typed
+ * city core of an open tier also issues that tier's certificate. City
+ * breaches never touch the campaign list or the swarm.
  */
 export function breachCityNode(state: GameState, index: number, city: City, nodeId: string): number {
   const progress = state.cities[index];
@@ -429,7 +431,11 @@ export function breachCityNode(state: GameState, index: number, city: City, node
   let reward = node.reward;
   if (progress.breached.includes(nodeId)) reward = Math.floor(node.reward * REPLAY_RATIO);
   else progress.breached.push(nodeId);
-  if (nodeId === city.coreId) progress.finished = true;
+  if (nodeId === city.coreId) {
+    progress.finished = true;
+    const tier = city.type && tierOfCityType(city.type);
+    if (tier && isTierOpen(state, tier.id)) issueCertificate(state, tier.id);
+  }
   state.money += reward;
   return reward;
 }

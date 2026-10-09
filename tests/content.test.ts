@@ -18,6 +18,7 @@ import { LENS_LABELS } from '../src/core/explanations';
 import { generateCity } from '../src/core/city';
 import { createRng } from '../src/core/random';
 import { routeChoices, validateRoute } from '../src/core/routing';
+import { correctGate, gateChoices, validateGate, type GateEntry } from '../src/core/gates';
 import {
   buy, canBuy, checkRequirements, completeLesson, install, newGame, objective, sell, setNetConfig, uninstall,
 } from '../src/core/state';
@@ -101,6 +102,21 @@ function runtimeTexts(): string[] {
       const choices = routeChoices(city, router.id);
       for (const destination of choices.destination) for (const prefix of choices.prefix) for (const nextHop of choices.nextHop) {
         out.push(...validateRoute({ destination, prefix, nextHop }, city, router.id).map((e) => e.message));
+      }
+    }
+  }
+
+  // Typed city nodes and every error a typed gate's options can trigger, one wrong field at a time.
+  for (const type of ['nat', 'vlan', 'ipv6'] as const) {
+    const city = generateCity(9, 21, type);
+    for (const n of city.nodes) out.push(n.name, n.flavor);
+    for (const router of city.nodes.filter((n) => n.role === 'router')) {
+      const right = correctGate(city, router.id) as unknown as Record<string, unknown>;
+      for (const [field, options] of Object.entries(gateChoices(city, router.id))) {
+        if (field === 'kind') continue;
+        for (const option of options as unknown[]) {
+          out.push(...validateGate(city, router.id, { ...right, [field]: option } as unknown as GateEntry).map((e) => e.message));
+        }
       }
     }
   }

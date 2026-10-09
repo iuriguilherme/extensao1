@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { cityNode, type City, type CityNode } from '../core/city';
 import { alignColumns, plural } from '../core/fmt';
 import { routeChoices, type RouteChoices, type RouteEntry } from '../core/routing';
-import { loadCity, submitRoute } from '../core/state';
+import { loadCity, submitGate } from '../core/state';
 import { game, save } from '../core/store';
 import { button, COLORS, fitText, header, Layer, objectiveBar, panel, textStyle, WIDTH } from '../ui/widgets';
 import type { CityMapData } from './CityMapScene';
@@ -113,7 +113,7 @@ export class RouteScene extends Phaser.Scene {
 
   private apply() {
     const entry = this.entry();
-    const errors = submitRoute(game(), this.params.index, this.city, this.params.routerId, entry);
+    const errors = submitGate(game(), this.params.index, this.city, this.params.routerId, { kind: 'route', ...entry });
     this.result.clear();
     if (errors.length) {
       const shown = errors.slice(0, 3).map((e) => `  • ${e.message}`);
