@@ -9,6 +9,7 @@ import { MINIGAME_AREAS, type MinigameId } from '../data/nodes';
 import { getTier, tierOfCityType, TIERS, type Tier, type TierCityType, type TierId } from '../data/tiers';
 import { CONCEPTS, type ConceptId } from './minigames';
 import type { GameState } from './state';
+import { appendLog } from './log';
 import { areaStats } from './stats';
 
 export type CertificateId = 'conclusao' | TierId;
@@ -80,6 +81,7 @@ export function issueCertificate(state: GameState, id: CertificateId): boolean {
     id, presented: false, name: null,
     snapshot: { lessons: [...state.lessonsCompleted], areas: areaRecords(state) },
   });
+  appendLog(state, `Você recebeu um certificado novo: ${certificateTitle(id)}.`);
   return true;
 }
 
