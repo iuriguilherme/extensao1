@@ -91,6 +91,40 @@ export function button(
   return { container, label, setDisabled };
 }
 
+/**
+ * A real text field (an HTML input over the canvas), so accents and phone
+ * keyboards work. Needs the DOM container enabled in the game config. Enter
+ * calls onEnter; the input is removed with its scene or with destroy().
+ */
+export function textInput(
+  scene: Phaser.Scene, x: number, y: number, w: number, h: number,
+  opts: { value?: string; maxLength: number; onEnter: () => void },
+): { value(): string; destroy(): void } {
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.value = opts.value ?? '';
+  input.maxLength = opts.maxLength;
+  input.autocomplete = 'off';
+  input.spellcheck = false;
+  Object.assign(input.style, {
+    width: `${w}px`, height: `${h}px`, boxSizing: 'border-box', padding: '0 16px', outline: 'none',
+    font: `${Math.round(h * 0.5)}px ${FONT}`, color: hex(COLORS.text), background: hex(COLORS.panel),
+    border: `2px solid ${hex(COLORS.accent)}`, borderRadius: '0',
+  });
+  input.addEventListener('keydown', (e) => {
+    // Typed keys stay in the field; only Enter does something in the game.
+    e.stopPropagation();
+    if (e.key === 'Enter') opts.onEnter();
+  });
+  const element = scene.add.dom(x, y, input).setOrigin(0);
+  // Focus once the element is in the page, with the cursor after any kept text.
+  scene.time.delayedCall(0, () => {
+    input.focus();
+    input.setSelectionRange(input.value.length, input.value.length);
+  });
+  return { value: () => input.value, destroy: () => element.destroy() };
+}
+
 /** Top bar with title, money and a back button. */
 export function header(scene: Phaser.Scene, title: string, back?: () => void) {
   scene.add.rectangle(0, 0, WIDTH, 56, COLORS.panel).setOrigin(0).setStrokeStyle(1, COLORS.panelBorder);
@@ -106,7 +140,8 @@ export function header(scene: Phaser.Scene, title: string, back?: () => void) {
 export function objectiveBar(scene: Phaser.Scene) {
   scene.add.rectangle(0, HEIGHT - 40, WIDTH, 40, COLORS.panel).setOrigin(0).setStrokeStyle(1, COLORS.panelBorder);
   const label = scene.add.text(16, HEIGHT - 20, '', textStyle(16, COLORS.info)).setOrigin(0, 0.5);
-  const refresh = () => label.setText(`▶ ${objective(game())}`);
+  // Long goals shrink to fit the bar instead of running off the canvas.
+  const refresh = () => fitText(label.setText(`▶ ${objective(game())}`).setFontSize(16), WIDTH - 32);
   refresh();
   return { refresh };
 }

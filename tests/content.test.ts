@@ -19,9 +19,11 @@ import { generateCity } from '../src/core/city';
 import { createRng } from '../src/core/random';
 import { routeChoices, validateRoute } from '../src/core/routing';
 import { correctGate, gateChoices, validateGate, type GateEntry } from '../src/core/gates';
+import { certificateTitle, issueCertificate, presentCertificate, validateStudentName } from '../src/core/certificates';
 import {
-  buy, canBuy, checkRequirements, completeLesson, install, newGame, objective, sell, setNetConfig, uninstall,
+  breach, buy, canBuy, checkRequirements, completeLesson, enterCityCode, install, newGame, objective, sell, setNetConfig, uninstall,
 } from '../src/core/state';
+import { TIERS } from '../src/data/tiers';
 import { LESSONS, TRACK_LABELS } from '../src/data/lessons';
 import { MINIGAME_AREAS, NODES, type MinigameId } from '../src/data/nodes';
 import { describeStats, getPart, PARTS, SLOT_LABELS } from '../src/data/parts';
@@ -157,6 +159,28 @@ function runtimeTexts(): string[] {
   out.push(...NODE_KINDS.map((k) => NODE_KIND_LABELS[k]));
   s.breached.push('core');
   out.push(objective(s));
+
+  // The pós-graduação goals, step by step, plus code and name errors.
+  const grad = newGame();
+  grad.lessonsCompleted.push('routing');
+  breach(grad, 'core');
+  presentCertificate(grad, 'conclusao', 'Ana');
+  for (const tier of TIERS) {
+    out.push(objective(grad));
+    grad.lessonsCompleted.push(...tier.lessons);
+    out.push(objective(grad));
+    issueCertificate(grad, tier.id);
+    presentCertificate(grad, tier.id);
+  }
+  out.push(objective(grad), certificateTitle('conclusao'));
+  for (const code of ['VLAN-RIO-1-0001', 'IP6-RIO-1-0001', 'RIO-1-001']) {
+    const entry = enterCityCode(newGame(), code);
+    if (!entry.ok) out.push(entry.message);
+  }
+  for (const name of ['A', 'a'.repeat(31), 'Ana 2']) {
+    const check = validateStudentName(name);
+    if (!check.ok) out.push(check.message);
+  }
 
   out.push(...Object.values(CONCEPTS).map((c) => c.label), ...Object.values(LENS_LABELS));
   const ids = Object.keys(MINIGAME_AREAS) as MinigameId[];

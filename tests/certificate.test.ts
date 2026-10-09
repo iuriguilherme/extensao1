@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   certificateRows, getCertificate, isCityTypeUnlocked, isTierOpen, issueCertificate, nextGoal, pendingCertificate,
-  presentCertificate,
+  presentCertificate, validateStudentName,
 } from '../src/core/certificates';
-import { breach, completeLesson, newGame, type GameState } from '../src/core/state';
+import { breach, completeLesson, newGame, objective, type GameState } from '../src/core/state';
 import { recordAnswer } from '../src/core/stats';
+import { getLesson, ROUTING_LESSON_ID } from '../src/data/lessons';
 import { FINAL_NODE_ID } from '../src/data/nodes';
 import { getTier, TIERS } from '../src/data/tiers';
 
@@ -105,6 +106,78 @@ describe('certificates', () => {
     issueCertificate(s, 'conclusao');
     completeLesson(s, 'power');
     expect(getCertificate(s, 'conclusao')!.snapshot.lessons).toEqual(['computer-basics']);
+  });
+});
+
+describe('student name', () => {
+  it('accepts names with accents, apostrophes and hyphens, trimmed and with single spaces', () => {
+    expect(validateStudentName('  Conceição  ')).toEqual({ ok: true, name: 'Conceição' });
+    expect(validateStudentName('Ana   Luíza')).toEqual({ ok: true, name: 'Ana Luíza' });
+    expect(validateStudentName("João D'Ávila-Souza")).toEqual({ ok: true, name: "João D'Ávila-Souza" });
+    expect(validateStudentName('Lu')).toMatchObject({ ok: true });
+  });
+
+  it('refuses names that are too short, too long or have other characters', () => {
+    expect(validateStudentName('A')).toMatchObject({ ok: false, code: 'name-short' });
+    expect(validateStudentName('   ')).toMatchObject({ ok: false, code: 'name-short' });
+    expect(validateStudentName('a'.repeat(31))).toMatchObject({ ok: false, code: 'name-long' });
+    expect(validateStudentName('a'.repeat(30))).toMatchObject({ ok: true });
+    expect(validateStudentName('Ana <b>')).toMatchObject({ ok: false, code: 'name-chars' });
+    expect(validateStudentName('Ana 2')).toMatchObject({ ok: false, code: 'name-chars' });
+  });
+});
+
+describe('Hub goal after the campaign', () => {
+  /** A won save: the Core breach issued the conclusão certificate. */
+  function won(): GameState {
+    const s = newGame();
+    s.lessonsCompleted.push(ROUTING_LESSON_ID);
+    breach(s, FINAL_NODE_ID);
+    return s;
+  }
+
+  it('names no pós-graduação step before the formatura is presented', () => {
+    for (const text of [objective(newGame()), objective(won())]) {
+      for (const tier of TIERS) expect(text).not.toContain(tier.title);
+    }
+  });
+
+  it('names only the Especialização lessons right after the formatura (R27)', () => {
+    const s = won();
+    presentCertificate(s, 'conclusao', 'Ana');
+    const text = objective(s);
+    expect(text).toContain('Especialização');
+    expect(text).not.toContain('Mestrado');
+    expect(text).not.toContain('Doutorado');
+  });
+
+  it('points to a NAT city once both NAT lessons are done, and to Mestrado after Especialização', () => {
+    const s = won();
+    presentCertificate(s, 'conclusao', 'Ana');
+    passLessons(s, 'especializacao');
+    expect(objective(s)).toContain('NAT');
+    expect(objective(s)).toContain('Cidades');
+    earn(s, 'especializacao');
+    expect(objective(s)).toContain('Mestrado');
+    expect(objective(s)).not.toContain('Doutorado');
+  });
+
+  it('asks for the routing lesson before a typed city when it is missing', () => {
+    const s = won();
+    s.lessonsCompleted = [];
+    presentCertificate(s, 'conclusao', 'Ana');
+    passLessons(s, 'especializacao');
+    expect(objective(s)).toContain(getLesson(ROUTING_LESSON_ID).title);
+  });
+
+  it('closes the ladder after Doutorado', () => {
+    const s = won();
+    presentCertificate(s, 'conclusao', 'Ana');
+    for (const tier of ['especializacao', 'mestrado', 'doutorado'] as const) {
+      passLessons(s, tier);
+      earn(s, tier);
+    }
+    expect(objective(s)).toContain('Doutorado');
   });
 });
 

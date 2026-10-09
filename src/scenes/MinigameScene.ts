@@ -7,6 +7,7 @@ import { buildRounds, toBinary, type BitsRound, type ChoiceRound, type ConceptId
 import { createRng } from '../core/random';
 import { commitRun, recordMiss } from '../core/reteach';
 import { recordAnswer } from '../core/stats';
+import { pendingCertificate } from '../core/certificates';
 import { breach, breachCityNode, loadCity } from '../core/state';
 import { joinSwarm, totalSpecs } from '../core/swarm';
 import { game, save } from '../core/store';
@@ -281,6 +282,8 @@ export class MinigameScene extends Phaser.Scene {
       this.scene.start('CityMap', back);
       return;
     }
-    this.scene.start(this.params.nodeId ? 'NetMap' : 'Jobs');
+    // The first Core breach goes straight to the formatura.
+    if (pendingCertificate(game())?.id === 'conclusao') this.scene.start('Formatura');
+    else this.scene.start(this.params.nodeId ? 'NetMap' : 'Jobs');
   }
 }

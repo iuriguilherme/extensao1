@@ -117,6 +117,25 @@ export function nextGoal(state: GameState): NextGoal | null {
   return { kind: isCityTypeUnlocked(state, tier.cityType) ? 'city' : 'lectures', tier };
 }
 
+export type NameIssueCode = 'name-short' | 'name-long' | 'name-chars';
+
+export type NameCheck = { ok: true; name: string } | { ok: false; code: NameIssueCode; message: string };
+
+const NAME_MIN = 2;
+const NAME_MAX = 30;
+
+/**
+ * The name printed on certificates: trimmed, single-spaced, 2-30 characters,
+ * letters (accents included), spaces, hyphens and apostrophes.
+ */
+export function validateStudentName(text: string): NameCheck {
+  const name = text.trim().replace(/\s+/g, ' ');
+  if (name.length < NAME_MIN) return { ok: false, code: 'name-short', message: `O nome precisa ter pelo menos ${NAME_MIN} letras.` };
+  if (name.length > NAME_MAX) return { ok: false, code: 'name-long', message: `O nome pode ter no máximo ${NAME_MAX} caracteres.` };
+  if (!/^\p{L}[\p{L} '’-]*$/u.test(name)) return { ok: false, code: 'name-chars', message: 'Use só letras, espaços, hífen e apóstrofo.' };
+  return { ok: true, name };
+}
+
 export interface CertificateRow {
   area: MinigameId;
   /** Null when the area was first played after the certificate was issued. */

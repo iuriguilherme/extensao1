@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { pendingCertificate } from '../core/certificates';
 import { mistakesAllowed, roundSeconds } from '../core/hardware';
 import { canStartCities, hasLesson, isOnline, phaseOf, specsOf } from '../core/state';
 import { connectedNodes, swarmReport, totalSpecs } from '../core/swarm';
@@ -6,7 +7,13 @@ import { game, resetGame } from '../core/store';
 import { getLesson, ROUTING_LESSON_ID } from '../data/lessons';
 import { getPart, SLOT_LABELS } from '../data/parts';
 import { alignColumns, decimal, linkSpeed, plural } from '../core/fmt';
-import { button, COLORS, fitText, header, HEIGHT, objectiveBar, panel, textStyle, WIDTH } from '../ui/widgets';
+import { button, COLORS, fitText, header, HEIGHT, objectiveBar, panel, textStyle, toast, WIDTH } from '../ui/widgets';
+import type { CertificateData } from './CertificateScene';
+
+export interface HubData {
+  /** Toast shown on entry, e.g. the tier a ceremony just opened. */
+  notice?: string;
+}
 
 /** The player's desk: a monitor showing the PC's state and the main menu. */
 export class HubScene extends Phaser.Scene {
@@ -14,7 +21,15 @@ export class HubScene extends Phaser.Scene {
     super('Hub');
   }
 
-  create() {
+  create(data: HubData = {}) {
+    // A certificate issued but not presented yet (tab closed mid-ceremony,
+    // or just earned) resumes its ceremony before anything else.
+    const pending = pendingCertificate(game());
+    if (pending) {
+      if (pending.id === 'conclusao') this.scene.start('Formatura');
+      else this.scene.start('Certificate', { id: pending.id } satisfies CertificateData);
+      return;
+    }
     this.cameras.main.setBackgroundColor(COLORS.bg);
     header(this, 'ROOTKIT ACADEMY — sua estação');
     objectiveBar(this);
@@ -84,8 +99,15 @@ export class HubScene extends Phaser.Scene {
       fitText(this.add.text(x + 4, y + 53, item.hint, textStyle(13, COLORS.muted)), w - 8);
     });
 
-    button(this, x, 560, 210, 44, 'Trabalhos extras', () => this.scene.start('Jobs'), { size: 16, color: COLORS.info });
-    button(this, x + 230, 560, 210, 44, 'Apagar progresso', () => {
+    // The certificates entry appears with the first certificate, never before.
+    const certificates = state.certificates.some((c) => c.presented);
+    const w3 = certificates ? 140 : 210;
+    const gap = certificates ? 10 : 20;
+    button(this, x, 560, w3, 44, 'Trabalhos extras', () => this.scene.start('Jobs'), { size: 16, color: COLORS.info });
+    if (certificates) {
+      button(this, x + w3 + gap, 560, w3, 44, 'Certificados', () => this.scene.start('Certificate', {} satisfies CertificateData), { size: 16, color: COLORS.warn });
+    }
+    button(this, x + (w3 + gap) * (certificates ? 2 : 1), 560, w3, 44, 'Apagar progresso', () => {
       if (window.confirm('Apagar todo o progresso e começar do zero?')) {
         resetGame();
         this.scene.restart();
@@ -93,6 +115,7 @@ export class HubScene extends Phaser.Scene {
     }, { size: 16, color: COLORS.danger });
 
     this.add.text(WIDTH - 16, HEIGHT - 60, 'o progresso é salvo automaticamente', textStyle(12, COLORS.muted)).setOrigin(1, 0.5);
+    if (data.notice) toast(this, data.notice, COLORS.warn);
   }
 }
 

@@ -1,8 +1,8 @@
 import { ETHICS_LESSON_ID, getLesson, LESSONS, ROUTING_LESSON_ID } from '../data/lessons';
 import { NODES, HOME_NODE_ID, FINAL_NODE_ID, getNode, type MinigameId, type NetNode } from '../data/nodes';
 import { getPart, type Part, type Slot } from '../data/parts';
-import { tierOfCityType, type TierCityType } from '../data/tiers';
-import { isCityTypeUnlocked, isTierOpen, issueCertificate, type Certificate } from './certificates';
+import { tierOfCityType, TIERS, type TierCityType } from '../data/tiers';
+import { getCertificate, isCityTypeUnlocked, isTierOpen, issueCertificate, nextGoal, type Certificate } from './certificates';
 import { CITY_TYPE_LABELS, cityNode, generateCity, type City, type CityNode, type CitySubnet, type CityType } from './city';
 import { decodeCityCode, MAX_CITY_LEVEL } from './cityCode';
 import type { Lens } from './explanations';
@@ -174,10 +174,39 @@ export function objective(state: GameState): string {
     case 'explore':
       if (!hasLesson(state, ETHICS_LESSON_ID)) return `Você está online! Antes da primeira invasão, faça a aula "${getLesson(ETHICS_LESSON_ID).title}".`;
       return `Você está online! Abra o Mapa da Rede e vá invadindo as máquinas do laboratório, uma por uma, até chegar ao ${getNode(FINAL_NODE_ID).name}.`;
-    case 'won':
+    case 'won': {
+      const pos = postGraduateGoal(state);
+      if (pos) return pos;
       if (!hasLesson(state, ROUTING_LESSON_ID)) return `Você concluiu o último exercício do laboratório de segurança! Para treinar em cidades novas, faça a aula "${getLesson(ROUTING_LESSON_ID).title}".`;
       return 'Você concluiu o laboratório de segurança! Abra Cidades para treinar em redes novas, cada uma com o próprio plano de endereços.';
+    }
   }
+}
+
+/**
+ * The pós-graduação step to show after the formatura, one at a time: the
+ * open tier's lessons, then its city, then the next tier. Null before the
+ * formatura and while a ceremony is pending.
+ */
+function postGraduateGoal(state: GameState): string | null {
+  const goal = nextGoal(state);
+  if (!goal) {
+    return getCertificate(state, 'doutorado')?.presented
+      ? 'Você concluiu o Doutorado e toda a pós-graduação! As cidades continuam abertas para você treinar quando quiser.'
+      : null;
+  }
+  const { tier } = goal;
+  if (goal.kind === 'city') {
+    const label = CITY_TYPE_LABELS[tier.cityType];
+    if (!hasLesson(state, ROUTING_LESSON_ID)) return `Para criar uma cidade ${label}, faça antes a aula "${getLesson(ROUTING_LESSON_ID).title}".`;
+    return `Agora crie uma cidade ${label} em Cidades e invada o núcleo dela para receber o certificado ${agree(tier.gender, 'do', 'da')} ${tier.title}.`;
+  }
+  const index = TIERS.indexOf(tier);
+  if (index === 0) {
+    return `Se quiser continuar, a pós-graduação começa ${agree(tier.gender, 'pelo', 'pela')} ${tier.title}: faça as aulas sobre ${tier.topic} em Estudar.`;
+  }
+  const previous = TIERS[index - 1];
+  return `${previous.title} ${agree(previous.gender, 'concluído', 'concluída')}! Se quiser seguir, a próxima etapa é ${agree(tier.gender, 'o', 'a')} ${tier.title}: faça as aulas sobre ${tier.topic} em Estudar.`;
 }
 
 export type NodeStatus = 'home' | 'breached' | 'reachable' | 'hidden';
