@@ -5,6 +5,9 @@
  * unlock rule in src/core/achievements.ts.
  */
 
+/** Unlocked only by a game reset that keeps the conquistas. */
+export const FRESH_START_ID = 'fresh-start';
+
 export type AchievementKind = 'story' | 'skill' | 'counter' | 'secret';
 
 export interface Achievement {

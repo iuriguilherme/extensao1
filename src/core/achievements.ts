@@ -45,61 +45,66 @@ const TOP_PARTS = new Map(
 );
 
 const presented = (state: GameState, id: CertificateId) => getCertificate(state, id)?.presented === true;
-const state = (test: (state: GameState) => boolean): Rule => ({ kind: 'state', test });
-const counter = (metric: CounterMetric): Rule => ({ kind: 'counter', metric });
-const run = (test: (run: RunSummary) => boolean): Rule => ({ kind: 'run', test });
+const stateRule = (test: (state: GameState) => boolean): Rule => ({ kind: 'state', test });
+const counterRule = (metric: CounterMetric): Rule => ({ kind: 'counter', metric });
+const runRule = (test: (run: RunSummary) => boolean): Rule => ({ kind: 'run', test });
 
 /** Every achievement but fresh-start, which only the reset path unlocks. */
 export const RULES: Record<string, Rule> = {
-  'first-boot': state((s) => computeSpecs(s.installed).boots),
-  'first-lesson': state((s) => s.lessonsCompleted.length > 0),
-  online: state(isOnline),
-  'first-breach': state((s) => s.breached.some((id) => id !== HOME_NODE_ID)),
-  swarm: state((s) => Object.keys(s.swarm).length > 0),
-  noc: state((s) => s.noc.length > 0),
-  formatura: state((s) => presented(s, 'conclusao')),
-  especializacao: state((s) => presented(s, 'especializacao')),
-  mestrado: state((s) => presented(s, 'mestrado')),
-  doutorado: state((s) => presented(s, 'doutorado')),
-  'first-city': state((s) => s.cities.some((c) => c.finished)),
+  'first-boot': stateRule((s) => computeSpecs(s.installed).boots),
+  'first-lesson': stateRule((s) => s.lessonsCompleted.length > 0),
+  online: stateRule(isOnline),
+  'first-breach': stateRule((s) => s.breached.some((id) => id !== HOME_NODE_ID)),
+  swarm: stateRule((s) => Object.keys(s.swarm).length > 0),
+  noc: stateRule((s) => s.noc.length > 0),
+  formatura: stateRule((s) => presented(s, 'conclusao')),
+  especializacao: stateRule((s) => presented(s, 'especializacao')),
+  mestrado: stateRule((s) => presented(s, 'mestrado')),
+  doutorado: stateRule((s) => presented(s, 'doutorado')),
+  'first-city': stateRule((s) => s.cities.some((c) => c.finished)),
 
-  'all-lessons': state((s) => LESSONS.every((l) => s.lessonsCompleted.includes(l.id))),
-  'area-max': state((s) => AREAS.some((a) => s.areaLevels[a] >= MAX_LEVEL[a])),
-  'all-areas-max': state((s) => AREAS.every((a) => s.areaLevels[a] >= MAX_LEVEL[a])),
-  'top-rig': state((s) => CASE_SLOTS.every((slot) => s.installed[slot] === TOP_PARTS.get(slot))),
-  flawless: run((r) => r.success && r.mistakes === 0),
-  'on-the-edge': run((r) => r.success && r.allowed > 0 && r.mistakes === r.allowed),
-  'core-flawless': run((r) => r.success && r.nodeId === FINAL_NODE_ID && r.firstBreach && r.mistakes === 0),
+  'all-lessons': stateRule((s) => LESSONS.every((l) => s.lessonsCompleted.includes(l.id))),
+  'area-max': stateRule((s) => AREAS.some((a) => s.areaLevels[a] >= MAX_LEVEL[a])),
+  'all-areas-max': stateRule((s) => AREAS.every((a) => s.areaLevels[a] >= MAX_LEVEL[a])),
+  'top-rig': stateRule((s) => CASE_SLOTS.every((slot) => s.installed[slot] === TOP_PARTS.get(slot))),
+  flawless: runRule((r) => r.success && r.mistakes === 0),
+  'on-the-edge': runRule((r) => r.success && r.allowed > 0 && r.mistakes === r.allowed),
+  'core-flawless': runRule((r) => r.success && r.nodeId === FINAL_NODE_ID && r.firstBreach && r.mistakes === 0),
 
-  'rounds-100': counter('answered'),
-  'rounds-500': counter('answered'),
-  'rounds-1000': counter('answered'),
-  'correct-250': counter('correct'),
-  'runs-50': counter('runs'),
-  'cities-10': counter('cities'),
+  'rounds-100': counterRule('answered'),
+  'rounds-500': counterRule('answered'),
+  'rounds-1000': counterRule('answered'),
+  'correct-250': counterRule('correct'),
+  'runs-50': counterRule('runs'),
+  'cities-10': counterRule('cities'),
 
-  'last-gasp': run((r) => !r.success && r.crashedOnLast),
-  'timeout-crash': run((r) => !r.success && r.mistakes > 0 && r.timeouts === r.mistakes),
-  broke: state((s) => s.money === 0),
-  unplugged: state((s) => s.netConfig !== null && !computeSpecs(s.installed).boots),
-  'core-again': run((r) => r.success && r.nodeId === FINAL_NODE_ID && !r.firstBreach),
+  'last-gasp': runRule((r) => !r.success && r.crashedOnLast),
+  'timeout-crash': runRule((r) => !r.success && r.mistakes > 0 && r.timeouts === r.mistakes),
+  broke: stateRule((s) => s.money === 0),
+  unplugged: stateRule((s) => s.netConfig !== null && !computeSpecs(s.installed).boots),
+  'core-again': runRule((r) => r.success && r.nodeId === FINAL_NODE_ID && !r.firstBreach),
 };
+
+function sumStats(state: GameState, field: 'answered' | 'correct'): number {
+  return Object.values(state.stats).reduce((sum, a) => sum + (a?.[field] ?? 0), 0);
+}
 
 /** The current value of a lifetime metric as the game save sees it. */
 export function metricValue(state: GameState, metric: CounterMetric): number {
   switch (metric) {
-    case 'answered': return Object.values(state.stats).reduce((sum, a) => sum + (a?.answered ?? 0), 0);
-    case 'correct': return Object.values(state.stats).reduce((sum, a) => sum + (a?.correct ?? 0), 0);
+    case 'answered': return sumStats(state, 'answered');
+    case 'correct': return sumStats(state, 'correct');
     case 'runs': return state.runCount;
     case 'cities': return state.cities.filter((c) => c.finished).length;
   }
 }
 
-/** Ids whose rule holds now, in list order. Already-unlocked ids are not filtered here. */
-export function satisfied(state: GameState, totals: CounterTotals, summary?: RunSummary): string[] {
+/** Ids whose rule holds now, in list order, leaving out the `skip` ids without testing them. */
+export function satisfied(state: GameState, totals: CounterTotals, summary?: RunSummary, skip: ReadonlySet<string> = new Set()): string[] {
   return ACHIEVEMENTS.filter((a) => {
     const rule = RULES[a.id];
-    if (!rule) return false;
+    // fresh-start has no rule: only the reset path unlocks it.
+    if (!rule || skip.has(a.id)) return false;
     if (rule.kind === 'state') return rule.test(state);
     if (rule.kind === 'counter') return totals[rule.metric] >= (a.target ?? Infinity);
     return summary !== undefined && rule.test(summary);

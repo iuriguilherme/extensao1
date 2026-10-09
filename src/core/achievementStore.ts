@@ -1,4 +1,4 @@
-import { ACHIEVEMENTS } from '../data/achievements';
+import { ACHIEVEMENTS, FRESH_START_ID } from '../data/achievements';
 import { COUNTER_METRICS, metricValue, satisfied, type CounterTotals, type RunSummary } from './achievements';
 import type { GameState } from './state';
 
@@ -72,22 +72,24 @@ export function checkAchievements(
     else if (now > last[metric]) totals[metric] += now - last[metric];
     last[metric] = now;
   }
-  const unlocked = satisfied(game, totals, opts.run).filter((id) => !state.unlocked.includes(id));
+  const unlocked = satisfied(game, totals, opts.run, new Set(state.unlocked));
+  const same = unlocked.length === 0
+    && COUNTER_METRICS.every((m) => totals[m] === state.totals[m] && last[m] === state.last[m]);
+  // Returning the same object tells the store there is nothing to write.
+  if (same) return { next: state, unlocked };
   return { next: { ...state, totals, last, unlocked: [...state.unlocked, ...unlocked] }, unlocked };
 }
 
 /** After a game reset: erase everything but the pop-up switch, or keep it all and unlock fresh-start. */
 export function resetAchievementState(state: AchievementState, erase: boolean): CheckResult {
   if (erase) return { next: { ...emptyAchievements(), popups: state.popups }, unlocked: [] };
-  if (state.unlocked.includes('fresh-start')) return { next: state, unlocked: [] };
-  return { next: { ...state, unlocked: [...state.unlocked, 'fresh-start'] }, unlocked: ['fresh-start'] };
+  if (state.unlocked.includes(FRESH_START_ID)) return { next: state, unlocked: [] };
+  return { next: { ...state, unlocked: [...state.unlocked, FRESH_START_ID] }, unlocked: [FRESH_START_ID] };
 }
 
 // ─── Persistent store ─────────────────────────────────────────────────────
 
 let current: AchievementState = emptyAchievements();
-/** True until the first check, when nothing usable was stored. */
-let needsSeed = true;
 const listeners: ((ids: string[]) => void)[] = [];
 
 function read(): string | null {
@@ -107,6 +109,7 @@ function write(): void {
 }
 
 function apply(result: CheckResult, silent: boolean): void {
+  if (result.next === current) return;
   current = result.next;
   write();
   if (!silent && result.unlocked.length > 0) for (const listener of listeners) listener(result.unlocked);
@@ -116,8 +119,8 @@ function apply(result: CheckResult, silent: boolean): void {
 export function bootAchievements(game: GameState): void {
   const stored = parseAchievements(read());
   current = stored ?? emptyAchievements();
-  needsSeed = stored === null;
-  syncAchievements(game, { silent: true });
+  // Nothing usable stored: take the save's numbers as the lifetime totals.
+  apply(checkAchievements(current, game, { seed: stored === null }), true);
 }
 
 export function achievements(): AchievementState {
@@ -130,8 +133,7 @@ export function onUnlock(listener: (ids: string[]) => void): void {
 }
 
 export function syncAchievements(game: GameState, opts: { silent?: boolean } = {}): void {
-  apply(checkAchievements(current, game, { seed: needsSeed }), opts.silent === true || needsSeed);
-  needsSeed = false;
+  apply(checkAchievements(current, game, {}), opts.silent === true);
 }
 
 /** Reports a finished mini-game; call before the game save that follows it. */
