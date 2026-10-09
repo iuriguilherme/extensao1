@@ -4,6 +4,7 @@ import { game, save } from '../core/store';
 import { getLesson, QUIZ_PASS_RATIO, TRACK_LABELS, type Lesson } from '../data/lessons';
 import { money } from '../core/fmt';
 import { COLORS, fitText, header, Layer, textStyle, WIDTH } from '../ui/widgets';
+import type { StudyData } from './StudyScene';
 
 /** Reads a lesson page by page, then runs its quiz. */
 export class LessonScene extends Phaser.Scene {
@@ -18,7 +19,7 @@ export class LessonScene extends Phaser.Scene {
   create(data: { id: string }) {
     this.lesson = getLesson(data.id);
     this.cameras.main.setBackgroundColor(COLORS.bg);
-    this.refreshHeader = header(this, this.lesson.title, () => this.scene.start('Study')).refresh;
+    this.refreshHeader = header(this, this.lesson.title, () => this.backToStudy()).refresh;
     this.layer = new Layer(this);
     this.showPage(0);
   }
@@ -81,6 +82,12 @@ export class LessonScene extends Phaser.Scene {
     }
     this.layer.text(WIDTH / 2, 260, message, textStyle(28, passed ? COLORS.accent : COLORS.warn, { align: 'center' })).setOrigin(0.5);
     if (!passed) this.layer.button(WIDTH / 2 - 310, 460, 300, 56, 'Reler a aula', () => this.showPage(0));
-    this.layer.button(passed ? WIDTH / 2 - 150 : WIDTH / 2 + 10, 460, 300, 56, 'Voltar às aulas', () => this.scene.start('Study'), { color: COLORS.info });
+    this.layer.button(passed ? WIDTH / 2 - 150 : WIDTH / 2 + 10, 460, 300, 56, 'Voltar às aulas', () => this.backToStudy(), { color: COLORS.info });
+  }
+
+  /** Back to the tab the lesson is listed on. */
+  private backToStudy() {
+    const data: StudyData = { tab: this.lesson.tier ? 'pos' : 'course' };
+    this.scene.start('Study', data);
   }
 }

@@ -6,6 +6,8 @@
  * (`requiresLesson`), a node (`requiresLesson`) or another lesson (`requires`).
  */
 
+import type { TierId } from './tiers';
+
 export interface QuizQuestion {
   question: string;
   options: string[];
@@ -27,6 +29,8 @@ export interface Lesson {
   id: string;
   title: string;
   track: LessonTrack;
+  /** Set on pós-graduação lessons: hidden, not locked, until the tier opens. */
+  tier?: TierId;
   /** Lessons that must be completed before this one opens. */
   requires: string[];
   /** Cash for passing the quiz the first time. */
@@ -495,6 +499,212 @@ export const LESSONS: Lesson[] = [
         options: ['No cliente', 'No servidor', 'No DNS', 'No cabo'],
         answer: 1,
         explain: '5xx são erros do servidor; 4xx, erros do cliente.',
+      },
+    ],
+  },
+
+  // ─── Pós-graduação (cada pacote aparece só quando o nível abre) ─────────
+  {
+    id: 'nat-basics',
+    title: 'NAT: endereços privados e públicos',
+    track: 'networking',
+    tier: 'especializacao',
+    requires: [],
+    reward: 150,
+    pages: [
+      'O IPv4 tem só uns 4 bilhões de endereços para o mundo inteiro, e eles acabaram faz tempo. Por isso, dentro de casas, escolas e empresas, os computadores usam ENDEREÇOS PRIVADOS, que não valem na internet.',
+      'São três faixas privadas: 10.0.0.0/8, 172.16.0.0/12 (de 172.16 até 172.31) e 192.168.0.0/16. Qualquer rede pode usá-las por dentro, porque elas nunca aparecem na internet.',
+      'Para sair para a internet, o roteador faz NAT (tradução de endereços): troca o endereço privado de quem mandou o pacote pelo ENDEREÇO PÚBLICO dele, anota a troca numa tabela e desfaz a troca quando a resposta volta.',
+      'Por isso um site nunca vê o 192.168.0.42 do seu PC: ele vê o endereço público do roteador. A rede inteira da sua casa sai por esse único endereço.',
+    ],
+    quiz: [
+      {
+        question: 'Qual destes endereços é privado?',
+        options: ['8.8.8.8', '172.20.5.9', '172.32.0.1', '200.17.1.10'],
+        answer: 1,
+        explain: 'O 172.20.5.9 fica na faixa 172.16.0.0/12, que vai de 172.16 até 172.31. O 172.32 já está fora dela.',
+      },
+      {
+        question: 'Seu PC (192.168.0.42) abre um site. Que endereço o servidor do site vê chegando?',
+        options: ['192.168.0.42', 'O endereço público do roteador', '192.168.0.1', 'O endereço do servidor DNS'],
+        answer: 1,
+        explain: 'O NAT troca o endereço privado pelo endereço público do roteador antes de o pacote sair para a internet.',
+      },
+      {
+        question: 'Por que os endereços privados não aparecem na internet?',
+        options: ['Porque são mais lentos', 'Porque milhares de redes usam as mesmas faixas por dentro', 'Porque só servem para impressoras', 'Porque são IPv6'],
+        answer: 1,
+        explain: 'Como as faixas privadas se repetem em todas as redes, a internet não teria como saber para qual delas mandar a resposta.',
+      },
+    ],
+  },
+  {
+    id: 'port-forwarding',
+    title: 'Redirecionamento de porta',
+    track: 'networking',
+    tier: 'especializacao',
+    requires: ['nat-basics'],
+    reward: 150,
+    pages: [
+      'O NAT deixa a rede de dentro sair, mas quem está fora não consegue entrar: quando chega uma conexão que ninguém de dentro pediu, o roteador não sabe para qual máquina mandar.',
+      'Para publicar um serviço, como um servidor web, você cria um REDIRECIONAMENTO DE PORTA: tudo o que chegar a uma porta do endereço público do roteador vai para um endereço privado e uma porta lá dentro.',
+      'A regra tem quatro partes: 203.0.113.7:80 → 192.168.4.20:80. À esquerda ficam o endereço PÚBLICO do roteador e a porta que a internet usa; à direita, o host PRIVADO e a porta em que o serviço escuta.',
+      'O destino tem que ser um host de verdade: nunca o endereço de rede (192.168.4.0) nem o de broadcast (192.168.4.255). E a porta tem que ser a do serviço: web na 80, SSH na 22.',
+    ],
+    quiz: [
+      {
+        question: 'Você quer publicar o servidor web 192.168.4.20 pelo endereço público 203.0.113.7. Qual regra funciona?',
+        options: ['203.0.113.7:80 → 192.168.4.20:80', '192.168.4.20:80 → 203.0.113.7:80', '203.0.113.7:80 → 192.168.4.255:80', '203.0.113.7:22 → 192.168.4.20:80'],
+        answer: 0,
+        explain: 'Do lado de fora fica o endereço público do roteador; do lado de dentro, o host privado, na porta do serviço.',
+      },
+      {
+        question: 'Numa rede 192.168.4.0/24, por que o 192.168.4.255 não pode ser o destino de uma regra?',
+        options: ['É o endereço de broadcast da rede, não um host', 'É um endereço público', 'É o endereço do roteador', 'Porque termina em número ímpar'],
+        answer: 0,
+        explain: 'Na rede 192.168.4.0/24, o .255 é o broadcast: vai para todo mundo e não pertence a nenhuma máquina.',
+      },
+      {
+        question: 'Sem nenhum redirecionamento, alguém na internet consegue abrir uma conexão com um PC da sua rede?',
+        options: ['Sim, sempre', 'Não: o roteador não sabe para qual máquina mandar', 'Só se o PC estiver desligado', 'Só pelo DNS'],
+        answer: 1,
+        explain: 'Uma conexão que chega sem ninguém de dentro ter pedido não tem dono na tabela do NAT, e o roteador a descarta.',
+      },
+    ],
+  },
+  {
+    id: 'vlan-basics',
+    title: 'VLANs',
+    track: 'networking',
+    tier: 'mestrado',
+    requires: [],
+    reward: 150,
+    pages: [
+      'Numa escola, alunos, professores e secretaria podem usar os mesmos switches. Mas deixar tudo numa rede só é arriscado: um PC infectado no laboratório alcançaria os computadores da secretaria.',
+      'Uma VLAN (rede local virtual) divide um switch em várias redes separadas. Cada porta do switch fica numa VLAN, e máquinas de VLANs diferentes não se falam direto, como se estivessem em switches diferentes.',
+      'Cada VLAN tem um número, o ID, e quase sempre um nome, como "VLAN 20 · Secretaria". Para ir de uma VLAN para outra, o tráfego tem que passar por um roteador, que pode aplicar regras de firewall.',
+      'Os IDs vão de 1 a 4094. A VLAN 1 é a padrão do switch: toda porta começa nela, então ela não serve para separar nada. Os IDs de 1002 a 1005 são reservados. Para uma VLAN nova, use de 2 a 4094, menos esses quatro.',
+    ],
+    quiz: [
+      {
+        question: 'As portas 3 e 8 do switch estão na VLAN 20, e a porta 5 está na VLAN 30. O PC da porta 3 fala direto com qual porta?',
+        options: ['Porta 5', 'Porta 8', 'Com as duas', 'Com nenhuma'],
+        answer: 1,
+        explain: 'Só quem está na mesma VLAN se fala direto. A porta 5 está em outra VLAN e precisaria passar por um roteador.',
+      },
+      {
+        question: 'Qual destes IDs pode ser usado numa VLAN nova?',
+        options: ['1', '1003', '120', '4095'],
+        answer: 2,
+        explain: 'A 1 é a VLAN padrão, de 1002 a 1005 são reservados e o 4095 não pode ser usado. O 120 está livre.',
+      },
+      {
+        question: 'Para que serve dividir a rede em VLANs?',
+        options: ['Para deixar a internet mais rápida', 'Para isolar grupos de máquinas que usam o mesmo switch', 'Para não precisar de endereço IP', 'Para trocar o servidor DNS'],
+        answer: 1,
+        explain: 'Cada VLAN é uma rede separada, mesmo dividindo o switch: um grupo não alcança o outro sem passar por um roteador.',
+      },
+    ],
+  },
+  {
+    id: 'vlan-trunks',
+    title: 'Portas de acesso e troncos',
+    track: 'networking',
+    tier: 'mestrado',
+    requires: ['vlan-basics'],
+    reward: 150,
+    pages: [
+      'Uma PORTA DE ACESSO pertence a uma VLAN só. É assim que se liga um PC, uma impressora ou uma câmera: o aparelho nem sabe que existe VLAN, só enxerga a rede dele.',
+      'Quando um link precisa levar várias VLANs ao mesmo tempo, como o cabo entre dois switches, a porta vira um TRONCO. Cada quadro que passa pelo tronco ganha uma etiqueta com o ID da VLAN (o padrão 802.1Q), e o switch do outro lado sabe para onde mandar.',
+      'A regra é simples: o link leva uma VLAN só? Porta de acesso. Leva mais de uma? Tronco.',
+      'Para ligar um segmento novo, procure na tabela de VLANs do switch o ID que corresponde ao nome do segmento e conte quantas VLANs aquele link precisa levar.',
+    ],
+    quiz: [
+      {
+        question: 'O cabo entre o switch do térreo e o do primeiro andar precisa levar as VLANs 10, 20 e 30. Como configurar essa porta?',
+        options: ['Porta de acesso na VLAN 10', 'Tronco', 'Porta de acesso na VLAN 30', 'Desligada'],
+        answer: 1,
+        explain: 'Um link que leva mais de uma VLAN é um tronco: cada quadro vai com a etiqueta da VLAN dele.',
+      },
+      {
+        question: 'A impressora da secretaria fica só na VLAN 20. Como configurar a porta dela?',
+        options: ['Tronco', 'Porta de acesso na VLAN 20', 'Porta de acesso na VLAN 1', 'Porta de acesso na VLAN 4095'],
+        answer: 1,
+        explain: 'Um aparelho que fica numa VLAN só vai numa porta de acesso dessa VLAN.',
+      },
+      {
+        question: 'O que o tronco acrescenta a cada quadro?',
+        options: ['O endereço IP do destino', 'Uma etiqueta com o ID da VLAN', 'A senha do switch', 'O nome do domínio'],
+        answer: 1,
+        explain: 'A etiqueta 802.1Q diz a qual VLAN o quadro pertence, para o switch do outro lado separar o tráfego de novo.',
+      },
+    ],
+  },
+  {
+    id: 'ipv6-basics',
+    title: 'IPv6',
+    track: 'networking',
+    tier: 'doutorado',
+    requires: [],
+    reward: 150,
+    pages: [
+      'O IPv4 tem 32 bits, e os endereços já acabaram. O IPv6 usa 128 bits: dá um endereço para cada aparelho do planeta, e ainda sobra muito, sem precisar de NAT.',
+      'Um endereço IPv6 tem 8 grupos de 4 dígitos hexadecimais, separados por dois-pontos: 2001:0db8:04b2:0017:0000:0000:0000:002a. É comprido, por isso existem regras para abreviar.',
+      'Regra 1: tire os zeros à ESQUERDA de cada grupo (0db8 vira db8, 002a vira 2a). Regra 2: troque UMA sequência de grupos só de zeros por "::". O endereço acima vira 2001:db8:4b2:17::2a. O "::" aparece uma vez só; com dois, não daria para saber quantos zeros cada um esconde.',
+      'Os tipos mais comuns: global (começa com 2 ou 3 e vale na internet), link-local (começa com fe80 e só vale no próprio link), loopback (::1, o próprio computador) e multicast (começa com ff e vai para um grupo de destinos).',
+    ],
+    quiz: [
+      {
+        question: 'Qual é a forma abreviada de 2001:0db8:0000:0000:0000:0000:0000:0001?',
+        options: ['2001:db8::1', '2001:db8:1', '2001:db8::0001::', '21:db8::1'],
+        answer: 0,
+        explain: 'Tire os zeros à esquerda de cada grupo e troque a sequência de grupos zerados por "::": 2001:db8::1.',
+      },
+      {
+        question: 'Por que 2001:db8::1::2 não é um endereço válido?',
+        options: ['Porque tem letras', 'Porque usa "::" duas vezes, e não dá para saber quantos zeros cada um esconde', 'Porque começa com 2001', 'Porque é curto demais'],
+        answer: 1,
+        explain: 'O "::" pode aparecer uma vez só: ele vale por todos os grupos de zero que faltam para completar 8.',
+      },
+      {
+        question: 'Que tipo de endereço é fe80::1?',
+        options: ['Global', 'Link-local', 'Multicast', 'Loopback'],
+        answer: 1,
+        explain: 'Endereços que começam com fe80 são link-local: só valem dentro do próprio link e nunca passam por um roteador.',
+      },
+    ],
+  },
+  {
+    id: 'ipv6-routing',
+    title: 'Rotas IPv6',
+    track: 'networking',
+    tier: 'doutorado',
+    requires: ['ipv6-basics'],
+    reward: 150,
+    pages: [
+      'No IPv6, quase toda rede local é um /64: os primeiros 64 bits são o PREFIXO da rede, e os últimos 64 identificam a interface (o host).',
+      'Uma organização costuma receber um /48, como 2001:db8:4b2::/48. Dentro dele cabem 65.536 redes /64: 2001:db8:4b2:1::/64, 2001:db8:4b2:2::/64 e assim por diante. É o quarto grupo que muda de uma rede para outra.',
+      'Para achar o prefixo /64 de um endereço, fique com os quatro primeiros grupos e zere o resto: 2001:db8:4b2:17::2a está na rede 2001:db8:4b2:17::/64.',
+      'Uma rota IPv6 funciona como a IPv4: destino (o prefixo da rede, nunca o endereço de um host), tamanho do prefixo e próximo salto, que é um endereço do roteador na rede onde você já está.',
+    ],
+    quiz: [
+      {
+        question: 'Qual é o prefixo /64 de 2001:db8:4b2:17::2a?',
+        options: ['2001:db8:4b2::/64', '2001:db8:4b2:17::/64', '2001:db8:4b2:17::2a/64', '2001:db8::/64'],
+        answer: 1,
+        explain: 'Os quatro primeiros grupos são a rede; zerando o resto, fica 2001:db8:4b2:17::/64.',
+      },
+      {
+        question: 'O que vai no destino de uma rota?',
+        options: ['O endereço de um host da rede', 'O prefixo da rede, com a parte do host zerada', 'O endereço do servidor DNS', 'O endereço link-local do seu PC'],
+        answer: 1,
+        explain: 'A rota leva até a rede inteira, então o destino é o prefixo, com os bits de host zerados.',
+      },
+      {
+        question: 'O próximo salto de uma rota precisa estar...',
+        options: ['Na rede de destino', 'Na rede onde você já está', 'Em qualquer rede', 'Num servidor da internet'],
+        answer: 1,
+        explain: 'Você só alcança direto quem está na sua rede: o próximo salto é o endereço do roteador desse lado.',
       },
     ],
   },

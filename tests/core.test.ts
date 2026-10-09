@@ -6,8 +6,9 @@ import {
 import { LENSES } from '../src/core/explanations';
 import { buildRounds, CONCEPTS, MAX_LEVEL, roundCount, STATUSES, type ConceptId } from '../src/core/minigames';
 import { createRng } from '../src/core/random';
+import { issueCertificate, presentCertificate } from '../src/core/certificates';
 import {
-  breach, buy, canBuy, canConnect, checkRequirements, completeLesson, install, isLessonOpen, isOnline, newGame, nodeStatus, objective, phaseOf, sell, setNetConfig,
+  breach, buy, canBuy, canConnect, checkRequirements, completeLesson, install, isLessonOpen, isLessonVisible, isOnline, newGame, nodeStatus, objective, phaseOf, sell, setNetConfig,
   ownedCount, specsOf, STARTING_MONEY, uninstall, type GameState,
 } from '../src/core/state';
 import {
@@ -17,6 +18,7 @@ import { ETHICS_LESSON_ID, LESSONS, ROUTING_LESSON_ID, TRACK_LABELS, getLesson }
 import { AREA_LESSON, NODES, getNode, type MinigameId } from '../src/data/nodes';
 import { NODE_KINDS, NODE_KIND_LABELS, buildContribution, nodeBuild, resolveBuild } from '../src/data/nodeBuilds';
 import { CASE_SLOTS, PARTS, SLOTS, SLOT_GENDER, SLOT_LABELS, describeStats, getPart } from '../src/data/parts';
+import { TIERS } from '../src/data/tiers';
 
 const STARTER = ['mb_b1', 'cpu_s1_2c', 'ram_4_ddr4', 'hdd_500', 'psu_250'];
 
@@ -287,6 +289,42 @@ describe('content integrity', () => {
     completeLesson(s, 'ip-addressing');
     expect(isLessonOpen(s, ROUTING_LESSON_ID)).toBe(true);
     expect(getLesson(ROUTING_LESSON_ID).track).toBe('networking');
+  });
+
+  it('every tier lesson exists, belongs to its tier and requires only lessons of its own pack', () => {
+    for (const tier of TIERS) {
+      expect(tier.lessons.length).toBeGreaterThanOrEqual(1);
+      tier.lessons.forEach((id, i) => {
+        const lesson = getLesson(id);
+        expect(lesson.tier, id).toBe(tier.id);
+        expect(lesson.requires, id).toEqual(i === 0 ? [] : [tier.lessons[i - 1]]);
+        expect(lesson.quiz.length, id).toBeGreaterThanOrEqual(3);
+      });
+    }
+    const tierLessons = LESSONS.filter((l) => l.tier).map((l) => l.id);
+    expect(tierLessons.sort()).toEqual(TIERS.flatMap((t) => t.lessons).sort());
+  });
+
+  it('shows only the lessons of the open tier after the formatura (AE2)', () => {
+    const s = newGame();
+    const visible = () => LESSONS.filter((l) => l.tier && isLessonVisible(s, l.id)).map((l) => l.id);
+    expect(visible()).toEqual([]);
+    issueCertificate(s, 'conclusao');
+    expect(visible()).toEqual([]);
+    presentCertificate(s, 'conclusao', 'Ana');
+    expect(visible()).toEqual(['nat-basics', 'port-forwarding']);
+    expect(isLessonVisible(s, 'computer-basics')).toBe(true);
+  });
+
+  it('never opens a tier lesson while its tier is closed, even with its requirements met', () => {
+    const s = newGame();
+    issueCertificate(s, 'conclusao');
+    presentCertificate(s, 'conclusao', 'Ana');
+    expect(isLessonOpen(s, 'nat-basics')).toBe(true);
+    expect(isLessonOpen(s, 'port-forwarding')).toBe(false);
+    expect(isLessonOpen(s, 'vlan-basics')).toBe(false);
+    s.lessonsCompleted.push('vlan-basics');
+    expect(isLessonOpen(s, 'vlan-trunks')).toBe(false);
   });
 
   it('every part, slot and track has what PT-BR text needs', () => {

@@ -1,7 +1,7 @@
 import { ETHICS_LESSON_ID, getLesson, LESSONS, ROUTING_LESSON_ID } from '../data/lessons';
 import { NODES, HOME_NODE_ID, FINAL_NODE_ID, getNode, type MinigameId, type NetNode } from '../data/nodes';
 import { getPart, type Part, type Slot } from '../data/parts';
-import { issueCertificate, type Certificate } from './certificates';
+import { isTierOpen, issueCertificate, type Certificate } from './certificates';
 import { cityNode, generateCity, type City, type CityNode, type CitySubnet } from './city';
 import { MAX_CITY_LEVEL } from './cityCode';
 import type { Lens } from './explanations';
@@ -118,8 +118,14 @@ export function hasLesson(state: GameState, id: string): boolean {
   return state.lessonsCompleted.includes(id);
 }
 
+/** Pós-graduação lessons stay out of sight until their tier opens. */
+export function isLessonVisible(state: GameState, id: string): boolean {
+  const tier = getLesson(id).tier;
+  return !tier || isTierOpen(state, tier);
+}
+
 export function isLessonOpen(state: GameState, id: string): boolean {
-  return getLesson(id).requires.every((req) => hasLesson(state, req));
+  return isLessonVisible(state, id) && getLesson(id).requires.every((req) => hasLesson(state, req));
 }
 
 export type BuyIssueCode = 'needs-lesson' | 'no-money';
