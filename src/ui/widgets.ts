@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
-import { game } from '../core/store';
+import { achievements, resetAchievements } from '../core/achievementStore';
+import { game, resetGame } from '../core/store';
 import { money } from '../core/fmt';
 import { objective } from '../core/state';
 
@@ -190,4 +191,17 @@ export class Layer {
     for (const o of this.objects) o.destroy();
     this.objects = [];
   }
+}
+
+/**
+ * Resets the game. With conquistas unlocked, a second question decides whether
+ * they go too; the game is reset either way.
+ */
+export function resetEverything(): void {
+  const ask = achievements().unlocked.length > 0;
+  const erase = ask && window.confirm(
+    'Apagar também as suas conquistas?\n\nOK apaga as conquistas. Cancelar guarda as conquistas.\nO jogo recomeça do zero nos dois casos.',
+  );
+  resetGame();
+  if (ask) resetAchievements(erase);
 }

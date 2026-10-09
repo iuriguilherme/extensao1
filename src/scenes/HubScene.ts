@@ -2,11 +2,11 @@ import Phaser from 'phaser';
 import { mistakesAllowed, roundSeconds } from '../core/hardware';
 import { canStartCities, hasLesson, isOnline, phaseOf, specsOf } from '../core/state';
 import { connectedNodes, swarmReport, totalSpecs } from '../core/swarm';
-import { game, resetGame } from '../core/store';
+import { game } from '../core/store';
 import { getLesson, ROUTING_LESSON_ID } from '../data/lessons';
 import { getPart, SLOT_LABELS } from '../data/parts';
 import { alignColumns, decimal, linkSpeed, plural } from '../core/fmt';
-import { button, COLORS, fitText, header, HEIGHT, objectiveBar, panel, textStyle, toast, WIDTH } from '../ui/widgets';
+import { button, COLORS, fitText, header, HEIGHT, objectiveBar, panel, resetEverything, textStyle, toast, WIDTH } from '../ui/widgets';
 import { startPendingCeremony, type CertificateData } from './CertificateScene';
 
 export interface HubData {
@@ -103,7 +103,7 @@ export class HubScene extends Phaser.Scene {
     }
     button(this, x + (w3 + gap) * (certificates ? 2 : 1), 560, w3, 44, 'Apagar progresso', () => {
       if (window.confirm('Apagar todo o progresso e começar do zero?')) {
-        resetGame();
+        resetEverything();
         this.scene.restart();
       }
     }, { size: 16, color: COLORS.danger });

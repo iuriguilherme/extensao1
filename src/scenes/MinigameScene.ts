@@ -7,6 +7,7 @@ import { completeJob, type Job } from '../core/jobs';
 import { buildRounds, toBinary, type BitsRound, type ChoiceRound, type ConceptId, type Difficulty, type Round } from '../core/minigames';
 import { createRng } from '../core/random';
 import { commitRun, recordMiss } from '../core/reteach';
+import { recordRun } from '../core/achievementStore';
 import { recordAnswer } from '../core/stats';
 import { breach, breachCityNode, loadCity } from '../core/state';
 import { joinSwarm, totalSpecs } from '../core/swarm';
@@ -52,6 +53,9 @@ export class MinigameScene extends Phaser.Scene {
   private index = 0;
   private mistakes = 0;
   private allowed = 1;
+  /** Mistakes in this run that were rounds left to time out. */
+  private timeouts = 0;
+  private crashedOnLast = false;
   private seconds = 10;
   private remaining = 0;
   private running = false;
@@ -86,6 +90,8 @@ export class MinigameScene extends Phaser.Scene {
     this.rounds = buildRounds(data.minigame, data.difficulty, createRng(Date.now()), focus, context, typed);
     this.index = 0;
     this.mistakes = 0;
+    this.timeouts = 0;
+    this.crashedOnLast = false;
     this.correctConcepts = [];
     this.missedConcepts = [];
     this.finishedNow = false;
@@ -193,6 +199,7 @@ export class MinigameScene extends Phaser.Scene {
       this.correctConcepts.push(round.concept);
     } else {
       this.mistakes++;
+      if (timedOut) this.timeouts++;
       this.missedConcepts.push(round.concept);
       // Each repeat miss of a concept gets a lens the student has not seen yet.
       const lens = recordMiss(game(), round.concept, this.params.difficulty);
@@ -203,6 +210,7 @@ export class MinigameScene extends Phaser.Scene {
 
     const crashed = this.mistakes > this.allowed;
     const done = this.index === this.rounds.length - 1;
+    this.crashedOnLast = crashed && done;
     this.layer.rect(40, 560, WIDTH - 80, 100, COLORS.panel, correct ? COLORS.accent : COLORS.danger);
     fitText(this.layer.text(60, 572, `${correct ? '✓ Etapa vencida.' : timedOut ? '✗ Demorou demais e foi detectado!' : '✗ Resposta errada.'}  ${explain}`,
       textStyle(17, correct ? COLORS.accent : COLORS.warn, { wordWrap: { width: WIDTH - 340 }, lineSpacing: 4 })), WIDTH - 340, 80);
@@ -225,6 +233,11 @@ export class MinigameScene extends Phaser.Scene {
     const nodeId = this.params.nodeId;
     commitRun(state, this.correctConcepts, this.missedConcepts);
     const job = this.params.job ? completeJob(state, this.params.job, this.mistakes, success) : undefined;
+    // Before the first save: a failed run returns right after it, and breach() has not run yet.
+    recordRun(state, {
+      area: this.params.minigame, success, mistakes: this.mistakes, allowed: this.allowed, timeouts: this.timeouts,
+      crashedOnLast: this.crashedOnLast, nodeId, firstBreach: nodeId !== undefined && !state.breached.includes(nodeId),
+    });
     save();
     if (!success) {
       const message = 'CONEXÃO PERDIDA\n\nVocê errou demais e foi desconectado.\nEstude mais o assunto ou melhore o PC: mais RAM aguenta\nmais erros, e um processador melhor dá mais tempo.';
