@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { generateCity, roundContext, typedContext, type City, type CityType } from '../src/core/city';
+import { cityDifficulty, generateCity, roundContext, typedContext, type City, type CityType } from '../src/core/city';
 import { broadcastAddress, networkAddress, parseIp } from '../src/core/ip';
 import { inIpv6Prefix, ipv6Network, parseIpv6 } from '../src/core/ipv6';
 import { MAX_LEVEL, privateRangeOf, PUBLISHED_SERVICES, vlanIdVerdict } from '../src/core/minigames';
@@ -259,16 +259,64 @@ function fnv1a(text: string): string {
 
 /**
  * Shared city codes and saved city progress (node ids, opened subnet ids) both
- * rely on (level, seed) building the same city forever. If this hash changes,
- * old codes now build other cities and saved progress points at other nodes.
+ * rely on (level, seed) building the same city forever. If the structure hash
+ * changes, old codes now build other cities and saved progress points at other
+ * nodes: never update it. The full hash also covers node difficulty, which may
+ * change on purpose (difficulty draws no random numbers, so it never moves ids).
  */
-const PINNED_CITIES_HASH = '6b6195e8';
+const PINNED_CITIES_HASH = 'c20cbf97';
+const PINNED_STRUCTURE_HASH = 'b738fc07';
+
+function pinnedSample(): City[] {
+  const cities: City[] = [];
+  for (const level of [1, 2, 5, 12, 40, 99]) for (const seed of [0, 1, 4821, 319999]) cities.push(generateCity(level, seed));
+  return cities;
+}
 
 describe('city stability', () => {
   it('builds exactly the pinned cities for sample levels and seeds', () => {
-    const cities = [];
-    for (const level of [1, 2, 5, 12, 40, 99]) for (const seed of [0, 1, 4821, 319999]) cities.push(generateCity(level, seed));
-    expect(fnv1a(JSON.stringify(cities))).toBe(PINNED_CITIES_HASH);
+    expect(fnv1a(JSON.stringify(pinnedSample()))).toBe(PINNED_CITIES_HASH);
+  });
+
+  it('keeps the pinned structure of plain and typed cities, difficulty aside', () => {
+    const cities = [...pinnedSample()];
+    for (const type of ['nat', 'vlan', 'ipv6'] as const) for (const level of [1, 12, 40, 99]) cities.push(generateCity(level, 4821, type));
+    const structure = cities.map((city) => ({ ...city, nodes: city.nodes.map(({ difficulty: _d, ...node }) => node) }));
+    expect(fnv1a(JSON.stringify(structure))).toBe(PINNED_STRUCTURE_HASH);
+  });
+});
+
+describe('city difficulty', () => {
+  /** The structure-capped formula cities used before difficulty followed the level. */
+  const capped = (city: City, node: City['nodes'][number]) => {
+    const depth = city.subnets[node.subnetId].depth + (node.role === 'core' ? 1 : 0);
+    return Math.min(1 + Math.floor((Math.min(city.level, 12) - 1 + depth) / 4), MAX_LEVEL[node.minigame]);
+  };
+
+  it('keeps every node difficulty of cities up to level 12', () => {
+    const changed = CITIES.filter((c) => c.level <= 12)
+      .flatMap((city) => city.nodes.filter((n) => n.difficulty !== capped(city, n)).map((n) => `${tag(city)} ${n.id}`));
+    expect(changed).toEqual([]);
+  });
+
+  it('keeps rising past level 12, up to each area maximum', () => {
+    const highest = (level: number, area: 'binary' | 'subnet') => Math.max(...[1, 2, 3, 4, 5]
+      .flatMap((seed) => generateCity(level, seed).nodes.filter((n) => n.minigame === area).map((n) => n.difficulty)));
+    expect(highest(40, 'binary')).toBeGreaterThan(highest(12, 'binary'));
+    for (let seed = 1; seed <= 5; seed++) {
+      for (const node of generateCity(99, seed).nodes) expect(node.difficulty).toBe(MAX_LEVEL[node.minigame]);
+    }
+  });
+
+  it('never lowers as the level rises, for every area and depth', () => {
+    // Each level seeds a different city, so the rule is checked on the formula, not on node ids.
+    for (const area of Object.keys(MAX_LEVEL) as (keyof typeof MAX_LEVEL)[]) {
+      for (let depth = 0; depth <= 8; depth++) {
+        for (let level = 2; level <= 99; level++) {
+          expect(cityDifficulty(area, level, depth)).toBeGreaterThanOrEqual(cityDifficulty(area, level - 1, depth));
+        }
+      }
+    }
   });
 });
 

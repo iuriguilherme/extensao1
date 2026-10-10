@@ -292,10 +292,11 @@ export function typedContext(city: City, nodeId: string): TypedContext | undefin
 /**
  * City node difficulty: 1-3 at low levels, rising with level and depth, but
  * never past what the area's mini-game supports (only binary and subnet go
- * above 3).
+ * above 3). It follows the city level, not the structure cap, so cities past
+ * level 12 keep getting harder while their maps stop growing.
  */
-export function cityDifficulty(area: MinigameId, growth: number, depth: number): number {
-  const computed = 1 + Math.floor((growth - 1 + depth) / 4);
+export function cityDifficulty(area: MinigameId, level: number, depth: number): number {
+  const computed = 1 + Math.floor((level - 1 + depth) / 4);
   return Math.min(computed, MAX_LEVEL[area]);
 }
 
@@ -394,7 +395,7 @@ function makeNode(
   return {
     id, name, ip, x: 0, y: 0,
     minigame: area,
-    difficulty: cityDifficulty(area, growth, depth),
+    difficulty: cityDifficulty(area, level, depth),
     links: [],
     requires: requirements(growth, depth),
     reward: role === 'core' ? baseReward * 3 : baseReward,
