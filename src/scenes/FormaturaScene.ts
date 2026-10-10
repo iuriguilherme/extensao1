@@ -18,14 +18,29 @@ export interface FormaturaData {
  */
 export class FormaturaScene extends Phaser.Scene {
   private layer!: Layer;
-  private nameField: { value(): string; destroy(): void } | null = null;
+  private nameField: { value(): string; setVisible(visible: boolean): void; destroy(): void } | null = null;
 
   constructor() {
     super('Formatura');
   }
 
+  private hideField() {
+    this.nameField?.setVisible(false);
+  }
+
+  private showField() {
+    this.nameField?.setVisible(true);
+  }
+
   create(data: FormaturaData = {}) {
     this.cameras.main.setBackgroundColor(COLORS.bg);
+    // The name field is HTML drawn above the canvas: hide it while a card covers the screen.
+    this.events.on('card-open', this.hideField, this);
+    this.events.on('card-close', this.showField, this);
+    this.events.once('shutdown', () => {
+      this.events.off('card-open', this.hideField, this);
+      this.events.off('card-close', this.showField, this);
+    });
     header(this, 'Formatura', undefined, 'formatura');
     this.layer = new Layer(this);
     this.nameField = null;

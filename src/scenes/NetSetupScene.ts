@@ -3,7 +3,8 @@ import { validateNetConfig, type LanInfo, type NetConfig } from '../core/ip';
 import { setNetConfig } from '../core/state';
 import { game, save } from '../core/store';
 import { alignColumns, plural } from '../core/fmt';
-import { button, COLORS, header, Layer, goalBar, panel, textStyle, WIDTH } from '../ui/widgets';
+import { button, COLORS, header, Layer, goalBar, panel, textStyle, useElement, WIDTH } from '../ui/widgets';
+import { advance } from '../core/disclosure';
 
 /** The home LAN the player has to join. DHCP is "broken", so it is manual. */
 export const HOME_LAN: LanInfo = {
@@ -96,7 +97,12 @@ export class NetSetupScene extends Phaser.Scene {
         `✓ nslookup example.com via ${config.dns} … 203.0.113.80`,
         'Você está online!',
       ].join('\n'), textStyle(16, COLORS.accent, { lineSpacing: 3 }));
-      this.result.button(WIDTH - 260, 560, 220, 56, 'Abrir Mapa da Rede >', () => this.scene.start('NetMap'), { color: COLORS.warn });
+      this.result.button(WIDTH - 260, 560, 220, 56, 'Abrir Mapa da Rede >', () => {
+        // Going straight to the map introduces it here, so the desk does not introduce it again.
+        advance(game());
+        useElement('net-map');
+        this.scene.start('NetMap');
+      }, { color: COLORS.warn });
     }, { size: 22, color: COLORS.warn });
 
     this.drawFields();

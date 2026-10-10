@@ -55,7 +55,10 @@ export class MinigameScene extends Phaser.Scene {
   private seconds = 10;
   private remaining = 0;
   private running = false;
-  /** A card is open over the intrusion: its clock stops until the card closes. */
+  /**
+   * The first-time card is open before the first round: the clock waits for it.
+   * A card reopened with "?" mid-round does not stop the clock.
+   */
   private paused = false;
   private revealAnswer: () => void = () => {};
   /** Concepts answered right and wrong in this run, committed when it ends. */
@@ -109,7 +112,7 @@ export class MinigameScene extends Phaser.Scene {
   }
 
   private pause() {
-    this.paused = true;
+    if (!this.running) this.paused = true;
   }
 
   private resume() {

@@ -100,7 +100,7 @@ export function button(
 export function textInput(
   scene: Phaser.Scene, x: number, y: number, w: number, h: number,
   opts: { value?: string; maxLength: number; onEnter: () => void },
-): { value(): string; destroy(): void } {
+): { value(): string; setVisible(visible: boolean): void; destroy(): void } {
   const input = document.createElement('input');
   input.type = 'text';
   input.value = opts.value ?? '';
@@ -123,7 +123,7 @@ export function textInput(
     input.focus();
     input.setSelectionRange(input.value.length, input.value.length);
   });
-  return { value: () => input.value, destroy: () => element.destroy() };
+  return { value: () => input.value, setVisible: (visible) => element.setVisible(visible), destroy: () => element.destroy() };
 }
 
 /**
