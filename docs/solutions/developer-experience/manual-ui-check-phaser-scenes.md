@@ -2,7 +2,7 @@
 title: Drive Phaser scenes from a browser tool by seeding the save and clicking in game coordinates
 module: manual UI verification
 date: 2026-10-06
-last_updated: 2026-10-08
+last_updated: 2026-10-10
 problem_type: developer_experience
 component: development_workflow
 severity: medium
@@ -54,24 +54,32 @@ The game itself is all canvas: there are no DOM buttons to target, and `src/main
 
    Ids come from `src/data/` (parts, lessons, nodes). The example above is online with every lesson except `ethics` and `routing`, and has the Data Center Core reachable. To reach the cities, add `'ethics'` and `'routing'` to `lessonsCompleted` and `'core'` to `breached`; a `cities` entry such as `{ level: 3, seed: 4821, breached: [], opened: [], finished: false }` opens straight onto a known city.
 
+   **Disclosure state decides what the Hub draws and which cards open** (`docs/solutions/design-patterns/acknowledge-every-entry-path-under-incremental-disclosure.md`). A seeded save *without* a `disclosure` field loads as a save from before introductions existed. Every element it can reach counts as introduced, and the cards of those screens count as seen, so the menu is complete and no card or pulse appears. That is what you want for a layout check. To test an introduction, seed a `disclosure` object instead: `{ introduced: [...], current: null, cards: [...], log: [] }`, leaving out the element or card id under test. `log` holds entries such as `{ kind: 'opening' }`, not text. A passive element (money counter, Apagar progresso) counts as introduced after 3 s on the desk, so wait before expecting the next element.
+
    Conquistas have their own key, `rootkit-academy-conquistas-v1` (`src/core/achievementStore.ts`). It also needs `version: 1` and an `unlocked` array, for example `{ version: 1, unlocked: ['first-boot'], totals: { answered: 312, correct: 0, runs: 0, cities: 0 }, last: { answered: 312, correct: 0, runs: 0, cities: 0 }, popups: true }`. Keep `last` equal to what the seeded game save shows, or the first check adds the difference to `totals`. When the key is missing, the load seeds the counters from the game save and silently unlocks whatever that save proves, so remove the key to test a first load.
 3. **Click in game coordinates.** The canvas is a fixed 1280x720 game scaled with `Scale.FIT` (`src/main.ts`), so screen pixels differ from game pixels unless the viewport is exactly 1280x720. Convert from the canvas rect:
 
    ```js
-   const c = document.querySelector('canvas');
-   const r = c.getBoundingClientRect(), s = r.width / 1280;
-   window.__click = (gx, gy) => {
-     const x = r.left + gx * s, y = r.top + gy * s;
-     for (const t of ['pointerdown', 'mousedown', 'pointerup', 'mouseup'])
-       c.dispatchEvent(new PointerEvent(t, { clientX: x, clientY: y, bubbles: true, pointerId: 1, isPrimary: true, button: 0 }));
+   window.__click = async (gx, gy) => {
+     const c = document.querySelector('canvas');
+     const r = c.getBoundingClientRect();
+     const o = { clientX: r.left + gx * r.width / 1280, clientY: r.top + gy * r.height / 720, bubbles: true, button: 0 };
+     c.dispatchEvent(new MouseEvent('mousemove', o));
+     c.dispatchEvent(new MouseEvent('mousedown', { ...o, buttons: 1 }));
+     await new Promise((done) => setTimeout(done, 50));
+     c.dispatchEvent(new MouseEvent('mouseup', o));
+     window.dispatchEvent(new MouseEvent('mouseup', o));
    };
    ```
+
+   Use `MouseEvent`, and send `mousemove` first. In the 2026-10-10 disclosure session, `PointerEvent` dispatches alone did not press a button. Recompute the rect on every call, because a reload or resize moves the canvas.
 
    With Playwright at a 1280x720 viewport, `page.mouse.click(gx, gy)` does the same with no scaling. Wait about 300-600 ms after a click that changes scene before taking the next screenshot.
 4. **Take button centers from the scene source**, not from screenshots. A screenshot is in page pixels, which are offset and scaled. Reading a target off a screenshot and clicking it as a game coordinate misses: a "Voltar" click did nothing in this session for that reason. Centers that hold today:
    - Title "Continuar" (shown when a save exists): `(640, 447)`. "Novo jogo" without a save: `(640, 467)`.
-   - Hub menu (`HubScene`, x 800, w 440, rows from y 76, 78 apart, 48 tall): Estudar `(1020, 100)`, Loja `(1020, 178)`, Bancada `(1020, 256)`, Configuração de Rede `(1020, 334)`, Mapa da Rede `(1020, 412)`, Cidades `(1020, 490)`. The menu was tightened to six rows when Cidades was added; recompute from `src/scenes/HubScene.ts` if the rows change again.
-   - "< Voltar" from `header()` in `src/ui/widgets.ts`: `(67, 28)`.
+   - Hub menu (`HubScene`, x 800, w 440, rows from y 76, 78 apart, 48 tall). Only visible entries are drawn, stacked from the top in the order Estudar, Loja, Bancada, Configuração de Rede, Mapa da Rede, Cidades, so an entry's row is its position among the *visible* ones: row n is at `(1020, 100 + 78n)`. With all six visible, Mapa da Rede is `(1020, 412)` and Cidades `(1020, 490)`. A new game shows only Estudar at `(1020, 100)`.
+   - Hub side entries: two rows of two, 215 wide, at y 548 and 600, filled in the order Trabalhos extras, Certificados, Conquistas, Apagar progresso, skipping hidden ones. The centers are `(907, 570)`, `(1132, 570)`, `(907, 622)` and `(1132, 622)` by position among the visible ones.
+   - "< Voltar" from `header()` in `src/ui/widgets.ts`: `(67, 28)`. A screen with a first-open card has a "?" at `(1244, 28)`, and its card's "Entendi" is at `(640, 540)`. A first visit opens the card over everything, so dismiss it before clicking the screen.
    - Net Map nodes: their `x`/`y` in `src/data/nodes.ts`.
    - City map nodes (`CityMapScene`): the diagram is drawn by a second camera whose viewport starts at y 56 and which is scrolled 60 px down and sideways, so a node's `x`/`y` from `generateCity` is not a screen coordinate. Click at `(node.x - scrollX, node.y - 4)`; `scrollX` is 0 when the map opens, until the arrows, a drag or a focus scroll move it. Header and info-panel buttons are on the main camera and use plain game coordinates.
 5. **If Playwright MCP is locked by another session, use Chrome DevTools MCP** `new_page` with an `isolatedContext` name. It gets its own storage, so seeding the save there does not touch other sessions. Use `evaluate_script` for steps 2-3 and `take_screenshot` to look. Close the page afterwards.
@@ -90,7 +98,7 @@ Without this, an agent either skips the visual check (a layout bug ships, since 
 To check the Data Center Core panel before the ethics lesson:
 
 1. Seed the save from step 2 and reload.
-2. Run `__click(640, 447)` (Continuar), then `__click(1020, 412)` (Mapa da Rede), then `__click(1170, 330)` (the Core node).
+2. Run `__click(640, 447)` (Continuar), then `__click(1020, 412)` (Mapa da Rede, the fifth visible row: the seed has no `disclosure` field and no routing lesson, so Cidades is hidden), then `__click(1170, 330)` (the Core node).
 3. Take a screenshot.
 
 To check the ending, add `'core'` to `breached`, reload and click Continuar. The Hub shows the won line.
