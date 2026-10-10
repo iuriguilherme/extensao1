@@ -39,7 +39,7 @@ A node joins the Swarm only by occupying a free port on the player's router, on 
 A generated network the player can explore after winning the campaign and passing the routing lesson: a tree of subnets joined by routers that forms a correct address plan, with one core machine at its deepest level.
 *Avoid:* procedural map, random city
 
-A city is never saved whole: its level and seed rebuild it identically, so the save keeps only the player's progress in it, apart from the campaign map. Only the player's own subnet is visible at first; each further subnet appears once the player breaches the router that leads to it and writes the correct entry for that router: a Route entry, or the entry its City type asks for. Breaching the core finishes the city, and each finished city raises the level of the next new one, up to a cap. A City code lets another player rebuild the same city.
+A city is never saved whole: its level and seed rebuild it identically, so the save keeps only the player's progress in it, apart from the campaign map. Only the player's own subnet is visible at first; each further subnet appears once the player breaches the router that leads to it and writes the correct entry for that router: a Route entry, or the entry its City type asks for. Breaching the core finishes the city, and each finished city raises the level of the next new one, up to a cap. A machine's difficulty rises with the city level and its depth, up to its area's maximum, and the machine opens only once the student's Area level in that area reaches it; a city is where a student repeats levels they already reached. A City code lets another player rebuild the same city.
 
 ### City code
 The short code that names a City by its level and seed, so anyone who can open cities can rebuild exactly that city, while the mini-game questions stay random for each player.
@@ -71,6 +71,12 @@ One of three optional steps after the Formatura, in fixed order, each pairing tw
 
 Only the next step is ever shown: a tier's lessons appear once the tier opens, and its City type once those lessons are passed.
 
+### Conquista
+A Steam-style achievement: an optional badge for a story milestone, skill challenge, long-term counter or secret oddity, which the player collects alongside the campaign but never needs for it.
+
+A Conquista gives no gameplay reward, and the game's goal stays the Certificates. Conquistas live apart from the game save, so a reset can keep them, and their counters keep growing across resets. Once unlocked, a Conquista stays unlocked until the player chooses to erase the Conquistas. The player sees a locked Conquista only while it is reachable with what the game has already opened to them, never a locked secret one, and of a tiered counter only the next tier.
+*Avoid:* troféu, medalha, achievement (in player text)
+
 ## Interface
 
 ### Introduction
@@ -95,4 +101,4 @@ On a repeat miss the game shows a Lens the student has not yet seen for that Con
 The difficulty a student has reached in one knowledge area of the mini-games, which sets the level of that area's fresh side jobs and goes up when a fresh job at that level is finished with at most one mistake.
 *Avoid:* side-job level, difficulty (for a student's progress)
 
-Each area has its own maximum, set by how far its content can get harder; only areas whose lesson the student has completed appear on the side-job board.
+Each area has its own maximum, set by how far its content can get harder; only areas whose lesson the student has completed appear on the side-job board. A City machine of a higher difficulty than the student's Area level stays locked.
