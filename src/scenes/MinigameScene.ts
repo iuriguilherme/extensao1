@@ -233,10 +233,12 @@ export class MinigameScene extends Phaser.Scene {
     const nodeId = this.params.nodeId;
     commitRun(state, this.correctConcepts, this.missedConcepts);
     const job = this.params.job ? completeJob(state, this.params.job, this.mistakes, success) : undefined;
+    // Only a first breach reveals the node and plugs it in; a replay just pays.
+    const firstBreach = nodeId !== undefined && !state.breached.includes(nodeId);
     // Before the first save: a failed run returns right after it, and breach() has not run yet.
     recordRun(state, {
       area: this.params.minigame, success, mistakes: this.mistakes, allowed: this.allowed, timeouts: this.timeouts,
-      crashedOnLast: this.crashedOnLast, nodeId, firstBreach: nodeId !== undefined && !state.breached.includes(nodeId),
+      crashedOnLast: this.crashedOnLast, nodeId, firstBreach,
     });
     save();
     if (!success) {
@@ -246,8 +248,6 @@ export class MinigameScene extends Phaser.Scene {
       return;
     }
 
-    // Only a first breach reveals the node and plugs it in; a replay just pays.
-    const firstBreach = nodeId !== undefined && !state.breached.includes(nodeId);
     let reward = 0;
     let details = '';
     let joined = true;

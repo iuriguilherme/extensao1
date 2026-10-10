@@ -36,6 +36,11 @@ export class ConquistaPopupScene extends Phaser.Scene {
 
   private showNext() {
     if (this.showing) return;
+    // A card over a mini-game would hide its timer and status; wait until the student leaves it.
+    if (this.scene.isActive('Minigame')) {
+      if (ConquistaPopupScene.queue.length > 0) this.time.delayedCall(500, () => this.showNext());
+      return;
+    }
     const id = ConquistaPopupScene.queue.shift();
     if (id === undefined) return;
     this.showing = true;

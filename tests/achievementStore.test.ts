@@ -1,7 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { RunSummary } from '../src/core/achievements';
 import {
-  checkAchievements, emptyAchievements, onUnlock, parseAchievements, recordRun, resetAchievementState, serializeAchievements,
+  achievements, bootAchievements, checkAchievements, emptyAchievements, onUnlock, parseAchievements, recordRun, resetAchievementState, serializeAchievements,
   syncAchievements, type AchievementState,
 } from '../src/core/achievementStore';
 import { issueCertificate, presentCertificate } from '../src/core/certificates';
@@ -85,5 +85,41 @@ describe('achievement store', () => {
     s.money = 0;
     recordRun(s, { area: 'binary', success: false, mistakes: 3, allowed: 2, timeouts: 3, crashedOnLast: true, firstBreach: false });
     expect(batches).toEqual([['last-gasp', 'timeout-crash', 'broke']]);
+  });
+});
+
+describe('achievement boot', () => {
+  function stubStorage(initial: Record<string, string> = {}) {
+    const data = new Map(Object.entries(initial));
+    vi.stubGlobal('localStorage', {
+      getItem: (k: string) => data.get(k) ?? null,
+      setItem: (k: string, v: string) => { data.set(k, v); },
+    });
+    return data;
+  }
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('seeds lifetime totals from the game save when nothing is stored, without notifying', () => {
+    stubStorage();
+    const batches: string[][] = [];
+    onUnlock((ids) => batches.push(ids));
+    bootAchievements(veteran());
+    expect(achievements().totals).toMatchObject({ answered: 120, cities: 3 });
+    expect(achievements().unlocked).toContain('formatura');
+    expect(batches).toEqual([]);
+  });
+
+  it('keeps stored totals instead of reseeding them', () => {
+    const stored = ach({ totals: { answered: 500, correct: 300, runs: 40, cities: 7 }, last: { answered: 120, correct: 60, runs: 0, cities: 3 } });
+    stubStorage({ 'rootkit-academy-conquistas-v1': serializeAchievements(stored) });
+    bootAchievements(veteran());
+    expect(achievements().totals).toMatchObject({ answered: 500, cities: 7 });
+  });
+
+  it('treats unreadable storage like an empty store', () => {
+    vi.stubGlobal('localStorage', { getItem: () => { throw new Error('denied'); }, setItem: () => { throw new Error('denied'); } });
+    bootAchievements(veteran());
+    expect(achievements().totals.answered).toBe(120);
   });
 });
