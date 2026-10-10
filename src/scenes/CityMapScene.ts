@@ -4,7 +4,7 @@ import { encodeCityCode } from '../core/cityCode';
 import { money, plural } from '../core/fmt';
 import { correctGate, gateKind, vlanGate, type GateKind } from '../core/gates';
 import {
-  canConnectCityNode, checkRequirements, cityNodeStatus, isSubnetOpen, loadCity, nextCityLevel, REPLAY_RATIO, type CityNodeStatus, type CityProgress,
+  canConnectCityNode, cityNodeStatus, cityRequirementChecks, isSubnetOpen, loadCity, nextCityLevel, REPLAY_RATIO, type CityNodeStatus, type CityProgress,
 } from '../core/state';
 import { game } from '../core/store';
 import { MINIGAME_AREAS } from '../data/nodes';
@@ -249,7 +249,7 @@ export class CityMapScene extends Phaser.Scene {
     cy += 20;
     const flavor = fitText(this.info.text(x + 14, cy, node.flavor, textStyle(13, COLORS.text, { wordWrap: { width: w - 28 } })), w - 28, 38);
     cy += Math.max(flavor.height, 18) + 6;
-    for (const c of checkRequirements(state, node)) {
+    for (const c of cityRequirementChecks(state, node)) {
       fitText(this.info.text(x + 14, cy, `${c.met ? '✓' : '✗'} ${c.label}`, textStyle(13, c.met ? COLORS.accent : COLORS.danger)), w - 28);
       cy += 16;
     }
