@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  acknowledge, advance, CARDS, ELEMENTS, isLessonListed, isNodeListed, isPartListed, listedSlots, goalLine, isCardSeen, isCurrent, isVisible, knownDisclosure, markCardSeen, type ElementId,
+  acknowledge, advance, CARDS, ELEMENTS, logLines, isLessonListed, isNodeListed, isPartListed, listedSlots, goalLine, isCardSeen, isCurrent, isVisible, knownDisclosure, markCardSeen, type ElementId,
 } from '../src/core/disclosure';
 import { restore } from '../src/core/store';
 import { LOG_CAP } from '../src/core/log';
@@ -12,7 +12,7 @@ import {
 import { CARD_TEXT, ELEMENT_TEXT, openingLine, type ElementText } from '../src/data/intros';
 import { money } from '../src/core/fmt';
 import { getNode, NODES } from '../src/data/nodes';
-import { LESSONS } from '../src/data/lessons';
+import { getLesson, LESSONS } from '../src/data/lessons';
 import { PARTS } from '../src/data/parts';
 
 const OPENING_LINE = openingLine(money(STARTING_MONEY));
@@ -44,11 +44,11 @@ function online(): GameState {
 describe('disclosure queue', () => {
   it('opens a new game on Estudar alone, with the opening line in the log', () => {
     const s = newGame();
-    expect(s.disclosure.log).toEqual([OPENING_LINE]);
+    expect(logLines(s)).toEqual([OPENING_LINE]);
     advance(s);
     expect(isCurrent(s, 'study')).toBe(true);
     expect(ELEMENTS.filter((e) => isVisible(s, e.id)).map((e) => e.id)).toEqual(['study']);
-    expect(s.disclosure.log).toEqual([OPENING_LINE, ELEMENT_TEXT.study.log]);
+    expect(logLines(s)).toEqual([OPENING_LINE, ELEMENT_TEXT.study.log]);
   });
 
   it('promotes nothing more before a lesson is passed', () => {
@@ -83,7 +83,7 @@ describe('disclosure queue', () => {
     const s = newGame();
     advance(s);
     advance(s);
-    expect(s.disclosure.log.filter((l) => l === ELEMENT_TEXT.study.log)).toHaveLength(1);
+    expect(logLines(s).filter((l) => l === ELEMENT_TEXT.study.log)).toHaveLength(1);
   });
 
   it('ignores acknowledging an element that is not current', () => {
@@ -159,7 +159,7 @@ describe('message log', () => {
       completeLesson(s, 'computer-basics');
     }
     expect(s.disclosure.log).toHaveLength(LOG_CAP);
-    expect(s.disclosure.log).not.toContain(OPENING_LINE);
+    expect(logLines(s)).not.toContain(OPENING_LINE);
   });
 
   it('adds one line for a passed lesson and one for a first breach', () => {
@@ -170,7 +170,7 @@ describe('message log', () => {
     const target = getNode('isp');
     breach(s, target.id);
     expect(s.disclosure.log).toHaveLength(before + 2);
-    expect(s.disclosure.log.at(-1)).toContain(target.name);
+    expect(logLines(s).at(-1)).toContain(target.name);
     breach(s, target.id);
     expect(s.disclosure.log).toHaveLength(before + 2);
   });
@@ -292,5 +292,28 @@ describe('lists inside screens', () => {
     const isp = getNode('isp');
     const listed = NODES.filter((n) => isNodeListed(s, n)).map((n) => n.id).sort();
     expect(listed).toEqual(['home', 'isp', ...isp.links.filter((id) => id !== 'home')].sort());
+  });
+});
+
+describe('log entries', () => {
+  it('saves ids, not text, and renders the text from them', () => {
+    const s = online();
+    completeLesson(s, 'ethics');
+    expect(s.disclosure.log.at(-1)).toEqual({ kind: 'lesson', id: 'ethics', reward: getLesson('ethics').reward });
+    expect(logLines(s).at(-1)).toContain(getLesson('ethics').title);
+  });
+
+  it('logs a certificate once and a finished city once', () => {
+    const s = online();
+    const before = s.disclosure.log.length;
+    issueCertificate(s, 'conclusao');
+    issueCertificate(s, 'conclusao');
+    expect(s.disclosure.log.slice(before)).toEqual([{ kind: 'certificate', id: 'conclusao' }]);
+  });
+
+  it('skips an entry naming an element this build does not know', () => {
+    const s = newGame();
+    s.disclosure.log.push({ kind: 'element', id: 'achievements' });
+    expect(logLines(s)).toEqual([OPENING_LINE]);
   });
 });

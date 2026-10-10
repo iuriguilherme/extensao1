@@ -10,6 +10,14 @@ export function openingLine(cash: string): string {
   return `Você herdou um gabinete vazio e ${cash}. Antes de comprar qualquer coisa, descubra o que vai dentro dele.`;
 }
 
+/** Log lines for game events, filled with names looked up from the saved ids. */
+export const EVENT_TEXT = {
+  lesson: (title: string, reward: string) => `Aula concluída: "${title}". Você ganhou ${reward}.`,
+  breach: (machine: string) => `Máquina invadida: ${machine}.`,
+  city: 'Cidade concluída: você invadiu o núcleo dela.',
+  certificate: (title: string) => `Você recebeu um certificado novo: ${title}.`,
+};
+
 export interface ElementText {
   /** Log line written when the element appears: what it is for. */
   log: string;

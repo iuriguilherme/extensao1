@@ -14,7 +14,6 @@ import { validateGate, type GateEntry, type GateIssue } from './gates';
 import type { AreaStats } from './stats';
 import { installSwitch, rehomeForRouter, totalSpecs } from './swarm';
 import { appendLog } from './log';
-import { openingLine } from '../data/intros';
 
 export interface GameState {
   version: 1;
@@ -62,9 +61,18 @@ export interface Disclosure {
   current: string | null;
   /** Card ids already shown once. */
   cards: string[];
-  /** Desk message log, oldest first (log.ts caps it). */
-  log: string[];
+  /** Desk message log, oldest first (log.ts caps it); disclosure.ts renders the text. */
+  log: LogEntry[];
 }
+
+/** One desk log event, saved as ids so its wording can change freely. */
+export type LogEntry =
+  | { kind: 'opening' }
+  | { kind: 'element'; id: string }
+  | { kind: 'lesson'; id: string; reward: number }
+  | { kind: 'breach'; id: string }
+  | { kind: 'city' }
+  | { kind: 'certificate'; id: string };
 
 export interface CityProgress {
   level: number;
@@ -123,7 +131,7 @@ export function newGame(): GameState {
     correctConcepts: [],
     certificates: [],
     studentName: null,
-    disclosure: { introduced: [], current: null, cards: [], log: [openingLine(money(STARTING_MONEY))] },
+    disclosure: { introduced: [], current: null, cards: [], log: [{ kind: 'opening' }] },
   };
 }
 
@@ -394,7 +402,7 @@ export function completeLesson(state: GameState, id: string): number {
   state.lessonsCompleted.push(id);
   const reward = getLesson(id).reward;
   state.money += reward;
-  appendLog(state, `Aula concluída: "${getLesson(id).title}". Você ganhou ${money(reward)}.`);
+  appendLog(state, { kind: 'lesson', id, reward });
   return reward;
 }
 
@@ -414,7 +422,7 @@ export function breach(state: GameState, nodeId: string): number {
     return reward;
   }
   state.breached.push(nodeId);
-  appendLog(state, `Máquina invadida: ${node.name}.`);
+  appendLog(state, { kind: 'breach', id: nodeId });
   if (nodeId === FINAL_NODE_ID) issueCertificate(state, 'conclusao');
   state.money += node.reward;
   return node.reward;
@@ -482,7 +490,7 @@ export function breachCityNode(state: GameState, index: number, city: City, node
   if (progress.breached.includes(nodeId)) reward = Math.floor(node.reward * REPLAY_RATIO);
   else progress.breached.push(nodeId);
   if (nodeId === city.coreId) {
-    if (!progress.finished) appendLog(state, 'Cidade concluída: você invadiu o núcleo dela.');
+    if (!progress.finished) appendLog(state, { kind: 'city' });
     progress.finished = true;
     const tier = city.type && tierOfCityType(city.type);
     if (tier && isTierOpen(state, tier.id)) issueCertificate(state, tier.id);

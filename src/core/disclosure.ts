@@ -1,11 +1,16 @@
-import type { NetNode } from '../data/nodes';
+import { getNode, type NetNode } from '../data/nodes';
+import { getLesson } from '../data/lessons';
 import { getPart, PARTS, SLOTS, type Part, type Slot } from '../data/parts';
 import { TIERS } from '../data/tiers';
-import { ELEMENT_TEXT, type ElementText } from '../data/intros';
-import { isTierOpen } from './certificates';
+import { ELEMENT_TEXT, EVENT_TEXT, openingLine, type ElementText } from '../data/intros';
+import { money } from './fmt';
+import { certificateTitle, isTierOpen, type CertificateId } from './certificates';
 import { jobBoard } from './jobs';
 import { appendLog } from './log';
-import { canStartCities, hasLesson, isLessonOpen, isOnline, nodeStatus, objective, specsOf, type Disclosure, type GameState } from './state';
+import {
+  canStartCities, hasLesson, isLessonOpen, isOnline, nodeStatus, objective, specsOf, STARTING_MONEY,
+  type Disclosure, type GameState, type LogEntry,
+} from './state';
 
 /**
  * Incremental disclosure: which parts of the interface exist for the player,
@@ -80,7 +85,7 @@ export function advance(state: GameState): void {
   const next = ELEMENTS.find((e) => !state.disclosure.introduced.includes(e.id) && e.available(state));
   if (!next) return;
   state.disclosure.current = next.id;
-  appendLog(state, ELEMENT_TEXT[next.id].log);
+  appendLog(state, { kind: 'element', id: next.id });
 }
 
 /** The player used (or, for a passive element, saw) the current element; the next one may appear. */
@@ -134,6 +139,29 @@ export function isCardSeen(state: GameState, id: CardId): boolean {
 
 export function markCardSeen(state: GameState, id: CardId): void {
   if (!isCardSeen(state, id)) state.disclosure.cards.push(id);
+}
+
+/** The text of one log entry, or null when it names something this build does not know. */
+export function logLine(entry: LogEntry): string | null {
+  switch (entry.kind) {
+    case 'opening':
+      return openingLine(money(STARTING_MONEY));
+    case 'element':
+      return (ELEMENT_TEXT as Record<string, ElementText>)[entry.id]?.log ?? null;
+    case 'lesson':
+      return EVENT_TEXT.lesson(getLesson(entry.id).title, money(entry.reward));
+    case 'breach':
+      return EVENT_TEXT.breach(getNode(entry.id).name);
+    case 'city':
+      return EVENT_TEXT.city;
+    case 'certificate':
+      return EVENT_TEXT.certificate(certificateTitle(entry.id as CertificateId));
+  }
+}
+
+/** The log's text, oldest first. */
+export function logLines(state: GameState): string[] {
+  return state.disclosure.log.map(logLine).filter((line): line is string => line !== null);
 }
 
 /**

@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { game, save } from '../core/store';
 import { money } from '../core/fmt';
-import { acknowledge, goalLine, isCardSeen, isCurrent, isVisible, markCardSeen, type CardId, type ElementId } from '../core/disclosure';
+import { acknowledge, goalLine, isCardSeen, isCurrent, isVisible, logLines, markCardSeen, type CardId, type ElementId } from '../core/disclosure';
 import { CARD_TEXT } from '../data/intros';
 
 export const WIDTH = 1280;
@@ -163,7 +163,7 @@ export const LOG_LINES_IN_VIEW = 5;
 /** The desk's message log: the newest lines, the latest brightest. */
 export function messageLog(scene: Phaser.Scene, x: number, y: number, w: number, h: number) {
   panel(scene, x, y, w, h);
-  const lines = game().disclosure.log.slice(-LOG_LINES_IN_VIEW);
+  const lines = logLines(game()).slice(-LOG_LINES_IN_VIEW);
   const lineH = (h - 16) / LOG_LINES_IN_VIEW;
   lines.forEach((line, i) => {
     const newest = i === lines.length - 1;

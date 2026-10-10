@@ -29,6 +29,7 @@ import { MINIGAME_AREAS, NODES, type MinigameId } from '../src/data/nodes';
 import { describeStats, getPart, PARTS, SLOT_LABELS } from '../src/data/parts';
 import { INGLES_PERMITIDO } from '../src/data/termos';
 import { CARD_TEXT, ELEMENT_TEXT, type ElementText } from '../src/data/intros';
+import { logLines } from '../src/core/disclosure';
 import { NODE_KIND_LABELS, NODE_KINDS } from '../src/data/nodeBuilds';
 import { joinSwarm, leaveSwarm, removeSwitch } from '../src/core/swarm';
 
@@ -187,7 +188,7 @@ function runtimeTexts(): string[] {
   }
 
   // Log lines the walk wrote: opening line, lessons, breaches and certificates.
-  out.push(...s.disclosure.log, ...grad.disclosure.log);
+  out.push(...logLines(s), ...logLines(grad));
 
   out.push(...Object.values(CONCEPTS).map((c) => c.label), ...Object.values(LENS_LABELS));
   const ids = Object.keys(MINIGAME_AREAS) as MinigameId[];

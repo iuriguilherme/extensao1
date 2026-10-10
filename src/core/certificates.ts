@@ -81,7 +81,7 @@ export function issueCertificate(state: GameState, id: CertificateId): boolean {
     id, presented: false, name: null,
     snapshot: { lessons: [...state.lessonsCompleted], areas: areaRecords(state) },
   });
-  appendLog(state, `Você recebeu um certificado novo: ${certificateTitle(id)}.`);
+  appendLog(state, { kind: 'certificate', id });
   return true;
 }
 
