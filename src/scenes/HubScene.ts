@@ -6,7 +6,7 @@ import { game, resetGame } from '../core/store';
 import { getLesson, ROUTING_LESSON_ID } from '../data/lessons';
 import { getPart, SLOT_LABELS } from '../data/parts';
 import { alignColumns, decimal, linkSpeed, plural } from '../core/fmt';
-import { button, COLORS, fitText, header, HEIGHT, objectiveBar, panel, textStyle, toast, WIDTH } from '../ui/widgets';
+import { button, COLORS, fitText, header, HEIGHT, goalBar, panel, textStyle, toast, WIDTH } from '../ui/widgets';
 import { startPendingCeremony, type CertificateData } from './CertificateScene';
 
 export interface HubData {
@@ -26,7 +26,7 @@ export class HubScene extends Phaser.Scene {
     if (startPendingCeremony(this)) return;
     this.cameras.main.setBackgroundColor(COLORS.bg);
     header(this, 'ROOTKIT ACADEMY — sua estação');
-    objectiveBar(this);
+    goalBar(this);
 
     const state = game();
     const specs = specsOf(state);

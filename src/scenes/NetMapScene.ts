@@ -5,7 +5,7 @@ import { providerLabel } from '../core/swarm';
 import { NODE_KIND_LABELS, nodePartNames } from '../data/nodeBuilds';
 import { MINIGAME_AREAS, NODES, getNode, type NetNode } from '../data/nodes';
 import { listJoin, money } from '../core/fmt';
-import { COLORS, fitText, header, hex, Layer, objectiveBar, textStyle, WIDTH } from '../ui/widgets';
+import { COLORS, fitText, header, hex, Layer, goalBar, textStyle, WIDTH } from '../ui/widgets';
 
 const STATUS_COLOR: Record<NodeStatus, number> = {
   home: COLORS.info,
@@ -25,7 +25,7 @@ export class NetMapScene extends Phaser.Scene {
   create() {
     this.cameras.main.setBackgroundColor(COLORS.bg);
     header(this, 'Mapa da Rede', () => this.scene.start('Hub'));
-    objectiveBar(this);
+    goalBar(this);
     this.info = new Layer(this);
     const state = game();
 

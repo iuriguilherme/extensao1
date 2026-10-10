@@ -4,7 +4,7 @@ import { alignColumns, listJoin, plural } from '../core/fmt';
 import { gateChoices, vlanGate, type GateChoices, type GateEntry, type GateKind } from '../core/gates';
 import { loadCity, submitGate } from '../core/state';
 import { game, save } from '../core/store';
-import { button, COLORS, fitText, header, Layer, objectiveBar, panel, textStyle, WIDTH } from '../ui/widgets';
+import { button, COLORS, fitText, header, Layer, goalBar, panel, textStyle, WIDTH } from '../ui/widgets';
 import type { CityMapData } from './CityMapScene';
 
 export interface RouteData {
@@ -84,7 +84,7 @@ export class RouteScene extends Phaser.Scene {
 
     this.cameras.main.setBackgroundColor(COLORS.bg);
     header(this, `${TITLES[this.choices.kind]} — ${this.router.name}`, () => this.back());
-    objectiveBar(this);
+    goalBar(this);
     this.layer = new Layer(this);
     this.result = new Layer(this);
 

@@ -5,7 +5,7 @@ import { game } from '../core/store';
 import { getLesson, LESSONS, TRACK_LABELS, TRACKS, type Lesson } from '../data/lessons';
 import { TIERS } from '../data/tiers';
 import { money } from '../core/fmt';
-import { button, COLORS, fitText, header, objectiveBar, textStyle } from '../ui/widgets';
+import { button, COLORS, fitText, header, goalBar, textStyle } from '../ui/widgets';
 
 export type StudyTab = 'course' | 'pos';
 
@@ -25,7 +25,7 @@ export class StudyScene extends Phaser.Scene {
   create(data: StudyData = {}) {
     this.cameras.main.setBackgroundColor(COLORS.bg);
     header(this, 'Estudar', () => this.scene.start('Hub'));
-    objectiveBar(this);
+    goalBar(this);
     // The tab switch appears only once there is a second tab to switch to.
     const hasPosTab = isTierOpen(game(), TIERS[0].id);
     const tab: StudyTab = hasPosTab && data.tab ? data.tab : 'course';

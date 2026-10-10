@@ -3,7 +3,7 @@ import { buy, canBuy, ownedCount } from '../core/state';
 import { game, save } from '../core/store';
 import { describeStats, PARTS, SLOT_LABELS, SLOTS, type Slot } from '../data/parts';
 import { money } from '../core/fmt';
-import { COLORS, fitText, header, Layer, objectiveBar, textStyle, toast, WIDTH } from '../ui/widgets';
+import { COLORS, fitText, header, Layer, goalBar, textStyle, toast, WIDTH } from '../ui/widgets';
 
 export class ShopScene extends Phaser.Scene {
   private slot: Slot = 'motherboard';
@@ -18,7 +18,7 @@ export class ShopScene extends Phaser.Scene {
   create() {
     this.cameras.main.setBackgroundColor(COLORS.bg);
     this.refreshHeader = header(this, 'Loja de Informática', () => this.scene.start('Hub')).refresh;
-    this.refreshObjective = objectiveBar(this).refresh;
+    this.refreshObjective = goalBar(this).refresh;
     this.layer = new Layer(this);
     this.draw();
   }

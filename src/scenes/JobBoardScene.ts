@@ -5,7 +5,7 @@ import { CONCEPTS, MAX_LEVEL } from '../core/minigames';
 import { game } from '../core/store';
 import { getLesson } from '../data/lessons';
 import { AREA_LESSON, MINIGAME_AREAS } from '../data/nodes';
-import { COLORS, fitText, header, objectiveBar, textStyle, WIDTH } from '../ui/widgets';
+import { COLORS, fitText, header, goalBar, textStyle, WIDTH } from '../ui/widgets';
 import type { MinigameData } from './MinigameScene';
 
 /**
@@ -20,7 +20,7 @@ export class JobBoardScene extends Phaser.Scene {
   create() {
     this.cameras.main.setBackgroundColor(COLORS.bg);
     header(this, 'Trabalhos extras', () => this.scene.start('Hub'));
-    objectiveBar(this);
+    goalBar(this);
     const state = game();
     const jobs = jobBoard(state);
 

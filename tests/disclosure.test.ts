@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  acknowledge, advance, ELEMENTS, goalLine, isCardSeen, isCurrent, isVisible, knownDisclosure, markCardSeen, type ElementId,
+  acknowledge, advance, CARDS, ELEMENTS, goalLine, isCardSeen, isCurrent, isVisible, knownDisclosure, markCardSeen, type ElementId,
 } from '../src/core/disclosure';
 import { restore } from '../src/core/store';
 import { LOG_CAP } from '../src/core/log';
@@ -9,7 +9,7 @@ import {
   breach, buy, completeLesson, install, newGame, objective, setNetConfig, STARTING_MONEY, uninstall, type GameState,
 } from '../src/core/state';
 
-import { ELEMENT_TEXT, openingLine } from '../src/data/intros';
+import { CARD_TEXT, ELEMENT_TEXT, openingLine } from '../src/data/intros';
 import { money } from '../src/core/fmt';
 import { getNode } from '../src/data/nodes';
 import { TIERS } from '../src/data/tiers';
@@ -241,5 +241,15 @@ describe('cards', () => {
     markCardSeen(s, 'study');
     expect(isCardSeen(s, 'study')).toBe(true);
     expect(s.disclosure.cards).toEqual(['study']);
+  });
+});
+
+describe('card text', () => {
+  it('gives every registered card a title and control lines, and nothing else', () => {
+    expect(Object.keys(CARD_TEXT).sort()).toEqual(CARDS.map((c) => c.id).sort());
+    for (const card of Object.values(CARD_TEXT)) {
+      expect(card.title.length).toBeGreaterThan(0);
+      expect(card.lines.length).toBeGreaterThan(0);
+    }
   });
 });

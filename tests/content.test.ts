@@ -28,7 +28,7 @@ import { LESSONS, TRACK_LABELS } from '../src/data/lessons';
 import { MINIGAME_AREAS, NODES, type MinigameId } from '../src/data/nodes';
 import { describeStats, getPart, PARTS, SLOT_LABELS } from '../src/data/parts';
 import { INGLES_PERMITIDO } from '../src/data/termos';
-import { ELEMENT_TEXT } from '../src/data/intros';
+import { CARD_TEXT, ELEMENT_TEXT } from '../src/data/intros';
 import { NODE_KIND_LABELS, NODE_KINDS } from '../src/data/nodeBuilds';
 import { joinSwarm, leaveSwarm, removeSwitch } from '../src/core/swarm';
 
@@ -94,6 +94,7 @@ function runtimeTexts(): string[] {
   for (const n of NODES) out.push(n.name, n.flavor);
   // Disclosure: each element's log and goal line, and the log lines a new game and its events write.
   for (const t of Object.values(ELEMENT_TEXT)) out.push(t.log, t.goal);
+  for (const c of Object.values(CARD_TEXT)) out.push(c.title, ...c.lines);
 
   for (const build of [{}, { motherboard: 'mb_b1', cpu: 'cpu_s2_16c', ram: 'ram_32_ddr5', storage: 'hdd_500', psu: 'psu_250' }]) {
     out.push(...computeSpecs(build).issues.map((i) => i.message));

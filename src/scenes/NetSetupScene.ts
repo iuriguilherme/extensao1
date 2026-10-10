@@ -3,7 +3,7 @@ import { validateNetConfig, type LanInfo, type NetConfig } from '../core/ip';
 import { setNetConfig } from '../core/state';
 import { game, save } from '../core/store';
 import { alignColumns, plural } from '../core/fmt';
-import { button, COLORS, header, Layer, objectiveBar, panel, textStyle, WIDTH } from '../ui/widgets';
+import { button, COLORS, header, Layer, goalBar, panel, textStyle, WIDTH } from '../ui/widgets';
 
 /** The home LAN the player has to join. DHCP is "broken", so it is manual. */
 export const HOME_LAN: LanInfo = {
@@ -52,7 +52,7 @@ export class NetSetupScene extends Phaser.Scene {
   create() {
     this.cameras.main.setBackgroundColor(COLORS.bg);
     header(this, 'Configuração de Rede — eth0', () => this.scene.start('Hub'));
-    const refreshObjective = objectiveBar(this).refresh;
+    const refreshObjective = goalBar(this).refresh;
     this.layer = new Layer(this);
     this.result = new Layer(this);
 

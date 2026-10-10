@@ -8,7 +8,7 @@ import {
 } from '../core/state';
 import { game } from '../core/store';
 import { MINIGAME_AREAS } from '../data/nodes';
-import { button, COLORS, fitText, header, hex, Layer, objectiveBar, textStyle, toast, WIDTH, type Button } from '../ui/widgets';
+import { button, COLORS, fitText, header, hex, Layer, goalBar, textStyle, toast, WIDTH, type Button } from '../ui/widgets';
 import { startPendingCeremony } from './CertificateScene';
 import type { MinigameData } from './MinigameScene';
 
@@ -85,7 +85,7 @@ export class CityMapScene extends Phaser.Scene {
 
     const status = progress.finished ? 'concluída' : 'em andamento';
     header(this, `Cidade ${encodeCityCode(progress.level, progress.seed, progress.type)} · nível ${progress.level} · ${status}`, () => this.scene.start('Cities'));
-    objectiveBar(this);
+    goalBar(this);
     this.info = new Layer(this);
 
     this.drawLegend();

@@ -7,7 +7,7 @@ import { createRng } from '../core/random';
 import { enterCityCode, nextCityLevel, startCity, type CityProgress } from '../core/state';
 import { game, save } from '../core/store';
 import { TIERS } from '../data/tiers';
-import { COLORS, fitText, header, Layer, objectiveBar, textStyle, WIDTH } from '../ui/widgets';
+import { COLORS, fitText, header, Layer, goalBar, textStyle, WIDTH } from '../ui/widgets';
 import type { CityMapData } from './CityMapScene';
 
 const ROWS_PER_PAGE = 6;
@@ -54,7 +54,7 @@ export class CityListScene extends Phaser.Scene {
   create() {
     this.cameras.main.setBackgroundColor(COLORS.bg);
     header(this, 'Cidades', () => this.scene.start('Hub'));
-    objectiveBar(this);
+    goalBar(this);
     this.layer = new Layer(this);
     this.page = 0;
     this.picks = [0, 0, nextCityLevel(game()) - 1, 0, 0, 0, 0];

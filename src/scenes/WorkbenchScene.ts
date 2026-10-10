@@ -9,7 +9,7 @@ import { describeStats, getPart, CASE_SLOTS, SLOT_LABELS } from '../data/parts';
 import { getNode, HOME_NODE_ID } from '../data/nodes';
 import { NODE_KIND_LABELS, type Contribution } from '../data/nodeBuilds';
 import { decimal, linkSpeed, money, plural } from '../core/fmt';
-import { COLORS, fitText, header, Layer, objectiveBar, textStyle, toast } from '../ui/widgets';
+import { COLORS, fitText, header, Layer, goalBar, textStyle, toast } from '../ui/widgets';
 
 type Tab = 'case' | 'noc';
 
@@ -47,7 +47,7 @@ export class WorkbenchScene extends Phaser.Scene {
   create() {
     this.cameras.main.setBackgroundColor(COLORS.bg);
     this.refreshHeader = header(this, 'Bancada', () => this.scene.start('Hub')).refresh;
-    this.refreshObjective = objectiveBar(this).refresh;
+    this.refreshObjective = goalBar(this).refresh;
     this.layer = new Layer(this);
     this.draw();
   }
