@@ -117,8 +117,9 @@ export function roundCount(difficulty: Difficulty): number {
  * least two thirds of the rounds ask that concept; once its unique prompts run
  * out, it repeats a prompt with reshuffled options. With a context (city
  * nodes), the first round and one later round use the node's addresses in
- * subnet and 8-bit decimal-to-binary questions; other rounds ignore it. Without a context, the rng draws are those of the context-free
- * generators, so existing levels and seeds keep their rounds. A typed context
+ * subnet and 8-bit decimal-to-binary questions; other rounds ignore it.
+ * Without a context, the rng draws are those of the context-free generators,
+ * so existing levels and seeds keep their rounds. A typed context
  * (typed city nodes) feeds the NAT, VLAN and IPv6 rounds the same way.
  */
 export function buildRounds(
