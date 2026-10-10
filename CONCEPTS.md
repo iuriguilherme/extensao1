@@ -71,6 +71,13 @@ One of three optional steps after the Formatura, in fixed order, each pairing tw
 
 Only the next step is ever shown: a tier's lessons appear once the tier opens, and its City type once those lessons are passed.
 
+## Interface
+
+### Introduction
+The moment a newly available part of the interface first appears to the player: it arrives alone, pulses until first used, gets a line in the message log, and the first time its screen opens, a short card explains its controls.
+
+Nothing is drawn before it is available or is the player's next goal, and never drawn disabled. When several things become available together, they are introduced one at a time. A save from before introductions existed counts its reached interface as already introduced.
+
 ## Mini-games
 
 ### Concept
