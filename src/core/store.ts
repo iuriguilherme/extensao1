@@ -1,4 +1,4 @@
-import { knownDisclosure } from './disclosure';
+import { ELEMENTS, knownDisclosure } from './disclosure';
 import { newGame, type GameState } from './state';
 
 /**
@@ -30,6 +30,10 @@ export function restore(parsed: GameState): GameState {
   const state = { ...fresh, ...parsed, areaLevels: { ...fresh.areaLevels, ...parsed.areaLevels } };
   // A save from before introductions existed already knows what it reached.
   if (!parsed.disclosure) state.disclosure = knownDisclosure(state);
+  // An element this build does not know (a save from a newer version) cannot be introduced here.
+  else if (state.disclosure.current && !ELEMENTS.some((e) => e.id === state.disclosure.current)) {
+    state.disclosure = { ...state.disclosure, current: null };
+  }
   return state;
 }
 

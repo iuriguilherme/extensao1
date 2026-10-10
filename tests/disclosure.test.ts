@@ -234,6 +234,15 @@ describe('saves from before disclosure', () => {
     expect(kept.disclosure).toEqual(fresh.disclosure);
   });
 
+  it('drops a current element this version does not know, and the queue moves on', () => {
+    const s = newGame();
+    s.disclosure.current = 'achievements';
+    const restored = restore(JSON.parse(JSON.stringify(s)) as GameState);
+    expect(restored.disclosure.current).toBeNull();
+    advance(restored);
+    expect(isCurrent(restored, 'study')).toBe(true);
+  });
+
   it('loads a save naming an element this version does not know', () => {
     const s = newGame();
     s.disclosure.introduced.push('achievements');
