@@ -40,7 +40,8 @@ type Rule =
 
 const AREAS = Object.keys(MINIGAME_AREAS) as MinigameId[];
 
-const TOP_PARTS = new Map(
+/** The most expensive part of each case slot (Máquina dos sonhos). */
+export const TOP_PARTS = new Map(
   CASE_SLOTS.map((slot) => [slot, PARTS.filter((p) => p.slot === slot).reduce((a, b) => (b.price > a.price ? b : a)).id]),
 );
 
