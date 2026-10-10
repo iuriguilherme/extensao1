@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { isNodeListed } from '../core/disclosure';
 import { canConnect, checkRequirements, isOnline, nodeStatus, REPLAY_RATIO, type NodeStatus } from '../core/state';
 import { game } from '../core/store';
 import { providerLabel } from '../core/swarm';
@@ -29,38 +30,37 @@ export class NetMapScene extends Phaser.Scene {
     this.info = new Layer(this);
     const state = game();
 
+    // The map grows outward from the PC: machines nobody reaches yet are not drawn.
+    const listed = NODES.filter((n) => isNodeListed(state, n));
     // Links first, so nodes are drawn on top.
     const g = this.add.graphics();
-    for (const node of NODES) {
+    for (const node of listed) {
       for (const id of node.links) {
         if (id < node.id) continue;
         const other = getNode(id);
-        const visible = nodeStatus(state, node) !== 'hidden' || nodeStatus(state, other) !== 'hidden';
-        g.lineStyle(2, visible ? COLORS.panelBorder : 0x111a22, 1);
+        if (!isNodeListed(state, other)) continue;
+        g.lineStyle(2, COLORS.panelBorder, 1);
         g.lineBetween(node.x, node.y, other.x, other.y);
       }
     }
 
-    for (const node of NODES) {
+    for (const node of listed) {
       const status = nodeStatus(state, node);
       const color = STATUS_COLOR[status];
       const circle = this.add.circle(node.x, node.y, status === 'home' ? 26 : 20, COLORS.panel).setStrokeStyle(3, color);
-      const hidden = status === 'hidden';
-      this.add.text(node.x, node.y + 32, hidden ? '???' : node.name, textStyle(14, color, { align: 'center' })).setOrigin(0.5, 0);
-      this.add.text(node.x, node.y + 50, hidden ? '' : node.ip, textStyle(11, COLORS.muted)).setOrigin(0.5, 0);
+      this.add.text(node.x, node.y + 32, node.name, textStyle(14, color, { align: 'center' })).setOrigin(0.5, 0);
+      this.add.text(node.x, node.y + 50, node.ip, textStyle(11, COLORS.muted)).setOrigin(0.5, 0);
       if (status === 'breached') this.add.text(node.x, node.y, '✓', textStyle(18, color)).setOrigin(0.5);
       // A filled dot on the rim marks nodes plugged into the swarm.
       if (state.swarm[node.id]) this.add.circle(node.x + 15, node.y - 15, 6, COLORS.info).setStrokeStyle(2, COLORS.bg);
       if (status === 'reachable') {
         this.tweens.add({ targets: circle, scale: 1.15, yoyo: true, repeat: -1, duration: 700 });
       }
-      if (!hidden) {
-        circle.setInteractive({ useHandCursor: true });
-        circle.on('pointerdown', () => this.showInfo(node));
-      }
+      circle.setInteractive({ useHandCursor: true });
+      circle.on('pointerdown', () => this.showInfo(node));
     }
 
-    const legend: [string, number][] = [['você', COLORS.info], ['alcançável', COLORS.warn], ['invadido', COLORS.accent], ['desconhecido', COLORS.muted]];
+    const legend: [string, number][] = [['você', COLORS.info], ['alcançável', COLORS.warn], ['invadido', COLORS.accent]];
     let lx = 24;
     for (const [label, color] of legend) {
       this.add.circle(lx + 6, 656, 6, COLORS.panel).setStrokeStyle(2, color);

@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { acknowledge, isCurrent, isVisible } from '../core/disclosure';
 import { install, isOnline, sell, specsOf, SELL_RATIO, uninstall, type GameState } from '../core/state';
 import {
   attachedTo, connectedNodes, freePorts, installSwitch, joinSwarm, leaveSwarm, nodeStats, providerLabel, providers,
@@ -9,7 +10,7 @@ import { describeStats, getPart, CASE_SLOTS, SLOT_LABELS } from '../data/parts';
 import { getNode, HOME_NODE_ID } from '../data/nodes';
 import { NODE_KIND_LABELS, type Contribution } from '../data/nodeBuilds';
 import { decimal, linkSpeed, money, plural } from '../core/fmt';
-import { COLORS, fitText, header, Layer, goalBar, textStyle, toast } from '../ui/widgets';
+import { COLORS, fitText, goalBar, header, Layer, pulse, textStyle, toast } from '../ui/widgets';
 
 type Tab = 'case' | 'noc';
 
@@ -75,13 +76,21 @@ export class WorkbenchScene extends Phaser.Scene {
 
   private draw() {
     this.layer.clear();
-    const tabs: [Tab, string][] = [['case', 'Gabinete'], ['noc', 'NOC e swarm']];
+    const state = game();
+    // The tab bar appears with the NOC tab, which is introduced like a desk entry.
+    if (!isVisible(state, 'noc-tab')) this.tab = 'case';
+    const tabs: [Tab, string][] = isVisible(state, 'noc-tab') ? [['case', 'Gabinete'], ['noc', 'NOC e swarm']] : [];
     tabs.forEach(([tab, label], i) => {
-      this.layer.button(300 + i * 170, 10, 160, 36, label, () => {
+      const b = this.layer.button(300 + i * 170, 10, 160, 36, label, () => {
+        if (tab === 'noc' && isCurrent(game(), 'noc-tab')) {
+          acknowledge(game(), 'noc-tab');
+          save();
+        }
         this.tab = tab;
         this.page = 0;
         this.draw();
       }, { size: 16, color: tab === this.tab ? COLORS.warn : COLORS.accent });
+      if (tab === 'noc' && isCurrent(state, 'noc-tab')) pulse(this, b.container);
     });
     if (this.tab === 'noc') this.drawNoc();
     else this.drawCase();

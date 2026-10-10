@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  acknowledge, advance, CARDS, ELEMENTS, goalLine, isCardSeen, isCurrent, isVisible, knownDisclosure, markCardSeen, type ElementId,
+  acknowledge, advance, CARDS, ELEMENTS, isLessonListed, isNodeListed, isPartListed, listedSlots, goalLine, isCardSeen, isCurrent, isVisible, knownDisclosure, markCardSeen, type ElementId,
 } from '../src/core/disclosure';
 import { restore } from '../src/core/store';
 import { LOG_CAP } from '../src/core/log';
@@ -11,7 +11,10 @@ import {
 
 import { CARD_TEXT, ELEMENT_TEXT, openingLine } from '../src/data/intros';
 import { money } from '../src/core/fmt';
-import { getNode } from '../src/data/nodes';
+import { getNode, NODES } from '../src/data/nodes';
+import { LESSONS } from '../src/data/lessons';
+import { canBuy } from '../src/core/state';
+import { PARTS } from '../src/data/parts';
 import { TIERS } from '../src/data/tiers';
 
 const OPENING_LINE = openingLine(money(STARTING_MONEY));
@@ -251,5 +254,36 @@ describe('card text', () => {
       expect(card.title.length).toBeGreaterThan(0);
       expect(card.lines.length).toBeGreaterThan(0);
     }
+  });
+});
+
+describe('lists inside screens', () => {
+  it('lists only the first lesson before any lesson is passed', () => {
+    const s = newGame();
+    expect(LESSONS.filter((l) => isLessonListed(s, l.id)).map((l) => l.id)).toEqual(['computer-basics']);
+  });
+
+  it('lists one Shop slot, the motherboard, once the first lesson is done', () => {
+    const s = newGame();
+    completeLesson(s, 'computer-basics');
+    expect(listedSlots(s)).toEqual(['motherboard']);
+  });
+
+  it('lists RAM the player cannot afford yet with its reason, and no network card before the network lesson', () => {
+    const s = newGame();
+    for (const id of ['computer-basics', 'memory']) completeLesson(s, id);
+    s.money = 0;
+    const listed = PARTS.filter((p) => isPartListed(s, p));
+    expect(listed.some((p) => p.slot === 'ram')).toBe(true);
+    expect(listed.some((p) => p.slot === 'nic')).toBe(false);
+    expect(canBuy(s, listed.find((p) => p.slot === 'ram')!).code).toBe('no-money');
+  });
+
+  it('draws only the PC, a breached router and the machines it links to', () => {
+    const s = online();
+    breach(s, 'isp');
+    const isp = getNode('isp');
+    const listed = NODES.filter((n) => isNodeListed(s, n)).map((n) => n.id).sort();
+    expect(listed).toEqual(['home', 'isp', ...isp.links.filter((id) => id !== 'home')].sort());
   });
 });

@@ -1,10 +1,11 @@
-import { PARTS } from '../data/parts';
+import type { NetNode } from '../data/nodes';
+import { PARTS, SLOTS, type Part, type Slot } from '../data/parts';
 import { TIERS } from '../data/tiers';
 import { ELEMENT_TEXT } from '../data/intros';
 import { isTierOpen } from './certificates';
 import { jobBoard } from './jobs';
 import { appendLog } from './log';
-import { canStartCities, hasLesson, isOnline, objective, specsOf, type Disclosure, type GameState } from './state';
+import { canStartCities, hasLesson, isLessonOpen, isOnline, nodeStatus, objective, specsOf, type Disclosure, type GameState } from './state';
 
 /**
  * Incremental disclosure: which parts of the interface exist for the player,
@@ -140,4 +141,28 @@ export function knownDisclosure(state: GameState): Disclosure {
     cards: CARDS.filter((c) => c.via.some((id) => introduced.includes(id))).map((c) => c.id),
     log: [],
   };
+}
+
+// ─── Lists inside screens ────────────────────────────────────────────────
+// Entries appear as soon as their rule allows, with no queue: one lesson can
+// open many parts at once.
+
+/** Study lists completed lessons and the ones open now. */
+export function isLessonListed(state: GameState, id: string): boolean {
+  return hasLesson(state, id) || isLessonOpen(state, id);
+}
+
+/** The Shop lists a part once its lesson is done, even when it is not affordable yet. */
+export function isPartListed(state: GameState, part: Part): boolean {
+  return hasLesson(state, part.requiresLesson);
+}
+
+/** Shop tabs: only the slots that have a listed part. */
+export function listedSlots(state: GameState): Slot[] {
+  return SLOTS.filter((slot) => PARTS.some((p) => p.slot === slot && isPartListed(state, p)));
+}
+
+/** The Net Map draws the player's PC, breached machines and the ones they reach. */
+export function isNodeListed(state: GameState, node: NetNode): boolean {
+  return nodeStatus(state, node) !== 'hidden';
 }
