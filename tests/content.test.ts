@@ -21,7 +21,8 @@ import { routeChoices, validateRoute } from '../src/core/routing';
 import { correctGate, gateChoices, validateGate, type GateEntry } from '../src/core/gates';
 import { certificateTitle, issueCertificate, presentCertificate, validateStudentName } from '../src/core/certificates';
 import {
-  breach, buy, canBuy, checkRequirements, completeLesson, enterCityCode, install, newGame, objective, sell, setNetConfig, uninstall,
+  breach, buy, canBuy, checkRequirements, cityRequirementChecks, completeLesson, enterCityCode, install, newGame, objective, sell,
+  setNetConfig, uninstall,
 } from '../src/core/state';
 import { ACHIEVEMENTS } from '../src/data/achievements';
 import { TIERS } from '../src/data/tiers';
@@ -152,6 +153,7 @@ function runtimeTexts(): string[] {
   setNetConfig(s, GOOD);
   out.push(objective(s));
   for (const n of NODES) out.push(...checkRequirements(s, n).map((c) => c.label));
+  for (const n of generateCity(20, 1).nodes) out.push(...cityRequirementChecks(s, n).map((c) => c.label));
 
   // Swarm and NOC actions, including the blocked and refused ones.
   s.inventory.push('sw_8_fast', 'router_gig');

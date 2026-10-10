@@ -1,5 +1,5 @@
 import { ETHICS_LESSON_ID, getLesson, LESSONS, ROUTING_LESSON_ID } from '../data/lessons';
-import { NODES, HOME_NODE_ID, FINAL_NODE_ID, getNode, type MinigameId, type NetNode } from '../data/nodes';
+import { NODES, HOME_NODE_ID, FINAL_NODE_ID, getNode, MINIGAME_AREAS, type MinigameId, type NetNode } from '../data/nodes';
 import { getPart, type Part, type Slot } from '../data/parts';
 import { tierOfCityType, TIERS, type TierCityType } from '../data/tiers';
 import { getCertificate, isCityTypeUnlocked, isTierOpen, issueCertificate, nextGoal, type Certificate } from './certificates';
@@ -334,10 +334,26 @@ export function cityNodeStatus(state: GameState, index: number, city: City, node
   return isSubnetOpen(progress, city.subnets[node.subnetId]) ? 'reachable' : 'hidden';
 }
 
+/**
+ * A city node's requirements: the campaign ones plus the side-job level its
+ * area must have reached, so a city only asks for levels the student already
+ * plays. Shown on every node, even where it is always met, to teach the link.
+ */
+export function cityRequirementChecks(state: GameState, node: CityNode): RequirementCheck[] {
+  const current = state.areaLevels[node.minigame];
+  return [
+    ...checkRequirements(state, node),
+    {
+      label: `Trabalhos extras: nível ${node.difficulty} em ${MINIGAME_AREAS[node.minigame]} (você está no ${current})`,
+      met: current >= node.difficulty,
+    },
+  ];
+}
+
 export function canConnectCityNode(state: GameState, index: number, city: City, node: CityNode): boolean {
   return isOnline(state)
     && cityNodeStatus(state, index, city, node) !== 'hidden'
-    && checkRequirements(state, node).every((c) => c.met);
+    && cityRequirementChecks(state, node).every((c) => c.met);
 }
 
 // ─── Mutations (return a result message, mutate state in place) ──────────

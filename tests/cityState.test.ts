@@ -4,11 +4,12 @@ import { generateCity, type City, type CityNode } from '../src/core/city';
 import { CITY_NAMES, MAX_CITY_LEVEL } from '../src/core/cityCode';
 import { correctRoute } from '../src/core/routing';
 import {
-  breach, breachCityNode, canConnectCityNode, canStartCities, cityNodeStatus, enterCityCode, loadCity, newGame, nextCityLevel,
-  objective, phaseOf, REPLAY_RATIO, startCity, submitGate, type GameState,
+  breach, breachCityNode, canConnectCityNode, canStartCities, checkRequirements, cityNodeStatus, cityRequirementChecks, enterCityCode,
+  loadCity, newGame, nextCityLevel, objective, phaseOf, REPLAY_RATIO, startCity, submitGate, type GameState,
 } from '../src/core/state';
+import { MAX_LEVEL } from '../src/core/minigames';
 import { ETHICS_LESSON_ID, getLesson, ROUTING_LESSON_ID } from '../src/data/lessons';
-import { FINAL_NODE_ID } from '../src/data/nodes';
+import { FINAL_NODE_ID, MINIGAME_AREAS, NODES } from '../src/data/nodes';
 import { getTier, type TierId } from '../src/data/tiers';
 
 const NET = { ip: '192.168.0.42', mask: '255.255.255.0', gateway: '192.168.0.1', dns: '192.168.0.1' };
@@ -191,6 +192,7 @@ describe('city map progress', () => {
     expect(cityNodeStatus(weak, weakIndex, hard, hardNode)).toBe('reachable');
     expect(canConnectCityNode(weak, weakIndex, hard, hardNode)).toBe(false);
     const strong = wonState();
+    strong.areaLevels[hardNode.minigame] = hardNode.difficulty;
     expect(canConnectCityNode(strong, startCity(strong, hard.level, hard.seed), hard, hardNode)).toBe(true);
   });
 
@@ -244,6 +246,77 @@ describe('city map progress', () => {
     }
     const core = city.nodes.find((n) => n.id === city.coreId)!;
     expect(cityNodeStatus(s, index, city, core)).toBe('reachable');
+  });
+});
+
+describe('area-level gate', () => {
+  /** A reachable home-subnet node of a started city, with its city and index. */
+  function homeNode(s: GameState, level: number, pick: (n: CityNode) => boolean) {
+    for (let seed = 1; ; seed++) {
+      const city = generateCity(level, seed);
+      const node = city.nodes.find((n) => n.subnetId === 0 && pick(n));
+      if (node) return { city, node, index: startCity(s, level, seed) };
+    }
+  }
+  const areaCheck = (s: GameState, node: CityNode) =>
+    cityRequirementChecks(s, node).find((c) => c.label.includes(MINIGAME_AREAS[node.minigame]))!;
+
+  it('locks a node until the side-job level in its area reaches the node difficulty', () => {
+    const s = wonState();
+    const { city, node, index } = homeNode(s, 9, (n) => n.minigame === 'subnet' && n.difficulty === 3);
+    s.areaLevels.subnet = 2;
+    expect(canConnectCityNode(s, index, city, node)).toBe(false);
+    expect(areaCheck(s, node).met).toBe(false);
+    s.areaLevels.subnet = 3;
+    expect(canConnectCityNode(s, index, city, node)).toBe(true);
+    expect(areaCheck(s, node).met).toBe(true);
+  });
+
+  it('names the area, the level to reach and the current level', () => {
+    const s = wonState();
+    const { node } = homeNode(s, 13, (n) => n.difficulty === 4);
+    s.areaLevels[node.minigame] = 2;
+    const label = areaCheck(s, node).label;
+    expect(label).toContain(MINIGAME_AREAS[node.minigame]);
+    expect(label).toContain('4');
+    expect(label).toContain('2');
+  });
+
+  it('shows the line on a level 1 node too, always met', () => {
+    const s = wonState();
+    const { city, node, index } = homeNode(s, 1, () => true);
+    expect(node.difficulty).toBe(1);
+    expect(areaCheck(s, node).met).toBe(true);
+    expect(canConnectCityNode(s, index, city, node)).toBe(true);
+  });
+
+  it('locks a repeat attack on a breached node above the area level', () => {
+    const s = wonState();
+    const { city, node, index } = homeNode(s, 13, (n) => n.difficulty === 4);
+    s.areaLevels[node.minigame] = 4;
+    breachCityNode(s, index, city, node.id);
+    s.areaLevels[node.minigame] = 3;
+    expect(cityNodeStatus(s, index, city, node)).toBe('breached');
+    expect(canConnectCityNode(s, index, city, node)).toBe(false);
+  });
+
+  it('keeps the next city level rising with finished cities, whatever the area levels', () => {
+    const s = wonState();
+    s.cities = Array.from({ length: 30 }, (_, i) => ({ level: 1, seed: i, breached: [], opened: [], finished: true }));
+    expect(nextCityLevel(s)).toBe(31);
+  });
+
+  it('never asks for more than an area maximum, so every node can eventually open', () => {
+    for (const level of [1, 12, 25, 40, 99]) {
+      for (let seed = 1; seed <= 10; seed++) {
+        for (const node of generateCity(level, seed).nodes) expect(node.difficulty).toBeLessThanOrEqual(MAX_LEVEL[node.minigame]);
+      }
+    }
+  });
+
+  it('leaves campaign node requirements as they were', () => {
+    const s = wonState();
+    for (const node of NODES) expect(checkRequirements(s, node).some((c) => c.label.includes('Trabalhos extras'))).toBe(false);
   });
 });
 
