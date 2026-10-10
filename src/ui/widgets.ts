@@ -170,7 +170,7 @@ export function messageLog(scene: Phaser.Scene, x: number, y: number, w: number,
 }
 
 /** Marks an element being introduced: it breathes until the player uses it. */
-export function pulse(scene: Phaser.Scene, target: Phaser.GameObjects.Components.Alpha & Phaser.GameObjects.GameObject) {
+export function pulse(scene: Phaser.Scene, target: Phaser.GameObjects.Container | Phaser.GameObjects.Text) {
   return scene.tweens.add({ targets: target, alpha: 0.45, yoyo: true, repeat: -1, duration: 650, ease: 'Sine.easeInOut' });
 }
 
