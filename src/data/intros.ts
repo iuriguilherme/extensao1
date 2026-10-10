@@ -68,6 +68,10 @@ export const ELEMENT_TEXT = {
     log: 'Certificados: aqui ficam os certificados que você já recebeu.',
     goal: 'Abra Certificados para rever o seu certificado.',
   },
+  achievements: {
+    log: 'Conquistas: aqui ficam os marcos que você já alcançou no jogo e quanto falta para os próximos.',
+    goal: 'Abra Conquistas e veja a primeira que você ganhou.',
+  },
   'pos-tab': {
     log: 'Pós-graduação: Estudar ganhou uma aba nova, com as aulas da próxima etapa.',
     goal: 'Abra Estudar e veja a aba Pós-graduação.',
@@ -193,6 +197,15 @@ export const CARD_TEXT = {
     lines: [
       'O certificado guarda os números do dia em que você o recebeu; ao lado aparecem os de hoje.',
       'Use ▲ e ▼ para rolar a lista de aulas.',
+    ],
+  },
+  conquistas: {
+    title: 'Conquistas',
+    lines: [
+      'Cada conquista marca algo que você fez no jogo. Elas não dão dinheiro nem peças.',
+      'As que contam algo mostram quanto falta, como 312/500.',
+      'Avisos na tela liga ou desliga o aviso que aparece a cada conquista nova.',
+      'Use Anterior e Próxima para passar as páginas.',
     ],
   },
   pos: {

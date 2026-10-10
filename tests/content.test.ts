@@ -23,6 +23,7 @@ import { certificateTitle, issueCertificate, presentCertificate, validateStudent
 import {
   breach, buy, canBuy, checkRequirements, completeLesson, enterCityCode, install, newGame, objective, sell, setNetConfig, uninstall,
 } from '../src/core/state';
+import { ACHIEVEMENTS } from '../src/data/achievements';
 import { TIERS } from '../src/data/tiers';
 import { LESSONS, TRACK_LABELS } from '../src/data/lessons';
 import { MINIGAME_AREAS, NODES, type MinigameId } from '../src/data/nodes';
@@ -96,6 +97,7 @@ function runtimeTexts(): string[] {
   // Disclosure: each element's log and goal line, and the log lines a new game and its events write.
   for (const t of Object.values(ELEMENT_TEXT) as ElementText[]) out.push(t.log, t.goal ?? '');
   for (const c of Object.values(CARD_TEXT)) out.push(c.title, ...c.lines);
+  for (const a of ACHIEVEMENTS) out.push(a.name, a.description);
 
   for (const build of [{}, { motherboard: 'mb_b1', cpu: 'cpu_s2_16c', ram: 'ram_32_ddr5', storage: 'hdd_500', psu: 'psu_250' }]) {
     out.push(...computeSpecs(build).issues.map((i) => i.message));

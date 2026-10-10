@@ -5,6 +5,7 @@ import { TIERS } from '../data/tiers';
 import { ELEMENT_TEXT, EVENT_TEXT, openingLine, type ElementText } from '../data/intros';
 import { money } from './fmt';
 import { certificateTitle, isTierOpen, type CertificateId } from './certificates';
+import { achievements } from './achievementStore';
 import { jobBoard } from './jobs';
 import { appendLog } from './log';
 import {
@@ -49,6 +50,7 @@ export const ELEMENTS: UiElement[] = [
   },
   { id: 'cities', available: canStartCities },
   { id: 'certificates', available: (s) => s.certificates.some((c) => c.presented) },
+  { id: 'achievements', available: () => achievements().unlocked.length > 0 },
   { id: 'pos-tab', available: (s) => isTierOpen(s, TIERS[0].id) },
 ];
 
@@ -128,6 +130,7 @@ export const CARDS = [
   { id: 'route', via: ['cities'] },
   { id: 'formatura', via: ['certificates'] },
   { id: 'certificate', via: ['certificates'] },
+  { id: 'conquistas', via: ['achievements'] },
   { id: 'pos', via: ['pos-tab'] },
 ] as const satisfies readonly { id: string; via: readonly ElementId[] }[];
 

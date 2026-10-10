@@ -1,7 +1,9 @@
 import Phaser from 'phaser';
-import { game, save } from '../core/store';
+import { achievements, resetAchievements } from '../core/achievementStore';
+import { game, resetGame, save } from '../core/store';
 import { money } from '../core/fmt';
 import { acknowledge, goalLine, isCardSeen, isCurrent, isVisible, logLines, markCardSeen, type CardId, type ElementId } from '../core/disclosure';
+import type { Achievement, AchievementKind } from '../data/achievements';
 import { CARD_TEXT } from '../data/intros';
 
 export const WIDTH = 1280;
@@ -274,4 +276,37 @@ export class Layer {
     for (const o of this.objects) o.destroy();
     this.objects = [];
   }
+}
+
+/**
+ * Resets the game. With conquistas unlocked, a second question decides whether
+ * they go too; the game is reset either way.
+ */
+export function resetEverything(): void {
+  const ask = achievements().unlocked.length > 0;
+  const erase = ask && window.confirm(
+    'Apagar também as suas conquistas?\n\nOK apaga as conquistas. Cancelar guarda as conquistas.\nO jogo recomeça do zero nos dois casos.',
+  );
+  resetGame();
+  if (ask) resetAchievements(erase);
+}
+
+const KIND_COLORS: Record<AchievementKind, number> = {
+  story: COLORS.accent,
+  skill: COLORS.info,
+  counter: COLORS.warn,
+  secret: COLORS.danger,
+};
+
+/**
+ * A conquista's symbol in a square colored by its kind. Locked ones are dimmed,
+ * and a locked secret hides its symbol.
+ */
+export function badge(scene: Phaser.Scene, x: number, y: number, size: number, achievement: Achievement, unlocked: boolean) {
+  const color = unlocked ? KIND_COLORS[achievement.kind] : COLORS.muted;
+  const square = scene.add.rectangle(x, y, size, size, COLORS.bg).setOrigin(0).setStrokeStyle(2, color);
+  const symbol = !unlocked && achievement.kind === 'secret' ? '?' : achievement.symbol;
+  const glyph = scene.add.text(x + size / 2, y + size / 2, symbol, textStyle(Math.round(size * 0.55), color)).setOrigin(0.5);
+  if (!unlocked) glyph.setAlpha(0.6);
+  return [square, glyph];
 }

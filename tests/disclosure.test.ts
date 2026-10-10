@@ -236,7 +236,7 @@ describe('saves from before disclosure', () => {
 
   it('drops a current element this version does not know, and the queue moves on', () => {
     const s = newGame();
-    s.disclosure.current = 'achievements';
+    s.disclosure.current = 'future-element';
     const restored = restore(JSON.parse(JSON.stringify(s)) as GameState);
     expect(restored.disclosure.current).toBeNull();
     advance(restored);
@@ -245,7 +245,7 @@ describe('saves from before disclosure', () => {
 
   it('loads a save naming an element this version does not know', () => {
     const s = newGame();
-    s.disclosure.introduced.push('achievements');
+    s.disclosure.introduced.push('future-element');
     const restored = restore(JSON.parse(JSON.stringify(s)) as GameState);
     advance(restored);
     expect(isCurrent(restored, 'study')).toBe(true);
@@ -322,7 +322,7 @@ describe('log entries', () => {
 
   it('skips an entry naming an element this build does not know', () => {
     const s = newGame();
-    s.disclosure.log.push({ kind: 'element', id: 'achievements' });
+    s.disclosure.log.push({ kind: 'element', id: 'future-element' });
     expect(logLines(s)).toEqual([OPENING_LINE]);
   });
 });

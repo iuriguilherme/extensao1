@@ -3,10 +3,12 @@ import { acknowledge, advance, isPassive, isVisible, type ElementId } from '../c
 import { mistakesAllowed, roundSeconds } from '../core/hardware';
 import { isOnline, phaseOf, specsOf } from '../core/state';
 import { connectedNodes, swarmReport, totalSpecs } from '../core/swarm';
-import { game, resetGame, save } from '../core/store';
+import { game, save } from '../core/store';
 import { getPart, SLOT_LABELS } from '../data/parts';
 import { alignColumns, decimal, linkSpeed, plural } from '../core/fmt';
-import { button, COLORS, fitText, goalBar, header, HEIGHT, messageLog, panel, pulseIfCurrent, textStyle, toast, useElement, WIDTH } from '../ui/widgets';
+import {
+  button, COLORS, fitText, goalBar, header, HEIGHT, messageLog, panel, pulseIfCurrent, resetEverything, textStyle, toast, useElement, WIDTH,
+} from '../ui/widgets';
 import { startPendingCeremony, type CertificateData } from './CertificateScene';
 
 export interface HubData {
@@ -120,7 +122,7 @@ export class HubScene extends Phaser.Scene {
       { id: 'net-map', label: 'Mapa da Rede', hint: 'Invada as máquinas do laboratório', open: () => this.scene.start('NetMap') },
       { id: 'cities', label: 'Cidades', hint: 'Redes novas para treinar endereços e rotas', open: () => this.scene.start('Cities') },
     ];
-    // Six rows fit between the header and the side row at y 560.
+    // Six rows fit between the header and the side rows at y 548.
     main.filter((item) => isVisible(state, item.id)).forEach((item, i) => {
       const y = 76 + i * 78;
       const b = button(this, x, y, w, 48, item.label, () => this.use(item), { size: 22 });
@@ -131,20 +133,23 @@ export class HubScene extends Phaser.Scene {
     const side: (MenuItem & { color: number })[] = [
       { id: 'jobs', label: 'Trabalhos extras', color: COLORS.info, open: () => this.scene.start('Jobs') },
       { id: 'certificates', label: 'Certificados', color: COLORS.warn, open: () => this.scene.start('Certificate', {} satisfies CertificateData) },
+      { id: 'achievements', label: 'Conquistas', color: COLORS.accent, open: () => this.scene.start('Conquistas') },
       {
         id: 'reset', label: 'Apagar progresso', color: COLORS.danger,
         open: () => {
           if (window.confirm('Apagar todo o progresso e começar do zero?')) {
-            resetGame();
+            resetEverything();
             this.scene.restart();
           }
         },
       },
     ];
-    const gap = 10;
-    const w3 = (w - gap * 2) / 3;
+    // Two rows of two between the last hint (~y 535) and the footer note, filled in order.
+    const half = (w - 10) / 2;
     side.filter((item) => isVisible(state, item.id)).forEach((item, i) => {
-      const b = button(this, x + i * (w3 + gap), 560, w3, 44, item.label, () => this.use(item), { size: 16, color: item.color });
+      const bx = x + (i % 2) * (half + 10);
+      const by = 548 + Math.floor(i / 2) * 52;
+      const b = button(this, bx, by, half, 44, item.label, () => this.use(item), { size: 16, color: item.color });
       pulseIfCurrent(this, item.id, b.container);
     });
   }

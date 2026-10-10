@@ -1,8 +1,8 @@
 import Phaser from 'phaser';
 import { money } from '../core/fmt';
 import { STARTING_MONEY } from '../core/state';
-import { game, hasSave, resetGame } from '../core/store';
-import { button, COLORS, HEIGHT, textStyle, WIDTH } from '../ui/widgets';
+import { game, hasSave } from '../core/store';
+import { button, COLORS, HEIGHT, resetEverything, textStyle, WIDTH } from '../ui/widgets';
 
 export class TitleScene extends Phaser.Scene {
   constructor() {
@@ -12,6 +12,8 @@ export class TitleScene extends Phaser.Scene {
   create() {
     this.cameras.main.setBackgroundColor(COLORS.bg);
     this.drawRain();
+    // The conquista pop-up runs alongside every scene from here on.
+    if (!this.scene.isActive('ConquistaPopup')) this.scene.launch('ConquistaPopup');
 
     this.add.text(WIDTH / 2, 190, 'ROOTKIT ACADEMY', textStyle(64, COLORS.accent)).setOrigin(0.5);
     this.add.text(WIDTH / 2, 260, 'monte · conecte · invada — aprenda TI na prática', textStyle(20, COLORS.info)).setOrigin(0.5);
@@ -28,7 +30,7 @@ export class TitleScene extends Phaser.Scene {
     button(this, WIDTH / 2 - 150, saved ? 490 : 440, 300, 54, 'Novo jogo', () => {
       // Certificates are the hardest thing to earn again, so losing them asks first.
       if (game().certificates.length > 0 && !window.confirm('Um jogo novo apaga todo o seu progresso, inclusive os certificados. Começar mesmo assim?')) return;
-      resetGame();
+      resetEverything();
       this.scene.start('Hub');
     }, { size: 22, color: saved ? COLORS.warn : COLORS.accent });
   }
