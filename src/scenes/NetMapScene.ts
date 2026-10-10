@@ -25,7 +25,7 @@ export class NetMapScene extends Phaser.Scene {
 
   create() {
     this.cameras.main.setBackgroundColor(COLORS.bg);
-    header(this, 'Mapa da Rede', () => this.scene.start('Hub'));
+    header(this, 'Mapa da Rede', () => this.scene.start('Hub'), 'net-map');
     goalBar(this);
     this.info = new Layer(this);
     const state = game();

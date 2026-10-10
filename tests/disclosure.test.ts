@@ -9,7 +9,7 @@ import {
   breach, buy, completeLesson, install, newGame, objective, setNetConfig, STARTING_MONEY, uninstall, type GameState,
 } from '../src/core/state';
 
-import { CARD_TEXT, ELEMENT_TEXT, openingLine } from '../src/data/intros';
+import { CARD_TEXT, ELEMENT_TEXT, openingLine, type ElementText } from '../src/data/intros';
 import { money } from '../src/core/fmt';
 import { getNode, NODES } from '../src/data/nodes';
 import { LESSONS } from '../src/data/lessons';
@@ -180,12 +180,22 @@ describe('message log', () => {
 });
 
 describe('intros text', () => {
-  it('gives every element a log line and a goal, and has no text for unknown elements', () => {
+  it('gives every element a log line and every control a goal, and has no text for unknown elements', () => {
     expect(Object.keys(ELEMENT_TEXT).sort()).toEqual(ELEMENTS.map((e) => e.id).sort());
-    for (const text of Object.values(ELEMENT_TEXT)) {
+    for (const e of ELEMENTS) {
+      const text: ElementText = ELEMENT_TEXT[e.id];
       expect(text.log.length).toBeGreaterThan(0);
-      expect(text.goal.length).toBeGreaterThan(0);
+      expect(!!text.goal).toBe(!e.passive);
     }
+  });
+
+  it('keeps the objective in the goal line while a passive element is being introduced', () => {
+    const s = newGame();
+    drain(s);
+    completeLesson(s, 'computer-basics');
+    advance(s);
+    expect(isCurrent(s, 'money')).toBe(true);
+    expect(goalLine(s)).toBe(objective(s));
   });
 });
 

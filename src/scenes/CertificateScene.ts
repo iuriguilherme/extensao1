@@ -45,7 +45,7 @@ export class CertificateScene extends Phaser.Scene {
     }
     const ceremony = !certificate.presented;
     const reopened = !ceremony && !data.after;
-    header(this, certificateTitle(certificate.id), reopened ? () => this.scene.start('Certificate', {}) : undefined);
+    header(this, certificateTitle(certificate.id), reopened ? () => this.scene.start('Certificate', {}) : undefined, 'certificate');
     this.drawCertificate(certificate, reopened);
 
     if (reopened) return;
@@ -63,7 +63,7 @@ export class CertificateScene extends Phaser.Scene {
   }
 
   private showList() {
-    header(this, 'Certificados', () => this.scene.start('Hub'));
+    header(this, 'Certificados', () => this.scene.start('Hub'), 'certificate');
     const earned = game().certificates.filter((c) => c.presented);
     this.add.text(WIDTH / 2, 90, 'Escolha um certificado para ver os números de quando você recebeu e os de agora.', textStyle(17, COLORS.info)).setOrigin(0.5);
     earned.forEach((c, i) => {

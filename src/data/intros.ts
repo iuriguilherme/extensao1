@@ -13,8 +13,8 @@ export function openingLine(cash: string): string {
 export interface ElementText {
   /** Log line written when the element appears: what it is for. */
   log: string;
-  /** Goal line while the element is being introduced. */
-  goal: string;
+  /** Goal line while a control is being introduced; passive elements have none. */
+  goal?: string;
 }
 
 export const ELEMENT_TEXT = {
@@ -23,8 +23,7 @@ export const ELEMENT_TEXT = {
     goal: 'Abra Estudar e faça a primeira aula.',
   },
   money: {
-    log: 'A aula pagou! O seu dinheiro agora aparece no alto da tela, à direita.',
-    goal: 'O seu dinheiro fica no alto da tela. Aulas e invasões pagam; peças custam.',
+    log: 'O seu dinheiro agora aparece no alto da tela, à direita. Aulas e invasões pagam; peças custam.',
   },
   shop: {
     log: 'Loja: aqui você compra as peças que as aulas já liberaram.',
@@ -32,7 +31,6 @@ export const ELEMENT_TEXT = {
   },
   reset: {
     log: 'Apagar progresso: se um dia quiser recomeçar do zero, é por aqui.',
-    goal: 'Se um dia quiser recomeçar do zero, use Apagar progresso.',
   },
   workbench: {
     log: 'Bancada: aqui você monta o PC, encaixando as peças no gabinete.',

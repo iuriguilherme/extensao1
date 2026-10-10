@@ -19,7 +19,7 @@ export class ShopScene extends Phaser.Scene {
 
   create() {
     this.cameras.main.setBackgroundColor(COLORS.bg);
-    this.refreshHeader = header(this, 'Loja de Informática', () => this.scene.start('Hub')).refresh;
+    this.refreshHeader = header(this, 'Loja de Informática', () => this.scene.start('Hub'), 'shop').refresh;
     this.refreshObjective = goalBar(this).refresh;
     this.layer = new Layer(this);
     this.draw();

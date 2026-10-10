@@ -53,7 +53,7 @@ export class CityListScene extends Phaser.Scene {
 
   create() {
     this.cameras.main.setBackgroundColor(COLORS.bg);
-    header(this, 'Cidades', () => this.scene.start('Hub'));
+    header(this, 'Cidades', () => this.scene.start('Hub'), 'cities');
     goalBar(this);
     this.layer = new Layer(this);
     this.page = 0;

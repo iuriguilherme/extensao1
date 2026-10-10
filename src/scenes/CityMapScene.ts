@@ -84,7 +84,7 @@ export class CityMapScene extends Phaser.Scene {
     this.mapCam.setScroll(0, VIEW_SCROLL_Y);
 
     const status = progress.finished ? 'concluída' : 'em andamento';
-    header(this, `Cidade ${encodeCityCode(progress.level, progress.seed, progress.type)} · nível ${progress.level} · ${status}`, () => this.scene.start('Cities'));
+    header(this, `Cidade ${encodeCityCode(progress.level, progress.seed, progress.type)} · nível ${progress.level} · ${status}`, () => this.scene.start('Cities'), 'city-map');
     goalBar(this);
     this.info = new Layer(this);
 

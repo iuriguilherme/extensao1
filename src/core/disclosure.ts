@@ -1,7 +1,7 @@
 import type { NetNode } from '../data/nodes';
 import { PARTS, SLOTS, type Part, type Slot } from '../data/parts';
 import { TIERS } from '../data/tiers';
-import { ELEMENT_TEXT } from '../data/intros';
+import { ELEMENT_TEXT, type ElementText } from '../data/intros';
 import { isTierOpen } from './certificates';
 import { jobBoard } from './jobs';
 import { appendLog } from './log';
@@ -89,10 +89,16 @@ export function acknowledge(state: GameState, id: ElementId): void {
   advance(state);
 }
 
-/** The element being introduced names the next step; otherwise the usual objective does. */
+/**
+ * A control being introduced names the next step; otherwise the usual
+ * objective does. Passive elements need no action, so they never take it over.
+ */
 export function goalLine(state: GameState): string {
   const current = state.disclosure.current as ElementId | null;
-  if (current && isAvailable(state, current)) return ELEMENT_TEXT[current].goal;
+  if (current && !isPassive(current) && isAvailable(state, current)) {
+    const text: ElementText = ELEMENT_TEXT[current];
+    if (text.goal) return text.goal;
+  }
   return objective(state);
 }
 

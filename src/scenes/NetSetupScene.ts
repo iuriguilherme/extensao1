@@ -51,7 +51,7 @@ export class NetSetupScene extends Phaser.Scene {
 
   create() {
     this.cameras.main.setBackgroundColor(COLORS.bg);
-    header(this, 'Configuração de Rede — eth0', () => this.scene.start('Hub'));
+    header(this, 'Configuração de Rede — eth0', () => this.scene.start('Hub'), 'net-setup');
     const refreshObjective = goalBar(this).refresh;
     this.layer = new Layer(this);
     this.result = new Layer(this);

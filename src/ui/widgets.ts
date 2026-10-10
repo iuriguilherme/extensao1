@@ -128,7 +128,8 @@ export function textInput(
 
 /**
  * Top bar with title, money and a back button. The money shows only once it
- * has been introduced; a screen with a card gets a "?" at the right edge.
+ * has been introduced. A screen with a card shows it the first time it opens
+ * and gets a "?" at the right edge to show it again.
  */
 export function header(scene: Phaser.Scene, title: string, back?: () => void, card?: CardId) {
   scene.add.rectangle(0, 0, WIDTH, 56, COLORS.panel).setOrigin(0).setStrokeStyle(1, COLORS.panelBorder);
@@ -139,7 +140,10 @@ export function header(scene: Phaser.Scene, title: string, back?: () => void, ca
   refresh();
   if (isCurrent(game(), 'money')) pulse(scene, cash);
   if (back) button(scene, 12, 10, 110, 36, '< Voltar', back, { size: 16 });
-  if (card) button(scene, WIDTH - 56, 10, 40, 36, '?', () => introCard(scene, card), { size: 18, color: COLORS.info });
+  if (card) {
+    button(scene, WIDTH - 56, 10, 40, 36, '?', () => introCard(scene, card), { size: 18, color: COLORS.info });
+    showCardOnce(scene, card);
+  }
   return { refresh };
 }
 

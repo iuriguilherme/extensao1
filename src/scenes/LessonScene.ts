@@ -19,7 +19,7 @@ export class LessonScene extends Phaser.Scene {
   create(data: { id: string }) {
     this.lesson = getLesson(data.id);
     this.cameras.main.setBackgroundColor(COLORS.bg);
-    this.refreshHeader = header(this, this.lesson.title, () => this.backToStudy()).refresh;
+    this.refreshHeader = header(this, this.lesson.title, () => this.backToStudy(), 'lesson').refresh;
     this.layer = new Layer(this);
     this.showPage(0);
   }

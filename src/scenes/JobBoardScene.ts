@@ -19,7 +19,7 @@ export class JobBoardScene extends Phaser.Scene {
 
   create() {
     this.cameras.main.setBackgroundColor(COLORS.bg);
-    header(this, 'Trabalhos extras', () => this.scene.start('Hub'));
+    header(this, 'Trabalhos extras', () => this.scene.start('Hub'), 'jobs');
     goalBar(this);
     const state = game();
     const jobs = jobBoard(state);

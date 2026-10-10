@@ -26,7 +26,7 @@ export class FormaturaScene extends Phaser.Scene {
 
   create(data: FormaturaData = {}) {
     this.cameras.main.setBackgroundColor(COLORS.bg);
-    header(this, 'Formatura');
+    header(this, 'Formatura', undefined, 'formatura');
     this.layer = new Layer(this);
     this.nameField = null;
     if (data.step === 'epilogue') this.showEpilogue();

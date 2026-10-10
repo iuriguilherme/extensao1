@@ -55,6 +55,8 @@ export class MinigameScene extends Phaser.Scene {
   private seconds = 10;
   private remaining = 0;
   private running = false;
+  /** A card is open over the intrusion: its clock stops until the card closes. */
+  private paused = false;
   private revealAnswer: () => void = () => {};
   /** Concepts answered right and wrong in this run, committed when it ends. */
   private correctConcepts: ConceptId[] = [];
@@ -73,7 +75,15 @@ export class MinigameScene extends Phaser.Scene {
   create(data: MinigameData) {
     this.params = data;
     this.cameras.main.setBackgroundColor(COLORS.bg);
-    header(this, data.title, () => this.leave());
+    // Listen before the header, which may open the first-time card right away.
+    this.paused = false;
+    this.events.on('card-open', this.pause, this);
+    this.events.on('card-close', this.resume, this);
+    this.events.once('shutdown', () => {
+      this.events.off('card-open', this.pause, this);
+      this.events.off('card-close', this.resume, this);
+    });
+    header(this, data.title, () => this.leave(), 'minigame');
 
     const specs = totalSpecs(game());
     this.seconds = roundSeconds(specs.cpuPower);
@@ -98,8 +108,16 @@ export class MinigameScene extends Phaser.Scene {
     this.showRound();
   }
 
+  private pause() {
+    this.paused = true;
+  }
+
+  private resume() {
+    this.paused = false;
+  }
+
   update(_time: number, delta: number) {
-    if (!this.running) return;
+    if (!this.running || this.paused) return;
     this.remaining -= delta / 1000;
     const ratio = Math.max(0, this.remaining / this.seconds);
     this.timerBar.width = (WIDTH - 40) * ratio;

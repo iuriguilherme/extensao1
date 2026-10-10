@@ -10,7 +10,7 @@ import { describeStats, getPart, CASE_SLOTS, SLOT_LABELS } from '../data/parts';
 import { getNode, HOME_NODE_ID } from '../data/nodes';
 import { NODE_KIND_LABELS, type Contribution } from '../data/nodeBuilds';
 import { decimal, linkSpeed, money, plural } from '../core/fmt';
-import { COLORS, fitText, goalBar, header, Layer, pulse, textStyle, toast } from '../ui/widgets';
+import { COLORS, fitText, goalBar, header, Layer, pulse, showCardOnce, textStyle, toast } from '../ui/widgets';
 
 type Tab = 'case' | 'noc';
 
@@ -47,7 +47,7 @@ export class WorkbenchScene extends Phaser.Scene {
 
   create() {
     this.cameras.main.setBackgroundColor(COLORS.bg);
-    this.refreshHeader = header(this, 'Bancada', () => this.scene.start('Hub')).refresh;
+    this.refreshHeader = header(this, 'Bancada', () => this.scene.start('Hub'), 'workbench').refresh;
     this.refreshObjective = goalBar(this).refresh;
     this.layer = new Layer(this);
     this.draw();
@@ -92,7 +92,10 @@ export class WorkbenchScene extends Phaser.Scene {
       }, { size: 16, color: tab === this.tab ? COLORS.warn : COLORS.accent });
       if (tab === 'noc' && isCurrent(state, 'noc-tab')) pulse(this, b.container);
     });
-    if (this.tab === 'noc') this.drawNoc();
+    if (this.tab === 'noc') {
+      this.drawNoc();
+      showCardOnce(this, 'noc');
+    }
     else this.drawCase();
   }
 

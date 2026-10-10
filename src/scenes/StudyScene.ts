@@ -6,7 +6,7 @@ import { game, save } from '../core/store';
 import { getLesson, LESSONS, TRACK_LABELS, TRACKS, type Lesson } from '../data/lessons';
 import { TIERS } from '../data/tiers';
 import { money } from '../core/fmt';
-import { button, COLORS, fitText, goalBar, header, pulse, textStyle } from '../ui/widgets';
+import { button, COLORS, fitText, goalBar, header, pulse, showCardOnce, textStyle } from '../ui/widgets';
 
 export type StudyTab = 'course' | 'pos';
 
@@ -26,7 +26,7 @@ export class StudyScene extends Phaser.Scene {
 
   create(data: StudyData = {}) {
     this.cameras.main.setBackgroundColor(COLORS.bg);
-    header(this, 'Estudar', () => this.scene.start('Hub'));
+    header(this, 'Estudar', () => this.scene.start('Hub'), 'study');
     goalBar(this);
     // The tab switch appears only once there is a second tab to switch to.
     const hasPosTab = isVisible(game(), 'pos-tab');
@@ -35,6 +35,7 @@ export class StudyScene extends Phaser.Scene {
       this.tab(360, 'Curso', 'course', tab);
       this.tab(580, 'Pós-graduação', 'pos', tab);
     }
+    if (tab === 'pos') showCardOnce(this, 'pos');
     const listed = (lessons: Lesson[]) => lessons.filter((l) => isLessonListed(game(), l.id));
     if (tab === 'course') {
       // A track column appears with its first listed lesson.

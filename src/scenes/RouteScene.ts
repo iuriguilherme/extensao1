@@ -83,7 +83,7 @@ export class RouteScene extends Phaser.Scene {
     this.selection = Object.fromEntries(FIELDS[this.choices.kind].map((f) => [f.key, 0]));
 
     this.cameras.main.setBackgroundColor(COLORS.bg);
-    header(this, `${TITLES[this.choices.kind]} — ${this.router.name}`, () => this.back());
+    header(this, `${TITLES[this.choices.kind]} — ${this.router.name}`, () => this.back(), 'route');
     goalBar(this);
     this.layer = new Layer(this);
     this.result = new Layer(this);
