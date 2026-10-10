@@ -1,3 +1,4 @@
+import { knownDisclosure } from './disclosure';
 import { newGame, type GameState } from './state';
 
 /**
@@ -14,16 +15,22 @@ function load(): GameState {
     const raw = globalThis.localStorage?.getItem(SAVE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw) as GameState;
-      if (parsed.version === 1) {
-        const fresh = newGame();
-        // Areas added later start at level 1 in saves made before them.
-        return { ...fresh, ...parsed, areaLevels: { ...fresh.areaLevels, ...parsed.areaLevels } };
-      }
+      if (parsed.version === 1) return restore(parsed);
     }
   } catch {
     // Corrupt or unavailable storage: start fresh.
   }
   return newGame();
+}
+
+/** Merges a version 1 save over a new game, filling in fields added since it was made. */
+export function restore(parsed: GameState): GameState {
+  const fresh = newGame();
+  // Areas added later start at level 1 in saves made before them.
+  const state = { ...fresh, ...parsed, areaLevels: { ...fresh.areaLevels, ...parsed.areaLevels } };
+  // A save from before introductions existed already knows what it reached.
+  if (!parsed.disclosure) state.disclosure = knownDisclosure(state);
+  return state;
 }
 
 export function game(): GameState {

@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
-  acknowledge, advance, ELEMENTS, goalLine, isCurrent, isVisible, type ElementId,
+  acknowledge, advance, ELEMENTS, goalLine, isCardSeen, isCurrent, isVisible, knownDisclosure, markCardSeen, type ElementId,
 } from '../src/core/disclosure';
+import { restore } from '../src/core/store';
 import { LOG_CAP } from '../src/core/log';
 import { issueCertificate, presentCertificate } from '../src/core/certificates';
 import {
@@ -182,5 +183,63 @@ describe('intros text', () => {
       expect(text.log.length).toBeGreaterThan(0);
       expect(text.goal.length).toBeGreaterThan(0);
     }
+  });
+});
+
+describe('saves from before disclosure', () => {
+  function veteran(): GameState {
+    const s = online();
+    completeLesson(s, 'ethics');
+    for (const id of ['isp', 'museum', 'resolver']) breach(s, id);
+    return s;
+  }
+
+  it('counts everything an old save reached as introduced, with nothing current and no log lines', () => {
+    const s = veteran();
+    const known = knownDisclosure(s);
+    expect(known.current).toBeNull();
+    expect(known.log).toEqual([]);
+    for (const id of ['study', 'money', 'shop', 'reset', 'workbench', 'net-setup', 'net-map', 'noc-tab'] as ElementId[]) {
+      expect(known.introduced).toContain(id);
+    }
+    expect(known.introduced).not.toContain('cities');
+  });
+
+  it('marks the cards of reached screens as seen, and leaves the rest to open later', () => {
+    const known = knownDisclosure(veteran());
+    expect(known.cards).toEqual(expect.arrayContaining(['study', 'lesson', 'net-map', 'minigame', 'workbench', 'noc']));
+    expect(known.cards).not.toContain('cities');
+    expect(known.cards).not.toContain('city-map');
+  });
+
+  it('gives a save without the disclosure field the derived one, and keeps a stored one unchanged', () => {
+    const old = JSON.parse(JSON.stringify(veteran())) as Record<string, unknown>;
+    delete old.disclosure;
+    const restored = restore(old as unknown as GameState);
+    expect(restored.disclosure).toEqual(knownDisclosure(restored));
+
+    const fresh = newGame();
+    advance(fresh);
+    const kept = restore(JSON.parse(JSON.stringify(fresh)) as GameState);
+    expect(kept.disclosure).toEqual(fresh.disclosure);
+  });
+
+  it('loads a save naming an element this version does not know', () => {
+    const s = newGame();
+    s.disclosure.introduced.push('achievements');
+    const restored = restore(JSON.parse(JSON.stringify(s)) as GameState);
+    advance(restored);
+    expect(isCurrent(restored, 'study')).toBe(true);
+  });
+});
+
+describe('cards', () => {
+  it('shows a card once and remembers it', () => {
+    const s = newGame();
+    expect(isCardSeen(s, 'study')).toBe(false);
+    markCardSeen(s, 'study');
+    markCardSeen(s, 'study');
+    expect(isCardSeen(s, 'study')).toBe(true);
+    expect(s.disclosure.cards).toEqual(['study']);
   });
 });

@@ -96,14 +96,48 @@ export function goalLine(state: GameState): string {
 }
 
 /**
+ * Each screen's first-open card, with the elements that lead to the screen.
+ * A tab arriving later on a known screen (NOC, Pós-graduação) has its own card.
+ */
+export const CARDS = [
+  { id: 'study', via: ['study'] },
+  { id: 'lesson', via: ['study'] },
+  { id: 'shop', via: ['shop'] },
+  { id: 'workbench', via: ['workbench'] },
+  { id: 'noc', via: ['noc-tab'] },
+  { id: 'net-setup', via: ['net-setup'] },
+  { id: 'net-map', via: ['net-map'] },
+  { id: 'minigame', via: ['net-map', 'jobs'] },
+  { id: 'jobs', via: ['jobs'] },
+  { id: 'cities', via: ['cities'] },
+  { id: 'city-map', via: ['cities'] },
+  { id: 'route', via: ['cities'] },
+  { id: 'formatura', via: ['certificates'] },
+  { id: 'certificate', via: ['certificates'] },
+  { id: 'pos', via: ['pos-tab'] },
+] as const satisfies readonly { id: string; via: readonly ElementId[] }[];
+
+export type CardId = (typeof CARDS)[number]['id'];
+
+export function isCardSeen(state: GameState, id: CardId): boolean {
+  return state.disclosure.cards.includes(id);
+}
+
+export function markCardSeen(state: GameState, id: CardId): void {
+  if (!isCardSeen(state, id)) state.disclosure.cards.push(id);
+}
+
+/**
  * Disclosure for a save made before introductions existed: everything it can
- * already reach counts as introduced, with no log flood.
+ * already reach counts as introduced, and the screens behind it as seen, with
+ * no log flood. Screens it cannot reach yet are introduced normally later.
  */
 export function knownDisclosure(state: GameState): Disclosure {
+  const introduced = ELEMENTS.filter((e) => e.available(state)).map((e) => e.id);
   return {
-    introduced: ELEMENTS.filter((e) => e.available(state)).map((e) => e.id),
+    introduced,
     current: null,
-    cards: [],
+    cards: CARDS.filter((c) => c.via.some((id) => introduced.includes(id))).map((c) => c.id),
     log: [],
   };
 }
