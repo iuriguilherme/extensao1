@@ -84,6 +84,9 @@ The moment a newly available part of the interface first appears to the player: 
 
 Nothing is drawn before it is available, and never drawn disabled. When several things become available together, they are introduced one at a time. Something the player cannot or should not press, such as the money counter or the reset button, counts as introduced once it has been seen for a moment. Using a newly introduced part from anywhere completes its introduction, not only from the desk. A save from before introductions existed counts its reached interface as already introduced.
 
+### Music area
+A group of screens that share one piece of background music: the title, study and workbench, the maps, and side jobs and hacks. An area plays either one looping track or a setlist played in order. Moving between screens of the same area keeps the current song; changing area crossfades to the new area's music.
+
 ## Mini-games
 
 ### Concept
