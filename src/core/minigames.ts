@@ -116,8 +116,8 @@ export function roundCount(difficulty: Difficulty): number {
  * Builds the rounds of one mini-game. With a focus concept (review jobs), at
  * least two thirds of the rounds ask that concept; once its unique prompts run
  * out, it repeats a prompt with reshuffled options. With a context (city
- * nodes), subnet and 8-bit decimal-to-binary rounds use the node's addresses;
- * other rounds ignore it. Without a context, the rng draws are those of the context-free
+ * nodes), the first round and one later round use the node's addresses in
+ * subnet and 8-bit decimal-to-binary questions; other rounds ignore it. Without a context, the rng draws are those of the context-free
  * generators, so existing levels and seeds keep their rounds. A typed context
  * (typed city nodes) feeds the NAT, VLAN and IPv6 rounds the same way.
  */
@@ -129,12 +129,16 @@ export function buildRounds(
   const total = roundCount(level);
   const rounds: Round[] = [];
   const seen = new Set<string>();
+  // The node's own addresses feed only the first round and one later round;
+  // the rest are drawn like a side job's, so one intrusion does not repeat its
+  // answers. The extra draw happens only with a context.
+  const contextSlots = context ? new Set([0, randInt(rng, 1, total - 1)]) : null;
 
   const fill = (count: number, only?: ConceptId) => {
     const target = rounds.length + count;
     let repeats = 0;
     while (rounds.length < target) {
-      const round = generator(rng, level, only, context, typed);
+      const round = generator(rng, level, only, contextSlots?.has(rounds.length) ? context : undefined, typed);
       const key = round.prompt + (round.kind === 'choice' ? round.detail ?? '' : round.target);
       if (seen.has(key) && repeats++ < 200) continue;
       seen.add(key);

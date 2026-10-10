@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { networkAddress, parseIp } from '../src/core/ip';
+import { generateCity, roundContext } from '../src/core/city';
 import { buildRounds, CONCEPTS, MAX_LEVEL, roundCount, type ConceptId, type Round, type RoundContext } from '../src/core/minigames';
 import { createRng } from '../src/core/random';
 import type { MinigameId } from '../src/data/nodes';
@@ -61,24 +62,49 @@ describe('round context', () => {
     }
   };
 
-  it('asks address rounds about addresses inside the context subnet', () => {
+  /** The address a subnet round asks about, when its prompt shows one in CIDR form. */
+  const askedCidr = (r: Round) => {
+    const m = /(\d+\.\d+\.\d+\.\d+)\/(\d+)/.exec(r.prompt);
+    return m ? { ip: m[1], prefix: Number(m[2]) } : null;
+  };
+  const usesContext = (r: Round, ctx: RoundContext) => {
+    const asked = askedCidr(r);
+    return asked !== null && asked.prefix === ctx.prefix && inside(asked.ip, ctx);
+  };
+
+  it('asks about the context subnet in at most two rounds, inside it', () => {
     let asked = 0;
     for (const d of levels('subnet')) {
       for (let seed = 1; seed <= 30; seed++) {
         for (const focus of [undefined, ...ADDRESS_CONCEPTS]) {
-          for (const r of buildRounds('subnet', d, createRng(seed), focus, ctx24)) {
-            if (!ADDRESS_CONCEPTS.includes(r.concept)) continue;
+          const rounds = buildRounds('subnet', d, createRng(seed), focus, ctx24);
+          const onContext = rounds.filter((r) => usesContext(r, ctx24));
+          expect(onContext.length).toBeLessThanOrEqual(2);
+          for (const r of onContext) {
             asked++;
-            const m = /(\d+\.\d+\.\d+\.\d+)\/(\d+)/.exec(r.prompt);
-            expect(m).not.toBeNull();
-            expect(Number(m![2])).toBe(24);
-            expect(inside(m![1], ctx24)).toBe(true);
-            if (r.kind === 'choice') expect(inside(r.options[r.answer], ctx24)).toBe(true);
+            if (r.kind === 'choice' && ADDRESS_CONCEPTS.includes(r.concept)) expect(inside(r.options[r.answer], ctx24)).toBe(true);
           }
         }
       }
     }
     expect(asked).toBeGreaterThan(0);
+  });
+
+  it('draws the other rounds of a city node at its difficulty, never repeating a prompt', () => {
+    let otherPrefixes = 0;
+    for (let level = 1; level <= 12; level++) {
+      for (let seed = 1; seed <= 20; seed++) {
+        const city = generateCity(level, seed);
+        for (const node of city.nodes.filter((n) => n.minigame === 'subnet')) {
+          const ctx = roundContext(city, node.id)!;
+          const rounds = buildRounds('subnet', node.difficulty, createRng(seed), undefined, ctx);
+          expect(new Set(rounds.map((r) => r.prompt)).size).toBe(rounds.length);
+          expect(rounds.filter((r) => usesContext(r, ctx)).length).toBeLessThanOrEqual(2);
+          if (node.difficulty >= 3) otherPrefixes += rounds.filter((r) => (askedCidr(r)?.prefix ?? ctx.prefix) !== ctx.prefix).length;
+        }
+      }
+    }
+    expect(otherPrefixes).toBeGreaterThan(0);
   });
 
   it('keeps every round valid with a context', () => {
@@ -98,19 +124,18 @@ describe('round context', () => {
     }
   });
 
-  it('asks to build a nonzero octet of the host, other than the first, at binary level 3', () => {
+  it('asks to build a nonzero octet of the host, other than the first, in at most two rounds at binary level 3', () => {
     const ctx: RoundContext = { network: ip('10.4.2.0'), prefix: 24, host: ip('10.4.0.200') };
-    let checked = 0;
+    let fromHost = 0;
     for (let seed = 1; seed <= 30; seed++) {
       for (const focus of [undefined, 'binary.toBinary'] as const) {
-        for (const r of buildRounds('binary', 3, createRng(seed), focus, ctx)) {
-          if (r.kind !== 'bits') continue;
-          checked++;
-          expect([4, 200]).toContain(r.target);
-        }
+        const bits = buildRounds('binary', 3, createRng(seed), focus, ctx).filter((r) => r.kind === 'bits');
+        const octets = bits.filter((r) => r.kind === 'bits' && [4, 200].includes(r.target));
+        expect(octets.length).toBeLessThanOrEqual(2);
+        fromHost += octets.length;
       }
     }
-    expect(checked).toBeGreaterThan(0);
+    expect(fromHost).toBeGreaterThan(0);
   });
 
   it('never gives away a decimal answer that the node address shows', () => {
