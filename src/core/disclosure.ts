@@ -1,5 +1,5 @@
 import type { NetNode } from '../data/nodes';
-import { PARTS, SLOTS, type Part, type Slot } from '../data/parts';
+import { getPart, PARTS, SLOTS, type Part, type Slot } from '../data/parts';
 import { TIERS } from '../data/tiers';
 import { ELEMENT_TEXT, type ElementText } from '../data/intros';
 import { isTierOpen } from './certificates';
@@ -40,15 +40,17 @@ export const ELEMENTS: UiElement[] = [
   { id: 'net-map', available: isOnline },
   {
     id: 'noc-tab',
-    available: (s) => s.breached.length > 0 || s.noc.length > 0 || s.inventory.some((id) => PARTS.find((p) => p.id === id)?.slot === 'switch'),
+    available: (s) => s.breached.length > 0 || s.noc.length > 0 || s.inventory.some((id) => getPart(id).slot === 'switch'),
   },
   { id: 'cities', available: canStartCities },
   { id: 'certificates', available: (s) => s.certificates.some((c) => c.presented) },
   { id: 'pos-tab', available: (s) => isTierOpen(s, TIERS[0].id) },
 ];
 
+const BY_ID = new Map(ELEMENTS.map((e) => [e.id, e]));
+
 function element(id: ElementId): UiElement {
-  return ELEMENTS.find((e) => e.id === id)!;
+  return BY_ID.get(id)!;
 }
 
 export function isAvailable(state: GameState, id: ElementId): boolean {

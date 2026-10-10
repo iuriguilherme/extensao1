@@ -6,16 +6,14 @@ import { restore } from '../src/core/store';
 import { LOG_CAP } from '../src/core/log';
 import { issueCertificate, presentCertificate } from '../src/core/certificates';
 import {
-  breach, buy, completeLesson, install, newGame, objective, setNetConfig, STARTING_MONEY, uninstall, type GameState,
+  breach, buy, canBuy, completeLesson, install, newGame, objective, setNetConfig, STARTING_MONEY, uninstall, type GameState,
 } from '../src/core/state';
 
 import { CARD_TEXT, ELEMENT_TEXT, openingLine, type ElementText } from '../src/data/intros';
 import { money } from '../src/core/fmt';
 import { getNode, NODES } from '../src/data/nodes';
 import { LESSONS } from '../src/data/lessons';
-import { canBuy } from '../src/core/state';
 import { PARTS } from '../src/data/parts';
-import { TIERS } from '../src/data/tiers';
 
 const OPENING_LINE = openingLine(money(STARTING_MONEY));
 
@@ -135,7 +133,6 @@ describe('disclosure queue', () => {
     expect(isVisible(s, 'pos-tab')).toBe(false);
     issueCertificate(s, 'conclusao');
     presentCertificate(s, 'conclusao', 'Ana');
-    expect(TIERS[0]).toBeDefined();
     advance(s);
     const order = drain(s);
     expect(order).toContain('pos-tab');

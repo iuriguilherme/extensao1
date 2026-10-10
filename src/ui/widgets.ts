@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { game, save } from '../core/store';
 import { money } from '../core/fmt';
-import { goalLine, isCardSeen, isCurrent, isVisible, markCardSeen, type CardId } from '../core/disclosure';
+import { acknowledge, goalLine, isCardSeen, isCurrent, isVisible, markCardSeen, type CardId, type ElementId } from '../core/disclosure';
 import { CARD_TEXT } from '../data/intros';
 
 export const WIDTH = 1280;
@@ -138,7 +138,7 @@ export function header(scene: Phaser.Scene, title: string, back?: () => void, ca
   const cash = scene.add.text(cashRight, 28, '', textStyle(22, COLORS.warn)).setOrigin(1, 0.5);
   const refresh = () => cash.setText(money(game().money)).setVisible(isVisible(game(), 'money'));
   refresh();
-  if (isCurrent(game(), 'money')) pulse(scene, cash);
+  pulseIfCurrent(scene, 'money', cash);
   if (back) button(scene, 12, 10, 110, 36, '< Voltar', back, { size: 16 });
   if (card) {
     button(scene, WIDTH - 56, 10, 40, 36, '?', () => introCard(scene, card), { size: 18, color: COLORS.info });
@@ -176,6 +176,19 @@ export function messageLog(scene: Phaser.Scene, x: number, y: number, w: number,
 /** Marks an element being introduced: it breathes until the player uses it. */
 export function pulse(scene: Phaser.Scene, target: Phaser.GameObjects.Container | Phaser.GameObjects.Text) {
   return scene.tweens.add({ targets: target, alpha: 0.45, yoyo: true, repeat: -1, duration: 650, ease: 'Sine.easeInOut' });
+}
+
+/** Pulses the element's control while it is the one being introduced. */
+export function pulseIfCurrent(scene: Phaser.Scene, id: ElementId, target: Phaser.GameObjects.Container | Phaser.GameObjects.Text) {
+  if (isCurrent(game(), id)) pulse(scene, target);
+}
+
+/** Using the element being introduced counts as its introduction; the next one may appear. */
+export function useElement(id: ElementId): void {
+  const state = game();
+  if (!isCurrent(state, id)) return;
+  acknowledge(state, id);
+  save();
 }
 
 /**

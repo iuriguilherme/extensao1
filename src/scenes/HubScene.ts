@@ -1,12 +1,12 @@
 import Phaser from 'phaser';
-import { acknowledge, advance, isCurrent, isPassive, isVisible, type ElementId } from '../core/disclosure';
+import { acknowledge, advance, isPassive, isVisible, type ElementId } from '../core/disclosure';
 import { mistakesAllowed, roundSeconds } from '../core/hardware';
 import { isOnline, phaseOf, specsOf } from '../core/state';
 import { connectedNodes, swarmReport, totalSpecs } from '../core/swarm';
 import { game, resetGame, save } from '../core/store';
 import { getPart, SLOT_LABELS } from '../data/parts';
 import { alignColumns, decimal, linkSpeed, plural } from '../core/fmt';
-import { button, COLORS, fitText, goalBar, header, HEIGHT, messageLog, panel, pulse, textStyle, toast, WIDTH } from '../ui/widgets';
+import { button, COLORS, fitText, goalBar, header, HEIGHT, messageLog, panel, pulseIfCurrent, textStyle, toast, useElement, WIDTH } from '../ui/widgets';
 import { startPendingCeremony, type CertificateData } from './CertificateScene';
 
 export interface HubData {
@@ -124,7 +124,7 @@ export class HubScene extends Phaser.Scene {
     main.filter((item) => isVisible(state, item.id)).forEach((item, i) => {
       const y = 76 + i * 78;
       const b = button(this, x, y, w, 48, item.label, () => this.use(item), { size: 22 });
-      if (isCurrent(state, item.id)) pulse(this, b.container);
+      pulseIfCurrent(this, item.id, b.container);
       fitText(this.add.text(x + 4, y + 53, item.hint, textStyle(13, COLORS.muted)), w - 8);
     });
 
@@ -145,17 +145,13 @@ export class HubScene extends Phaser.Scene {
     const w3 = (w - gap * 2) / 3;
     side.filter((item) => isVisible(state, item.id)).forEach((item, i) => {
       const b = button(this, x + i * (w3 + gap), 560, w3, 44, item.label, () => this.use(item), { size: 16, color: item.color });
-      if (isCurrent(state, item.id)) pulse(this, b.container);
+      pulseIfCurrent(this, item.id, b.container);
     });
   }
 
   /** Opening the element being introduced counts as using it; passive ones advance on their own. */
   private use(item: MenuItem) {
-    const state = game();
-    if (isCurrent(state, item.id) && !isPassive(item.id)) {
-      acknowledge(state, item.id);
-      save();
-    }
+    if (!isPassive(item.id)) useElement(item.id);
     item.open();
   }
 }

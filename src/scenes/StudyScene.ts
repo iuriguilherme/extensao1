@@ -1,12 +1,12 @@
 import Phaser from 'phaser';
 import { isTierOpen } from '../core/certificates';
-import { acknowledge, isCurrent, isLessonListed, isVisible } from '../core/disclosure';
+import { isLessonListed, isVisible } from '../core/disclosure';
 import { hasLesson } from '../core/state';
-import { game, save } from '../core/store';
+import { game } from '../core/store';
 import { getLesson, LESSONS, TRACK_LABELS, TRACKS, type Lesson } from '../data/lessons';
 import { TIERS } from '../data/tiers';
 import { money } from '../core/fmt';
-import { button, COLORS, fitText, goalBar, header, pulse, showCardOnce, textStyle } from '../ui/widgets';
+import { button, COLORS, fitText, goalBar, header, pulseIfCurrent, showCardOnce, textStyle, useElement } from '../ui/widgets';
 
 export type StudyTab = 'course' | 'pos';
 
@@ -53,13 +53,10 @@ export class StudyScene extends Phaser.Scene {
     if (id !== current) {
       const b = button(this, x, 10, 200, 36, label, () => {
         // The Pós-graduação tab is introduced like a desk entry: opening it is using it.
-        if (id === 'pos' && isCurrent(game(), 'pos-tab')) {
-          acknowledge(game(), 'pos-tab');
-          save();
-        }
+        if (id === 'pos') useElement('pos-tab');
         this.scene.restart({ tab: id });
       }, { size: 16, color: COLORS.info });
-      if (id === 'pos' && isCurrent(game(), 'pos-tab')) pulse(this, b.container);
+      if (id === 'pos') pulseIfCurrent(this, 'pos-tab', b.container);
       return;
     }
     this.add.rectangle(x, 10, 200, 36, COLORS.accentDim).setOrigin(0).setStrokeStyle(2, COLORS.accent);
